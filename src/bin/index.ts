@@ -1,3 +1,7 @@
 export interface iDefaultEnvs { }
 
-console.log("start")
+function a(s: string) {
+  console.log(s)
+}
+
+console.log(a("start"))
