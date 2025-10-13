@@ -1,9 +1,9 @@
-import { TestController } from "@/controllers/TestController";
+import { MainController } from "@/controllers/MainController";
 import { HTTPServer } from "@/libs"
 
 export interface iDefaultEnvs { }
 
-const testController = new TestController()
+const testController = new MainController()
 
 const httpServer = new HTTPServer()
 

@@ -1,6 +1,6 @@
 import { iRoute } from "@/libs";
 
-export class TestController {
+export class MainController {
   readonly routes: iRoute[] = [
     {
       url: "/",
@@ -12,7 +12,7 @@ export class TestController {
   constructor() { }
   getList(): Promise<{ result: [] }> {
     return new Promise((resolve, reject) => {
-      return resolve({ result: [] })
+
     })
   }
 }
