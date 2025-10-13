@@ -1,7 +1,12 @@
+import { TestController } from "@/controllers/TestController";
+import { HTTPServer } from "@/libs"
+
 export interface iDefaultEnvs { }
 
-function a(s: string) {
-  console.log(s)
-}
+const testController = new TestController()
 
-console.log(a("start"))
+const httpServer = new HTTPServer()
+
+httpServer.use(testController.routes)
+
+httpServer.listen("8081")
