@@ -8,4 +8,10 @@ const mainController = new MainController()
 
 httpServer.use(mainController.routes)
 
-httpServer.listen("8081")
+httpServer.listen("8081");
+
+["uncaughtException", "unhandledRejection"].forEach((e) => {
+  process.on(e, (error) => {
+    console.log(error)
+  })
+});
