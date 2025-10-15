@@ -12,7 +12,7 @@ export class MainController {
   constructor() { }
   getList(): Promise<{ result: [] }> {
     return new Promise((resolve, reject) => {
-
+      return resolve({ result: [] })
     })
   }
 }
