@@ -1,0 +1,183 @@
+Agent rules
+
+1. HTTP handling rules
+
+- nginx не входит в приложение и не участвует в application logging.
+- nginx обрабатывает только свои технические сценарии:
+  - static request
+  - OPTIONS request
+  - method denied for nginx location
+- nginx использует access_log только для ответов с HTTP 405.
+- Все API requests должны передаваться через proxy_pass в httpServer.
+
+- httpServer является входной точкой обработки API request и обязан:
+  - parse request
+  - resolve route
+  - extract token/cookie
+  - authenticate
+  - validate payload
+
+- httpServer должен возвращать:
+  - 400 Bad Request при некорректном формате запроса или невозможности корректно обработать входные данные на уровне HTTP/parsing
+  - 401 Unauthorized при отсутствии токена, невалидном токене или ошибке аутентификации
+  - 404 Not Found при отсутствии route
+  - 422 Unprocessable Content при ошибке валидации payload
+
+- controller обязан:
+  - check access
+  - call service
+  - map service errors to HTTP response
+
+- controller должен возвращать:
+  - 403 Forbidden при access denied
+  - 404 Not Found при NotFoundError
+  - 409 Conflict при ConflictError
+  - 500 Internal Server Error при InternalError или иной необработанной внутренней ошибке
+
+- service обязан:
+  - execute business logic
+  - access DB
+  - throw domain/internal errors
+
+- service не должен знать о HTTP status codes напрямую.
+- service не должен возвращать HTTP response и не должен принимать архитектурные решения уровня transport/protocol.
+- controller является слоем, который преобразует ошибки service в HTTP response.
+
+2. Application logging rules
+
+- nginx не включается в application logging map.
+- application logging выполняется только на уровнях:
+  - httpServer
+  - controller
+  - service
+
+- Каждый лог должен содержать достаточно контекста для понимания источника события.
+- Нельзя логировать чувствительные данные в сыром виде.
+- Payload разрешено логировать только в очищенном виде как sanitized payload.
+
+  2.1. Logging rules for httpServer
+
+- info -> route resolved
+- info -> route not found
+- warn -> token validation error
+- warn -> payload parse error
+- warn -> payload validation failed
+- debug -> controller call
+  - controller name
+  - controller method
+  - sanitized payload
+- error -> unhandled server error
+
+  2.2. Logging rules for controller
+
+- info -> controller name, controller method name
+- debug -> service call
+  - service name
+  - service method
+  - request context
+- warn -> access denied
+- error -> controller exception
+
+  2.3. Logging rules for service
+
+- info -> service name, service method name
+- debug -> method start
+- debug -> DB call
+- debug -> method success
+- info -> entity not found
+- warn -> conflict / business rule failed
+- error -> DB error / internal exception
+
+3. Restrictions
+
+- Не смешивать HTTP handling rules и application logging rules в одной логике принятия решений.
+- Не включать nginx в application logging map.
+- Не логировать пароль, токен, cookie, персональные данные и иные чувствительные данные в открытом виде.
+- Использовать только sanitized payload, если логирование payload действительно необходимо.
+- Не дублировать одинаковые логи без необходимости.
+- Не менять уровень логирования без явной причины.
+- Не переносить HTTP status mapping в service.
+- Не использовать service как слой HTTP-ответов.
+- Проверка access на уровне endpoint должна выполняться в controller.
+- Бизнес-логика и работа с данными должны выполняться в service.
+- Ошибки service должны преобразовываться в HTTP status codes только на уровне controller.
+
+4. Reference architecture
+
+user
+|
+v
+nginx
+├─ static request   -> 200 / 404
+├─ OPTIONS request  -> 204
+├─ method denied    -> 405
+└─ API request      -> proxy_pass
+                          |
+                          v
+                          httpServer
+                          ├─ parse request
+                          ├─ resolve route
+                          ├─ extract token/cookie
+                          ├─ authenticate
+                          ├─ validate payload
+                          └─ fail -> 400 / 401 / 404 / 422
+                          |
+                          v
+                          controller
+                          ├─ check access
+                          ├─ call service
+                          ├─ map NotFoundError -> 404
+                          ├─ map ConflictError -> 409
+                          ├─ map InternalError -> 500
+                          └─ fail -> 403
+                          |
+                          v
+                          service
+                          ├─ execute business logic
+                          ├─ access DB
+                          └─ throw domain/internal errors
+
+5. Reference logging map
+
+application logging map
+
+httpServer
+├─ info   -> route resolved
+├─ info   -> route not found
+├─ warn   -> token validation error
+├─ warn   -> payload parse error
+├─ warn   -> payload validation failed
+├─ debug  -> controller call
+│           ├─ controller name
+│           ├─ controller method
+│           └─ sanitized payload
+└─ error -> unhandled server error
+
+controller
+├─ info   -> controller name, controller method name
+├─ debug  -> service call
+│           ├─ service name
+│           ├─ service method
+│           └─ request context
+├─ warn -> access denied
+└─ error -> controller exception
+
+service
+├─ info -> service name, service method name
+├─ debug -> method start
+├─ debug -> DB call
+├─ debug -> method success
+├─ info -> entity not found
+├─ warn -> conflict / business rule failed
+└─ error -> DB error / internal exception
+
+6. Type declaration policy
+
+- Храни все `interface` и `type` только в `./@types`.
+- Раскладывай их по доменным namespace и соответствующим файлам.
+- Для доменных сущностей используй `./@types/models/<domain>.d.ts`.
+- Для HTTP-контрактов используй `./@types/http/<domain>.d.ts` или `./@types/http.d.ts`, если структура плоская.
+- Не объявляй `interface` и `type` внутри файлов с бизнес-логикой.
+- Если тип нужен только одному модулю, он все равно должен быть вынесен в соответствующий файл внутри `./@types`, если не является сугубо локальным техническим generic-типом.
+- Перед созданием нового типа проверь, нет ли уже подходящего объявления в `./@types`.
+- Не дублируй одинаковые структуры под разными именами.
