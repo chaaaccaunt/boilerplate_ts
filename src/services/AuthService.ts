@@ -17,8 +17,7 @@ export class AuthService {
     }
 
     const tokenPayload: iContracts.iUserToken = {
-      uid: user.uid,
-      roles: []
+      uid: user.uid
     }
     const signOptions: { audience?: string, issuer?: string } = {}
 

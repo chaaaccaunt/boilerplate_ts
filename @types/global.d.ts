@@ -4,13 +4,12 @@ import { UUID } from "crypto"
 declare global {
   namespace iContracts {
 
-    type iRoleId = 1 | 2
     interface iUserToken {
       uid: UUID,
-      roles: iRoleId[]
+      claims?: iPayload
     }
 
-    type iMiddlewares = ("httpTokenValidator" | "payloadValidator" | "httpRoleValidator")
+    type iMiddlewares = ("httpTokenValidator" | "payloadValidator")
     type iPayloadValue = string | number | boolean | null | iPayload | iPayloadValue[]
     type iPayload = Record<string, iPayloadValue>
 

@@ -71,6 +71,13 @@ Agent rules
 - service не должен формировать response envelope вручную.
 - controller может вернуть transport instructions через controller result, например `setCookies` или `clearCookies`, но httpServer обязан применить их и самостоятельно сформировать итоговый JSON response.
 
+  1.2. Authentication and authorization policy
+
+- Boilerplate не должен зашивать конкретную role-based access policy в ядро.
+- Базовый token payload должен быть project-neutral: `uid` и optional `claims`.
+- Конкретные роли, permissions, ownership rules, tenant rules и endpoint access policy определяются проектом, а не boilerplate.
+- Подробные правила для агентов: `./docs/agent-auth-policy.md`.
+
 2. Logging semantics
 
 - nginx не включается в logging map.
