@@ -1,30 +1,18 @@
 {
-  "name": "net",
+  "name": "boilerplate-ts",
   "version": "1.0.0",
-  "main": "index.ts",
+  "private": true,
+  "workspaces": [
+    "back",
+    "front"
+  ],
   "scripts": {
-    "serve": "nodemon"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.12.2",
-    "@types/webpack": "^5.28.5",
-    "nodemon": "^3.1.10",
-    "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3",
-    "webpack": "^5.99.9",
-    "webpack-cli": "^6.0.1"
-  },
-  "dependencies": {
-    "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.22.2",
-    "sequelize": "^6.37.7",
-    "socket.io": "^4.8.1"
+    "dev:back": "npm --workspace back run start",
+    "dev:front": "npm --workspace front run serve",
+    "typecheck": "npm --workspace back run typecheck",
+    "typecheck:front": "npm --workspace front run typecheck",
+    "typecheck:all": "npm run typecheck && npm run typecheck:front",
+    "build:back": "npm --workspace back run build",
+    "build:front": "npm --workspace front run build"
   }
 }
