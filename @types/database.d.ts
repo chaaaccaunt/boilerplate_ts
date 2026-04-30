@@ -1,8 +1,7 @@
-import { mDatabase, tDatabase } from "@/database";
+import { iModels } from "@/database";
 
 declare global {
-  declare namespace iDatabase {
-    interface Models extends mDatabase { }
-    interface Instances extends tDatabase { }
+  namespace iDatabase {
+    interface Models extends iModels { }
   }
 }

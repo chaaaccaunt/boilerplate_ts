@@ -1,9 +1,8 @@
 import type { iDefaultEnvs } from "@/bin"
-import type { iHTTPServer } from "@/libs"
+import type { iBootstrapEnv } from "@/bootstrap";
 
 declare global {
   declare namespace NodeJS {
-    interface ProcessEnv extends iDefaultEnvs, iHTTPServer {
-    }
+    interface ProcessEnv extends iBootstrapEnv { }
   }
 }

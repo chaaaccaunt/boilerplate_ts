@@ -1,5 +1,14 @@
 Agent rules
 
+0. Task execution policy
+
+- Агент обязан выполнять только явно запрошенный объем работы.
+- Если действие не было явно запрошено пользователем, агент считает его запрещенным, даже если оно кажется логичным продолжением задачи.
+- Создание сущности не означает ее автоматическое подключение. Подключение, интеграция и изменение вызывающего кода выполняются только по отдельному явному запросу.
+- Если задача неоднозначна, затрагивает архитектуру или может изменить поведение соседнего кода, агент обязан сначала задать уточняющий вопрос.
+- Если агент видит ошибку вне запрошенной области, он должен сообщить о ней, но не исправлять без отдельного разрешения.
+- Перед изменением существующих файлов агент обязан кратко указать, какие файлы будут изменены и зачем.
+
 1. HTTP handling rules
 
 - nginx не входит в приложение и не участвует в application logging.
@@ -22,6 +31,7 @@ Agent rules
   - 401 Unauthorized при отсутствии токена, невалидном токене или ошибке аутентификации
   - 404 Not Found при отсутствии route
   - 422 Unprocessable Content при ошибке валидации payload
+- Если pre-controller этап завершен успешно, httpServer обязан передать управление в controller через `return controller.callback(request, response)`.
 
 - controller обязан:
   - check access
@@ -43,19 +53,33 @@ Agent rules
 - service не должен возвращать HTTP response и не должен принимать архитектурные решения уровня transport/protocol.
 - controller является слоем, который преобразует ошибки service в HTTP response.
 
-2. Application logging rules
+  1.1. API response format
 
-- nginx не включается в application logging map.
-- application logging выполняется только на уровнях:
+- Все API responses должны возвращаться как JSON с `Content-Type: application/json; charset=utf-8`.
+- httpServer обязан использовать единый response envelope.
+- Успешный response:
+  - `ok: true`
+  - `result: <response payload>`
+  - `error: null`
+- Ошибочный response:
+  - `ok: false`
+  - `result: null`
+  - `error.code: string`
+  - `error.message: string`
+- Данные успешного ответа должны передаваться в поле `result`, чтобы не создавать `response.data.data` на frontend.
+- controller не должен формировать response envelope вручную.
+- service не должен формировать response envelope вручную.
+- controller может вернуть transport instructions через controller result, например `setCookies` или `clearCookies`, но httpServer обязан применить их и самостоятельно сформировать итоговый JSON response.
+
+2. Logging semantics
+
+- nginx не включается в logging map.
+- logging выполняется только на уровнях:
   - httpServer
   - controller
   - service
 
-- Каждый лог должен содержать достаточно контекста для понимания источника события.
-- Нельзя логировать чувствительные данные в сыром виде.
-- Payload разрешено логировать только в очищенном виде как sanitized payload.
-
-  2.1. Logging rules for httpServer
+  2.1. Logging semantics for httpServer
 
 - info -> route resolved
 - info -> route not found
@@ -68,7 +92,7 @@ Agent rules
   - sanitized payload
 - error -> unhandled server error
 
-  2.2. Logging rules for controller
+  2.2. Logging semantics for controller
 
 - info -> controller name, controller method name
 - debug -> service call
@@ -78,7 +102,7 @@ Agent rules
 - warn -> access denied
 - error -> controller exception
 
-  2.3. Logging rules for service
+  2.3. Logging semantics for service
 
 - info -> service name, service method name
 - debug -> method start
@@ -90,10 +114,11 @@ Agent rules
 
 3. Restrictions
 
-- Не смешивать HTTP handling rules и application logging rules в одной логике принятия решений.
-- Не включать nginx в application logging map.
+- Не смешивать HTTP handling rules и logging semantics в одной логике принятия решений.
+- Не включать nginx в logging map.
 - Не логировать пароль, токен, cookie, персональные данные и иные чувствительные данные в открытом виде.
 - Использовать только sanitized payload, если логирование payload действительно необходимо.
+- Не логировать payload повторно на уровнях controller и service.
 - Не дублировать одинаковые логи без необходимости.
 - Не менять уровень логирования без явной причины.
 - Не переносить HTTP status mapping в service.
@@ -101,6 +126,10 @@ Agent rules
 - Проверка access на уровне endpoint должна выполняться в controller.
 - Бизнес-логика и работа с данными должны выполняться в service.
 - Ошибки service должны преобразовываться в HTTP status codes только на уровне controller.
+- Каждый лог должен содержать достаточно контекста для понимания источника события.
+- Нельзя логировать чувствительные данные в сыром виде.
+- Payload разрешено логировать только в очищенном виде как sanitized payload.
+- Payload должен логироваться только один раз на запрос и только на уровне httpServer в событии `controller call`.
 
 4. Reference architecture
 
@@ -137,47 +166,13 @@ nginx
                           ├─ access DB
                           └─ throw domain/internal errors
 
-5. Reference logging map
+5. Development logging policy
 
-application logging map
-
-httpServer
-├─ info   -> route resolved
-├─ info   -> route not found
-├─ warn   -> token validation error
-├─ warn   -> payload parse error
-├─ warn   -> payload validation failed
-├─ debug  -> controller call
-│           ├─ controller name
-│           ├─ controller method
-│           └─ sanitized payload
-└─ error -> unhandled server error
-
-controller
-├─ info   -> controller name, controller method name
-├─ debug  -> service call
-│           ├─ service name
-│           ├─ service method
-│           └─ request context
-├─ warn -> access denied
-└─ error -> controller exception
-
-service
-├─ info -> service name, service method name
-├─ debug -> method start
-├─ debug -> DB call
-├─ debug -> method success
-├─ info -> entity not found
-├─ warn -> conflict / business rule failed
-└─ error -> DB error / internal exception
+- Во время разработки агент обязан соблюдать logging map по месту возникновения события и его уровню.
+- Формат вывода и расширенный контекст логов определяются DevDebugger.
+- Агент не должен вручную дублировать расширенный контекст в сообщении лога без необходимости.
+- Временные диагностические логи, не соответствующие logging map, должны удаляться перед завершением задачи.
 
 6. Type declaration policy
 
-- Храни все `interface` и `type` только в `./@types`.
-- Раскладывай их по доменным namespace и соответствующим файлам.
-- Для доменных сущностей используй `./@types/models/<domain>.d.ts`.
-- Для HTTP-контрактов используй `./@types/http/<domain>.d.ts` или `./@types/http.d.ts`, если структура плоская.
-- Не объявляй `interface` и `type` внутри файлов с бизнес-логикой.
-- Если тип нужен только одному модулю, он все равно должен быть вынесен в соответствующий файл внутри `./@types`, если не является сугубо локальным техническим generic-типом.
-- Перед созданием нового типа проверь, нет ли уже подходящего объявления в `./@types`.
-- Не дублируй одинаковые структуры под разными именами.
+Агент обязан выносить все domain types и interfaces в ./@types и размещать их в соответствующем файле согласно доменному namespace. Не следует объявлять такие типы в runtime-файлах, кроме случаев, когда это оправдано локальным техническим использованием и не относится к доменной модели.

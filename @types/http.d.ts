@@ -1,11 +1,13 @@
 declare module "http" {
   interface IncomingMessage {
-    user: iUserToken
-    body: Record<any, any>
-    scheme?: { [key: string]: iValidator }
-    requiredRoles?: iRoleId[]
+    user: iContracts.iUserToken
+    body: iContracts.iPayload
+    scheme?: iContracts.iScheme
+    requiredRoles?: iContracts.iRoleId[]
   }
   interface ServerResponse {
-    json: ({ error, status, result, headers }: { error: boolean, status: number, result: any, headers?: OutgoingHttpHeaders }) => void;
+    json: ({ error, status, result, headers }: { error: boolean, status: number, result: unknown, headers?: OutgoingHttpHeaders }) => void;
   }
 }
+
+export { }
