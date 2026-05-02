@@ -63,11 +63,30 @@ Cookie-based authentication requests должны использовать `cred
 
 Domain API clients должны использовать shared DTO contracts для request payload и response result.
 
+Frontend route guard должен проверять валидность сессии через:
+
+```text
+GET /v1/gateway/authorization/state
+```
+
+Guard должен принимать решение по HTTP status:
+
+- `200` -> сессия валидна, переход разрешен;
+- любой статус, отличный от `200` -> локальный auth state/profile cache очищается, пользователь перенаправляется на `/login`.
+
+Frontend может восстанавливать UI-профиль из публичной profile cookie, но не должен считать ее источником авторизации.
+
+Profile cookie используется только как UI-cache. Access decisions должны зависеть только от результата `/authorization/state` и backend-проверок.
+
 ## Внешний URL dev-server
 
 Frontend dev-server должен работать локально по умолчанию и поддерживать внешние HTTPS development domains при необходимости.
 
 `VUE_APP_BASE_URL` зарезервирован для API base URL.
+
+`VUE_APP_BASE_URL` является обязательной переменной окружения для frontend API client.
+
+Если `VUE_APP_BASE_URL` не задан, frontend должен падать с понятной ошибкой и не должен подставлять fallback вроде пустой строки или `undefined`.
 
 Если задан `VUE_APP_HOSTNAME`, `front/vue.config.js` должен выводить dev-server `allowedHosts` и HMR websocket settings из этого значения.
 

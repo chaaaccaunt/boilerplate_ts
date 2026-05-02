@@ -55,3 +55,27 @@ private readonly exceptions: iLibs.Exceptions
 
 `AppConfiguration`, env helpers и готовый `config` относятся к libs и должны находиться внутри `./back/src/libs/Config`.
 Отдельный bootstrap layer не используется.
+
+## Production bundle backend
+
+Production-сборка backend должна собираться как Node.js bundle.
+
+Основной результат сборки должен находиться в `./back/dist/app.js` и запускаться командой:
+
+```bash
+npm run start:back:dist
+```
+
+Backend bundle должен быть рассчитан на запуск без локальной папки `node_modules` рядом с `dist`.
+Runtime-зависимости, необходимые приложению, должны попадать в bundle.
+
+Webpack-конфигурация backend должна:
+
+- использовать `target: "node"`;
+- отключать browser polyfills для Node.js core modules;
+- собирать единый server entrypoint без frontend-oriented code splitting;
+- не включать optional database drivers, которые не используются проектом;
+- оставлять MySQL runtime совместимым с `sequelize` и `mysql2`;
+- использовать production-оптимизации, подходящие для крупных production-приложений.
+
+Если проект меняет основной database dialect, список ignored optional database drivers в `./back/webpack.config.ts` должен быть пересмотрен явно.

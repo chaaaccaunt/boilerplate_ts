@@ -46,11 +46,11 @@ export class SomeModel extends Model<InferAttributes<SomeModel>, InferCreationAt
 
 ```ts
 import { getUserModel, UserModel } from "./models/users/UserModel"
-import { getRoleModel, RoleModel } from "./models/roles/RoleModel"
+import { getUserRoleModel, UserRoleModel } from "./models/users/UserRoleModel"
 
 export interface iModels {
   User: typeof UserModel
-  Role: typeof RoleModel
+  UserRole: typeof UserRoleModel
 }
 
 export class Database {
@@ -61,7 +61,7 @@ export class Database {
     this.sequelize = new Sequelize(config)
     this.models = {
       User: getUserModel(this.sequelize),
-      Role: getRoleModel(this.sequelize)
+      UserRole: getUserRoleModel(this.sequelize)
     }
 
     Object.keys(this.models).forEach((key) => {
@@ -70,3 +70,27 @@ export class Database {
   }
 }
 ```
+
+## Роли пользователя и справочник ролей
+
+Если модель содержит `userUid` и описывает роль конкретного пользователя, она является связующей сущностью пользователя и роли.
+
+В таком случае предпочтительное имя:
+
+- model class: `UserRoleModel`;
+- table name: `user_roles`;
+- shared DTO: `UserRoleDto`.
+
+Имя `RoleModel` следует использовать для справочника ролей, который не привязан напрямую к одному пользователю.
+
+Если проекту нужны расширяемые роли и permissions, предпочтительная схема:
+
+```text
+users
+roles
+user_roles
+permissions
+role_permissions
+```
+
+Boilerplate не должен зашивать конкретную role-based access policy в ядро. Модели ролей могут быть подготовлены как infrastructure, но конкретные правила доступа принадлежат проекту.

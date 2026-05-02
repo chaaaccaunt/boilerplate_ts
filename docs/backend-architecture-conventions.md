@@ -12,6 +12,116 @@
 - nginx использует `access_log` только для ответов с HTTP 405.
 - Все API requests должны передаваться через `proxy_pass` в `httpServer`.
 
+## Режим работы базы данных
+
+Backend использует только один переключатель режима работы с БД: `NODE_ENV`.
+
+При `NODE_ENV=production` приложение должно:
+
+- выполнять только `database.sequelize.authenticate()`;
+- не вызывать `database.sequelize.sync()`;
+- не запускать seed;
+- падать с ошибкой, если production schema не подготовлена заранее.
+
+При любом другом значении `NODE_ENV` приложение должно:
+
+- выполнять `database.sequelize.authenticate()`;
+- затем обязательно выполнять `database.sequelize.sync()`;
+- затем обязательно запускать dev seed.
+
+Отдельный env-флаг для включения или отключения `sync()` не используется.
+
+Разделение production и development БД должно обеспечиваться разными env-файлами:
+
+- `.prod.env` должен указывать production database и production database user;
+- `.dev.env` должен указывать development database и development database user.
+
+Production database user по возможности не должен иметь прав на изменение структуры таблиц.
+
+## Cookie, CORS и CSRF
+
+Actual API responses от `httpServer` должны отправлять только CORS headers, необходимые браузеру для чтения ответа:
+
+- `Access-Control-Allow-Origin`;
+- `Access-Control-Allow-Credentials`;
+- `Vary: Origin`.
+
+Preflight headers `Access-Control-Allow-Methods` и `Access-Control-Allow-Headers` должны отправляться только на `OPTIONS` response на уровне nginx.
+
+Cookie policy должна быть явно описана и не должна подбираться fallback-значениями.
+
+Для cookie-based authentication необходимо отдельно определить CSRF-стратегию. Минимальная стратегия для boilerplate:
+
+- проверять `Origin` для state-changing requests: `POST`, `PATCH`, `DELETE`;
+- разрешать только `config.http.origin`;
+- при несовпадении origin возвращать `403 Forbidden`;
+- не раскрывать клиенту внутренние детали access policy.
+
+## Проверка состояния авторизации
+
+Frontend route guard должен проверять состояние авторизации через API endpoint:
+
+```text
+GET /v1/gateway/authorization/state
+```
+
+Backend route `/authorization/state` должен использовать `httpTokenValidator`.
+
+Если auth cookie и JWT валидны, endpoint должен вернуть `200 OK` и стандартный response envelope:
+
+```json
+{
+  "ok": true,
+  "result": {
+    "authenticated": true
+  },
+  "error": null
+}
+```
+
+Если auth cookie отсутствует, просрочена или невалидна, endpoint должен вернуть ошибочный response и очистить все cookies, связанные с авторизацией:
+
+- auth cookie;
+- profile cookie.
+
+Очистка cookies на pre-controller этапе должна выполняться через transport instructions middleware/httpServer, а не через controller.
+
+Frontend route guard должен принимать решение по HTTP status:
+
+- `200` -> сессия валидна, переход разрешен;
+- любой статус, отличный от `200` -> frontend очищает локальный auth state/profile cache и перенаправляет пользователя на `/login`.
+
+## Публичная profile cookie
+
+После успешной авторизации backend может установить дополнительную публичную profile cookie для frontend bootstrap.
+
+Profile cookie:
+
+- не должна быть `httpOnly`;
+- должна содержать только безопасный JSON profile для отображения интерфейса;
+- не должна содержать пароль, password hash, auth token, internal identifiers и иные чувствительные данные;
+- не должна использоваться для принятия access decisions.
+
+Auth cookie остается единственным источником подтверждения сессии.
+
+Profile cookie является только UI-cache. Backend access decisions должны опираться на валидный auth cookie/JWT и server-side проверки.
+
+## Миграции
+
+Production schema changes не должны выполняться через runtime `sequelize.sync()`.
+
+Production database schema должна подготавливаться отдельным migration process до запуска приложения.
+
+Допустимые варианты migration runner:
+
+- Umzug;
+- sequelize-cli;
+- собственный минимальный migration runner.
+
+Для boilerplate предпочтителен Umzug, если нет отдельного требования к другому инструменту.
+
+Runtime backend в production отвечает за подключение к БД и проверку готовности schema через реальные запросы, но не изменяет schema самостоятельно.
+
 `httpServer` является входной точкой обработки API request и обязан:
 
 - parse request

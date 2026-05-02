@@ -1,7 +1,7 @@
 import type { UUID } from "crypto";
 import { CreationOptional, DataTypes, InferAttributes, InferCreationAttributes, Model, Sequelize } from "sequelize";
 import type { Association, NonAttribute } from "sequelize";
-import type { RoleModel } from "../roles/RoleModel";
+import type { UserRoleModel } from "./UserRoleModel";
 
 export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> implements iSharedUser.PublicUserDto {
   declare uid: CreationOptional<UUID>
@@ -15,13 +15,13 @@ export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAt
   declare readonly fullName: CreationOptional<string>
 
   static associate(models: iDatabase.Models) {
-    this.hasMany(models.Role, { foreignKey: "userUid", as: "roles" })
+    this.hasMany(models.UserRole, { foreignKey: "userUid", as: "roles" })
   }
 
-  declare roles: NonAttribute<RoleModel[]>
+  declare roles: NonAttribute<UserRoleModel[]>
 
   declare static associations: {
-    roles: Association<UserModel, RoleModel>
+    roles: Association<UserModel, UserRoleModel>
   };
 }
 

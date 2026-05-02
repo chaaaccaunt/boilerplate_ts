@@ -15,7 +15,7 @@ export async function seedAuthorizationData(models: iDatabase.Models): Promise<v
   })
 
   for (const name of testRoles) {
-    await models.Role.findOrCreate({
+    await models.UserRole.findOrCreate({
       where: {
         userUid: user.uid,
         name

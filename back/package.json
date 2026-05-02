@@ -5,14 +5,19 @@
   "main": "src/bin/index.ts",
   "scripts": {
     "start": "nodemon",
+    "start:dist": "node dist/app.js",
     "typecheck": "tsc --noEmit",
     "build": "webpack --config webpack.config.ts"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.12.2",
     "@types/webpack": "^5.28.5",
+    "babel-loader": "^8.4.1",
     "nodemon": "^3.1.10",
+    "terser-webpack-plugin": "^5.5.0",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",

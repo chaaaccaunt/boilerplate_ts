@@ -13,6 +13,35 @@ Frontend не должен зависеть от:
 
 Shared contracts описывают только JSON-safe DTO shape, который пересекает HTTP boundary.
 
+## Строгость contracts и fallback-значения
+
+Проект должен быть строгим к обязательным данным.
+
+Если поле объявлено обязательным в shared contract, backend и frontend не должны подставлять fallback-значение при его отсутствии.
+
+Отсутствие обязательного поля должно приводить к явной ошибке:
+
+- на backend: validation error, controlled domain error или ошибка конфигурации;
+- на frontend: controlled application error или явная ошибка инициализации.
+
+Fallback-значения разрешены только для полей, которые явно объявлены optional и для которых отсутствие значения является нормальным сценарием.
+
+Примеры допустимого fallback:
+
+```ts
+const label = optionalLabel ?? "Без названия"
+```
+
+Примеры недопустимого fallback:
+
+```ts
+const apiUrl = process.env.VUE_APP_BASE_URL || ""
+const userUid = response.uid || crypto.randomUUID()
+const roles = user.roles || []
+```
+
+Если значение обязательно для корректной работы, нужно не скрывать проблему fallback-ом, а остановить выполнение с понятной ошибкой.
+
 ## Расположение shared-типов
 
 Shared DTO/API contracts должны находиться в `./shared/@types`.
@@ -37,6 +66,18 @@ iSharedApi.ResponseEnvelope<TResult>
 ```
 
 Backend-only данные, например password hashes, access tokens stored in cookies, Sequelize metadata, DB-only columns и internal service results, не должны попадать в shared DTO, если они не являются намеренной частью HTTP JSON contract.
+
+Для публичной profile cookie должен использоваться отдельный shared contract, не равный полному `PublicUserDto`, если `PublicUserDto` содержит internal identifiers.
+
+Profile cookie contract не должен содержать:
+
+- password;
+- password hash;
+- auth token;
+- internal identifiers;
+- server-only metadata.
+
+Profile cookie contract может содержать только данные, необходимые frontend для первичного отображения UI после reload.
 
 ## Маппинг на backend
 

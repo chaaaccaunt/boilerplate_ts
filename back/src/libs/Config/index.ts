@@ -10,16 +10,12 @@ export interface iAppConfig {
   }
   http: iHTTPConfig
   db: Options
-  database: {
-    sync: boolean
-  }
 }
 
 export class AppConfiguration {
   private readonly requiredEnvKeys: NodeJS.ProcessEnv
   private readonly optionalEnvKeys: readonly (keyof NodeJS.ProcessEnv)[] = [
     "VAR_APP_LOG_LEVEL",
-    "VAR_DB_SYNC",
     "VAR_HTTP_JWT_AUDIENCE",
     "VAR_HTTP_JWT_ISSUER",
   ] as const
@@ -49,9 +45,6 @@ export class AppConfiguration {
         username: this.getRequiredEnv("VAR_DB_USER"),
         dialect: "mysql",
         dialectModule: mysql2
-      },
-      database: {
-        sync: this.requiredEnvKeys.VAR_DB_SYNC === "true"
       }
     }
   }
@@ -61,7 +54,6 @@ export class AppConfiguration {
       VAR_DB_HOST: process.env.VAR_DB_HOST,
       VAR_DB_NAME: process.env.VAR_DB_NAME,
       VAR_DB_PASSWORD: process.env.VAR_DB_PASSWORD,
-      VAR_DB_SYNC: process.env.VAR_DB_SYNC,
       VAR_DB_USER: process.env.VAR_DB_USER,
       VAR_HTTP_PORT: process.env.VAR_HTTP_PORT,
       VAR_HTTP_ORIGIN: process.env.VAR_HTTP_ORIGIN,

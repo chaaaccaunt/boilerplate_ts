@@ -26,7 +26,7 @@ export class AuthService {
     const roles = user.roles.map((role) => ({
       uid: role.uid,
       name: role.name
-    } satisfies iSharedRole.RoleDto))
+    } satisfies iSharedUserRole.UserRoleDto))
 
     const userDto = {
       uid: user.uid,

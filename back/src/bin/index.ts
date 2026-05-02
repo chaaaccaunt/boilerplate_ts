@@ -16,11 +16,7 @@ start().catch((error) => {
 async function start(): Promise<void> {
   await database.sequelize.authenticate()
 
-  if (process.env.NODE_ENV === "production" && config.database.sync) {
-    throw new Error("Синхронизация базы данных запрещена в production")
-  }
-
-  if (process.env.NODE_ENV !== "production" && config.database.sync) {
+  if (process.env.NODE_ENV !== "production") {
     await database.sequelize.sync()
     await seedAuthorizationData(database.models)
   }

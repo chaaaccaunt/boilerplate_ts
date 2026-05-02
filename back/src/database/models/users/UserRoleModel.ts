@@ -8,9 +8,9 @@ import {
   Sequelize
 } from "sequelize"
 import type { Association, NonAttribute } from "sequelize"
-import type { UserModel } from "../users/UserModel"
+import type { UserModel } from "./UserModel"
 
-export class RoleModel extends Model<InferAttributes<RoleModel>, InferCreationAttributes<RoleModel>> implements iSharedRole.RoleDto {
+export class UserRoleModel extends Model<InferAttributes<UserRoleModel>, InferCreationAttributes<UserRoleModel>> implements iSharedUserRole.UserRoleDto {
   declare uid: CreationOptional<UUID>
   declare name: string
 
@@ -23,12 +23,12 @@ export class RoleModel extends Model<InferAttributes<RoleModel>, InferCreationAt
   declare user: NonAttribute<UserModel>
 
   declare static associations: {
-    user: Association<RoleModel, UserModel>
+    user: Association<UserRoleModel, UserModel>
   };
 }
 
-export function getRoleModel(sequelize: Sequelize) {
-  RoleModel.init(
+export function getUserRoleModel(sequelize: Sequelize) {
+  UserRoleModel.init(
     {
       uid: {
         type: DataTypes.UUID,
@@ -46,8 +46,8 @@ export function getRoleModel(sequelize: Sequelize) {
     },
     {
       sequelize,
-      tableName: "roles",
-      modelName: "RoleModel",
+      tableName: "user_roles",
+      modelName: "UserRoleModel",
       paranoid: true,
       timestamps: true,
       indexes: [
@@ -58,5 +58,5 @@ export function getRoleModel(sequelize: Sequelize) {
       ]
     }
   )
-  return RoleModel
+  return UserRoleModel
 }

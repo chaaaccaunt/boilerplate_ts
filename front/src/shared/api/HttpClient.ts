@@ -80,7 +80,10 @@ export class HttpClient {
   }
 
   private normalizeBaseUrl(baseUrl: string): string {
-    if (!baseUrl) return ""
+    if (!baseUrl) {
+      throw new ApiError("API_CONFIG_ERROR", "Не задан базовый URL API", 0)
+    }
+
     return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
   }
 
@@ -159,12 +162,10 @@ export class HttpClient {
   }
 
   private getNetworkErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message
     return "Не удалось выполнить сетевой запрос"
   }
 
   private getJsonErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message
     return "Некорректный JSON в ответе API"
   }
 }

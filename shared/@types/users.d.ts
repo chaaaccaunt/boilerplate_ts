@@ -1,6 +1,6 @@
 declare global {
-  namespace iSharedRole {
-    interface RoleDto {
+  namespace iSharedUserRole {
+    interface UserRoleDto {
       uid: string
       name: string
     }
@@ -14,7 +14,7 @@ declare global {
       lastName: string
       surname: string | null
       fullName: string
-      roles: iSharedRole.RoleDto[]
+      roles: iSharedUserRole.UserRoleDto[]
     }
   }
 }
