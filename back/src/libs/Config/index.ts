@@ -1,8 +1,8 @@
-import { Options } from "sequelize"
-import { getEnvFileData } from "./env"
 import { writeFileSync } from "fs"
-import { iHTTPConfig } from "@/libs/HTTPServer"
 import mysql2 from "mysql2"
+import { Options } from "sequelize"
+import { iHTTPConfig } from "../HTTPServer"
+import { Envs } from "./env"
 
 export interface iAppConfig {
   app: {
@@ -13,19 +13,7 @@ export interface iAppConfig {
 }
 
 export class AppConfiguration {
-  private readonly requiredEnvKeys: NodeJS.ProcessEnv = {
-    VAR_DB_HOST: process.env.VAR_DB_HOST,
-    VAR_DB_NAME: process.env.VAR_DB_NAME,
-    VAR_DB_PASSWORD: process.env.VAR_DB_PASSWORD,
-    VAR_DB_USER: process.env.VAR_DB_USER,
-    VAR_HTTP_PORT: process.env.VAR_HTTP_PORT,
-    VAR_HTTP_ORIGIN: process.env.VAR_HTTP_ORIGIN,
-    VAR_HTTP_COOKIE_NAME: process.env.VAR_HTTP_COOKIE_NAME,
-    VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
-    VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
-    VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
-    VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL
-  }
+  private readonly requiredEnvKeys: NodeJS.ProcessEnv
   private readonly optionalEnvKeys: readonly (keyof NodeJS.ProcessEnv)[] = [
     "VAR_APP_LOG_LEVEL",
     "VAR_HTTP_JWT_AUDIENCE",
@@ -35,6 +23,8 @@ export class AppConfiguration {
   readonly config: iAppConfig
 
   constructor() {
+    Envs.assignEnv()
+    this.requiredEnvKeys = this.getRequiredEnvKeys()
     this.validateEnv()
     this.config = {
       app: {
@@ -59,6 +49,22 @@ export class AppConfiguration {
     }
   }
 
+  private getRequiredEnvKeys(): NodeJS.ProcessEnv {
+    return {
+      VAR_DB_HOST: process.env.VAR_DB_HOST,
+      VAR_DB_NAME: process.env.VAR_DB_NAME,
+      VAR_DB_PASSWORD: process.env.VAR_DB_PASSWORD,
+      VAR_DB_USER: process.env.VAR_DB_USER,
+      VAR_HTTP_PORT: process.env.VAR_HTTP_PORT,
+      VAR_HTTP_ORIGIN: process.env.VAR_HTTP_ORIGIN,
+      VAR_HTTP_COOKIE_NAME: process.env.VAR_HTTP_COOKIE_NAME,
+      VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
+      VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
+      VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
+      VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL
+    }
+  }
+
   private validateEnv(): void {
     const missingKeys = []
     for (const key of Object.keys(this.requiredEnvKeys)) {
@@ -67,7 +73,7 @@ export class AppConfiguration {
       }
     }
     if (missingKeys.length > 0) {
-      const existValues = getEnvFileData()
+      const existValues = Envs.getEnvFileData()
       if (existValues) writeFileSync(existValues.path, `${existValues.data}\n${missingKeys.map(k => `${k}=SetMe`).join("\n")}`)
       throw new Error(`Missing required environment variables: ${missingKeys.join(", ")}`)
     }
@@ -92,6 +98,10 @@ export class AppConfiguration {
   }
 
   private isFreezableRecord(value: unknown): value is object {
-    return value !== null && typeof value === 'object' && !Object.isFrozen(value)
+    return value !== null && typeof value === "object" && !Object.isFrozen(value)
   }
 }
+
+const configInstance = new AppConfiguration()
+
+export const config = configInstance.deepFreeze(configInstance.config)

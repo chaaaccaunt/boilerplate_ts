@@ -1,4 +1,4 @@
-import { Exceptions } from "@/libs/Exceptions"
+import { Exceptions } from "@/libs"
 
 export abstract class BaseController {
   protected readonly routes: iContracts.iRoute[] = []

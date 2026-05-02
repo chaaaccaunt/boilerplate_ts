@@ -1,1 +1,1 @@
-export { Database, iDatabaseEnv, iModels } from "./instance"
+export { Database, iDatabaseEnv, iModels, DataBaseInstance } from "./instance"

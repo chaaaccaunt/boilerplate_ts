@@ -1,8 +1,6 @@
-import { config } from "@/bootstrap";
 import { Controllers } from "@/controllers";
 import { Database } from "@/database";
-import { HTTPServer } from "@/libs";
-import { Logger } from "@/libs/Logger";
+import { config, HTTPServer, Logger } from "@/libs";
 
 const logger = new Logger()
 const database = new Database(config.db)

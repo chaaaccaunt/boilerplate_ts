@@ -1,12 +1,11 @@
 import { timingSafeEqual } from "crypto"
 import { sign } from "jsonwebtoken"
-import { Exceptions } from "@/libs/Exceptions"
-import { iHTTPConfig } from "@/libs/HTTPServer"
+import { Exceptions } from "@/libs"
 
 export class AuthService {
   constructor(
     private readonly model: iDatabase.Models["User"],
-    private readonly httpConfig: iHTTPConfig
+    private readonly httpConfig: iLibs.iHTTPConfig
   ) { }
 
   async login(payload: iAuth.iLoginPayload): Promise<iAuth.iLoginResult> {
@@ -24,15 +23,17 @@ export class AuthService {
     if (this.httpConfig.jwt_audience) signOptions.audience = this.httpConfig.jwt_audience
     if (this.httpConfig.jwt_issuer) signOptions.issuer = this.httpConfig.jwt_issuer
 
+    const userDto = {
+      uid: user.uid,
+      login: user.login,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      surname: user.surname,
+      fullName: user.fullName
+    } satisfies iSharedAuth.LoginResponseDto
+
     return {
-      user: {
-        uid: user.uid,
-        login: user.login,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        surname: user.surname,
-        fullName: user.fullName
-      },
+      user: userDto,
       accessToken: sign(tokenPayload, this.httpConfig.jwt_secret, signOptions)
     }
   }

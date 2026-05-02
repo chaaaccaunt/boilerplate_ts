@@ -1,7 +1,7 @@
 import { UUID } from "crypto";
 import { CreationOptional, DataTypes, InferAttributes, InferCreationAttributes, Model, Sequelize } from "sequelize";
 
-export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> {
+export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> implements iSharedUser.PublicUserDto {
   declare uid: CreationOptional<UUID>
   declare phone: CreationOptional<string>
   declare login: string
@@ -10,7 +10,7 @@ export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAt
   declare lastName: string
   declare surname: string | null
 
-  declare readonly fullName: CreationOptional<string | null>
+  declare readonly fullName: CreationOptional<string>
 
   static associate(models: iDatabase.Models) { }
 

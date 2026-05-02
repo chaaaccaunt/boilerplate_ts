@@ -7,11 +7,15 @@
     "front"
   ],
   "scripts": {
+    "dev": "start npm run dev:back && start npm run dev:front",
     "dev:back": "npm --workspace back run start",
     "dev:front": "npm --workspace front run serve",
-    "typecheck": "npm --workspace back run typecheck",
+    "install:all": "npm install",
+    "install:back": "npm install --workspace back",
+    "install:front": "npm install --workspace front",
+    "typecheck:back": "npm --workspace back run typecheck",
     "typecheck:front": "npm --workspace front run typecheck",
-    "typecheck:all": "npm run typecheck && npm run typecheck:front",
+    "typecheck:all": "npm run typecheck:back && npm run typecheck:front",
     "build:back": "npm --workspace back run build",
     "build:front": "npm --workspace front run build"
   }

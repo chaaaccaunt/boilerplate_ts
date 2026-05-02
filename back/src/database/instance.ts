@@ -1,8 +1,9 @@
-import { Options, Sequelize } from "sequelize"
+import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
 import { getUserModel, UserModel } from "./models/users/UserModel"
 
-export interface iDatabase {
-  sequelize: Sequelize
+export interface DataBaseInstance {
+  Sequelize: typeof Sequelize
+  sequelize: SequelizeClass
   models: iDatabase.Models
 }
 
@@ -11,13 +12,18 @@ export interface iModels {
 }
 
 export class Database {
-  readonly sequelize: Sequelize
+  readonly Sequelize = Sequelize
+  readonly sequelize: SequelizeClass
   readonly models: iDatabase.Models
   constructor(config: Options) {
-    this.sequelize = new Sequelize(config)
+    this.sequelize = new SequelizeClass(config)
     this.models = {
       User: getUserModel(this.sequelize)
     }
+
+    Object.keys(this.models).forEach((key) => {
+      this.models[key as keyof typeof this.models].associate(this.models)
+    })
   }
 }
 

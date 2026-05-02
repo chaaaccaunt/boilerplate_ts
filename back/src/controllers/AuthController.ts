@@ -1,6 +1,5 @@
 import { AuthService } from "@/services/AuthService"
-import { iHTTPConfig } from "@/libs/HTTPServer"
-import { Exceptions } from "@/libs/Exceptions"
+import { Exceptions } from "@/libs"
 import { BaseController } from "./BaseController"
 
 interface iLoginPayload {
@@ -14,11 +13,11 @@ interface iLogoutPayload {
 export class AuthController extends BaseController {
   private readonly service: AuthService
 
-  constructor(model: iDatabase.Models["User"], private readonly httpConfig: iHTTPConfig) {
+  constructor(model: iDatabase.Models["User"], private readonly httpConfig: iLibs.iHTTPConfig) {
     super()
     this.service = new AuthService(model, httpConfig)
 
-    const loginRoute: iContracts.iRoute<iAuth.iLoginPayload, iContracts.iControllerResult<iAuth.iPublicUser>> = {
+    const loginRoute: iContracts.iRoute<iAuth.iLoginPayload, iContracts.iControllerResult<iSharedAuth.LoginResponseDto>> = {
       url: /^\/authorization\/login\/?$/,
       method: "POST",
       middlewares: ["payloadValidator"],
@@ -29,7 +28,7 @@ export class AuthController extends BaseController {
       callback: this.handle("login", this.login.bind(this))
     }
 
-    const logoutRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<{ success: boolean }>> = {
+    const logoutRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedAuth.LogoutResponseDto>> = {
       url: /^\/authorization\/logout\/?$/,
       method: "POST",
       middlewares: ["httpTokenValidator"],
@@ -39,7 +38,7 @@ export class AuthController extends BaseController {
     this.addRoutes([loginRoute, logoutRoute])
   }
 
-  private async login(payload: iLoginPayload): Promise<iContracts.iControllerResult<iAuth.iPublicUser>> {
+  private async login(payload: iLoginPayload): Promise<iContracts.iControllerResult<iSharedAuth.LoginResponseDto>> {
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("AuthController.login payload is missing")
 
     const result = await this.service.login(payload.data)
@@ -61,7 +60,7 @@ export class AuthController extends BaseController {
     }
   }
 
-  private async logout(payload: iLogoutPayload): Promise<iContracts.iControllerResult<{ success: boolean }>> {
+  private async logout(payload: iLogoutPayload): Promise<iContracts.iControllerResult<iSharedAuth.LogoutResponseDto>> {
     if (!payload.user) throw new Exceptions.ControllerError.AccessDeniedError()
 
     await this.service.logout()

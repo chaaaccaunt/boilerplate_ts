@@ -1,8 +1,8 @@
-import { PayloadValidator } from "@/libs";
 import { IncomingMessage, ServerResponse, IncomingHttpHeaders } from "http";
 import { iHTTPConfig } from "..";
 import { JsonWebTokenError, JwtPayload, NotBeforeError, TokenExpiredError, verify } from "jsonwebtoken";
-import { Exceptions } from "@/libs/Exceptions";
+import { Exceptions } from "../../Exceptions";
+import { PayloadValidator } from "../../Validator";
 
 export class HTTPMiddlewares {
 

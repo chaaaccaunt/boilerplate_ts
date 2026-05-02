@@ -27,6 +27,7 @@
     ]
   },
   "include": [
+    "../shared/**/*.d.ts",
     "src/**/*.ts",
     "src/**/*.vue",
   ],

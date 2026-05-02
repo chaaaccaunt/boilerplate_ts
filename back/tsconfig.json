@@ -1,6 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "include": [
+    "../shared/**/*.d.ts",
     "./@types",
     "./webpack.config.ts",
     "./src/**/*.ts"

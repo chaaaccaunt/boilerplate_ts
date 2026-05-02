@@ -33,22 +33,8 @@ declare global {
       clearCookies?: string[]
     }
 
-    interface iApiError {
-      code: string
-      message: string
-    }
-
-    type iApiResponse<TResult = unknown> =
-      | {
-        ok: true
-        result: TResult
-        error: null
-      }
-      | {
-        ok: false
-        result: null
-        error: iApiError
-      }
+    type iApiError = iSharedApi.ErrorDto
+    type iApiResponse<TResult = unknown> = iSharedApi.ResponseEnvelope<TResult>
 
     type iRouteCallback<TPayload = { user?: iContracts.iUserToken, data?: iContracts.iPayload }, R = unknown> = {
       bivarianceHack(payload: TPayload): Promise<R>
@@ -104,22 +90,11 @@ declare global {
   }
 
   namespace iAuth {
-    type iLoginPayload = {
-      login: string
-      password: string
-    }
-
-    interface iPublicUser {
-      uid: UUID
-      login: string
-      firstName: string
-      lastName: string
-      surname: string | null
-      fullName: string | null
-    }
+    type iLoginPayload = iSharedAuth.LoginPayloadDto
+    type iPublicUser = iSharedUser.PublicUserDto
 
     interface iLoginResult {
-      user: iPublicUser
+      user: iSharedAuth.LoginResponseDto
       accessToken: string
     }
   }

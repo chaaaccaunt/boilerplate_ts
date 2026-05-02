@@ -1,8 +1,9 @@
 import type { iDefaultEnvs } from "@/bin"
-import type { iBootstrapEnv } from "@/bootstrap";
+import type { iDatabaseEnv } from "@/database"
+import type { iLibsEnv } from "@/libs"
 
 declare global {
   declare namespace NodeJS {
-    interface ProcessEnv extends iBootstrapEnv { }
+    interface ProcessEnv extends iDefaultEnvs, iDatabaseEnv, iLibsEnv { }
   }
 }

@@ -1,15 +1,13 @@
 import { InjectionKey } from 'vue'
 import { createStore, useStore as baseUseStore, Store } from 'vuex'
+import { auth, errors } from './modules'
 
-export interface State {
-  count: number
-}
+export const key: InjectionKey<Store<iSharedState.RootState>> = Symbol()
 
-export const key: InjectionKey<Store<State>> = Symbol()
-
-export const store = createStore<State>({
-  state: {
-    count: 0
+export const store = createStore<iSharedState.RootState>({
+  modules: {
+    auth,
+    errors
   }
 })
 
