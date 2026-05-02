@@ -2,13 +2,13 @@ import { timingSafeEqual } from "crypto"
 import { sign } from "jsonwebtoken"
 import { Exceptions } from "@/libs"
 
-export class AuthService {
+export class AuthorizationService {
   constructor(
     private readonly model: iDatabase.Models["User"],
     private readonly httpConfig: iLibs.iHTTPConfig
   ) { }
 
-  async login(payload: iAuth.iLoginPayload): Promise<iAuth.iLoginResult> {
+  async login(payload: iAuthorization.iLoginPayload): Promise<iAuthorization.iLoginResult> {
     const user = await this.model.findOne({
       where: { login: payload.login },
       include: [{ association: this.model.associations.roles }]
@@ -36,7 +36,7 @@ export class AuthService {
       surname: user.surname,
       fullName: user.fullName,
       roles
-    } satisfies iSharedAuth.LoginResponseDto
+    } satisfies iSharedAuthorization.LoginResponseDto
 
     const tokenPayload: iContracts.iUserToken = {
       uid: user.uid,
@@ -51,8 +51,6 @@ export class AuthService {
     }
   }
 
-  async logout(): Promise<void> { }
-
   private passwordsMatch(input: string, stored: string): boolean {
     const inputBuffer = Buffer.from(input)
     const storedBuffer = Buffer.from(stored)
@@ -61,3 +59,4 @@ export class AuthService {
     return timingSafeEqual(inputBuffer, storedBuffer)
   }
 }
+

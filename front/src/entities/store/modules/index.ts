@@ -1,2 +1,3 @@
-export { auth } from "./auth"
+﻿export { authorization } from "./authorization"
 export { errors } from "./errors"
+

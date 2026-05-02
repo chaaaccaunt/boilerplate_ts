@@ -1,4 +1,4 @@
-<script lang="ts" setup>
+﻿<script lang="ts" setup>
 import MainLayout from "./layouts/MainLayout.vue";
 import LoginLayout from "./layouts/LoginLayout.vue";
 import { computed } from "vue";
@@ -11,7 +11,7 @@ const layouts = {
   login: LoginLayout,
 };
 
-const resolveLayout = computed(() => layouts[route.meta.requiresAuth ? "main" : "login"]);
+const resolveLayout = computed(() => layouts[route.meta.requiresAuthorization ? "main" : "login"]);
 </script>
 
 <template>
@@ -21,3 +21,4 @@ const resolveLayout = computed(() => layouts[route.meta.requiresAuth ? "main" : 
 </template>
 
 <style lang="scss"></style>
+

@@ -1,13 +1,13 @@
-import { HTTPServer } from "@/libs"
+﻿import { HTTPServer } from "@/libs"
 import { BaseController } from "./BaseController"
-import { AuthController } from "./AuthController"
+import { AuthorizationController } from "./AuthorizationController"
 
 export class Controllers {
   private readonly controllers: BaseController[]
 
   constructor(httpServer: HTTPServer, models: iDatabase.Models) {
     this.controllers = [
-      new AuthController(models.User, httpServer.config),
+      new AuthorizationController(models.User, httpServer.config),
     ]
 
     this.controllers.forEach((controller) => {
@@ -17,3 +17,4 @@ export class Controllers {
 }
 
 export { BaseController }
+

@@ -59,6 +59,7 @@ export class HTTPServer {
 
           if (hasError) {
             status = hasError.status
+            this.applyClearCookies(response, route.clearCookiesOnError || [])
             this.sendError(response, status, this.getMiddlewareErrorCode(status), hasError.message)
             return
           }
@@ -206,7 +207,7 @@ export class HTTPServer {
   }
 
   private getErrorCode(error: Error): string {
-    if (error instanceof this.exceptions.AuthenticationError) return `AUTH_${error.reasonCode.toUpperCase()}`
+    if (error instanceof this.exceptions.AuthenticationError) return `AUTHORIZATION_${error.reasonCode.toUpperCase()}`
     if (error instanceof this.exceptions.BadRequestError) return "BAD_REQUEST"
     if (error instanceof this.exceptions.RouteNotFoundError) return "ROUTE_NOT_FOUND"
     if (error instanceof this.exceptions.PayloadValidationError) return "PAYLOAD_VALIDATION_FAILED"
@@ -222,6 +223,7 @@ export class HTTPServer {
 
   private getMiddlewareErrorCode(status: number): string {
     if (status === 403) return "ACCESS_DENIED"
+    if (status === 401) return "AUTHENTICATION_FAILED"
     if (status === 422) return "PAYLOAD_VALIDATION_FAILED"
     return "REQUEST_FAILED"
   }
@@ -269,21 +271,33 @@ export class HTTPServer {
 
     const cookies = [
       ...(result.setCookies || []).map((cookie) => this.serializeCookie(cookie)),
-      ...(result.clearCookies || []).map((name) => this.serializeCookie({
-        name,
-        value: "",
-        options: {
-          httpOnly: true,
-          sameSite: "strict",
-          path: "/",
-          maxAge: 0
-        }
-      }))
+      ...this.getClearCookieHeaders(result.clearCookies || [])
     ]
 
     if (cookies.length) {
       response.setHeader("Set-Cookie", cookies)
     }
+  }
+
+  private applyClearCookies(response: ServerResponse, cookieNames: string[]): void {
+    const cookies = this.getClearCookieHeaders(cookieNames)
+
+    if (cookies.length) {
+      response.setHeader("Set-Cookie", cookies)
+    }
+  }
+
+  private getClearCookieHeaders(cookieNames: string[]): string[] {
+    return cookieNames.map((name) => this.serializeCookie({
+      name,
+      value: "",
+      options: {
+        httpOnly: true,
+        sameSite: "strict",
+        path: "/",
+        maxAge: 0
+      }
+    }))
   }
 
   private getControllerResultData(result: unknown): unknown {
@@ -293,7 +307,7 @@ export class HTTPServer {
 
   private isControllerResult(result: unknown): result is iContracts.iControllerResult {
     if (typeof result !== "object" || result === null || Array.isArray(result)) return false
-    return "setCookies" in result || "clearCookies" in result
+    return "data" in result || "setCookies" in result || "clearCookies" in result
   }
 
   private serializeCookie(cookie: iContracts.iSetCookie): string {
@@ -349,3 +363,4 @@ export class HTTPServer {
     return typeof value === "object" && value !== null && !Array.isArray(value)
   }
 }
+

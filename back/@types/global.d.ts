@@ -1,4 +1,4 @@
-import { Middlewares } from "@/middlewares"
+﻿import { Middlewares } from "@/middlewares"
 import { UUID } from "crypto"
 
 declare global {
@@ -47,6 +47,7 @@ declare global {
       url: RegExp
       method: "GET" | "POST" | "PATCH" | "DELETE"
       middlewares: iMiddlewares[]
+      clearCookiesOnError?: string[]
       callback: iRouteCallback<{ user?: iContracts.iUserToken, data?: P }, R>
       validator?: { [key: string]: iValidator }
     }
@@ -89,13 +90,14 @@ declare global {
     }
   }
 
-  namespace iAuth {
-    type iLoginPayload = iSharedAuth.LoginPayloadDto
+  namespace iAuthorization {
+    type iLoginPayload = iSharedAuthorization.LoginPayloadDto
     type iPublicUser = iSharedUser.PublicUserDto
 
     interface iLoginResult {
-      user: iSharedAuth.LoginResponseDto
+      user: iSharedAuthorization.LoginResponseDto
       accessToken: string
     }
   }
 }
+

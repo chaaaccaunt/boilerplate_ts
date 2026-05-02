@@ -7,7 +7,7 @@ import { ApiError } from "@/shared/api"
 const router = useRouter()
 const apiClient = useApiClient()
 
-const form = reactive<iSharedAuth.LoginPayloadDto>({
+const form = reactive<iSharedAuthorization.LoginPayloadDto>({
   login: "",
   password: ""
 })
@@ -25,7 +25,7 @@ async function submit() {
   errorMessage.value = null
 
   try {
-    await apiClient.auth.login(form)
+    await apiClient.authorization.login(form)
     await router.push({ name: "home" })
   } catch (error) {
     errorMessage.value = getLoginErrorMessage(error)
@@ -95,3 +95,4 @@ function getLoginErrorMessage(error: unknown): string {
   width: min(100%, 360px);
 }
 </style>
+

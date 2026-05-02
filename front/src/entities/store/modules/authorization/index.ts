@@ -1,6 +1,6 @@
-import { Module, MutationTree } from "vuex"
+﻿import { Module, MutationTree } from "vuex"
 
-const mutations: MutationTree<iSharedState.AuthState> = {
+const mutations: MutationTree<iSharedState.AuthorizationState> = {
   setUser(state, user: iSharedUser.PublicUserDto) {
     state.user = user
     state.isAuthenticated = true
@@ -12,7 +12,7 @@ const mutations: MutationTree<iSharedState.AuthState> = {
   }
 }
 
-export const auth: Module<iSharedState.AuthState, iSharedState.RootState> = {
+export const authorization: Module<iSharedState.AuthorizationState, iSharedState.RootState> = {
   namespaced: true,
 
   state: () => ({
@@ -22,3 +22,4 @@ export const auth: Module<iSharedState.AuthState, iSharedState.RootState> = {
 
   mutations
 }
+

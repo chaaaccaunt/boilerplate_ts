@@ -1,6 +1,6 @@
 import { Store } from "vuex"
 import { ApiError, HttpClient } from "@/shared/api"
-import { AuthApi } from "../auth/api/AuthApi"
+import { AuthorizationApi } from "../authorization/api/AuthorizationApi"
 
 type ApiPath = `/${string}`
 type VuexMutation = string
@@ -13,13 +13,13 @@ interface ApiRequestOptions<TPayload> {
 }
 
 export class ApiClient {
-  readonly auth: AuthApi
+  readonly authorization: AuthorizationApi
 
   constructor(
     private readonly http: HttpClient,
     private readonly store: Store<iSharedState.RootState>
   ) {
-    this.auth = new AuthApi(this)
+    this.authorization = new AuthorizationApi(this)
   }
 
   get<TResult>(options: Omit<ApiRequestOptions<never>, "payload">): Promise<TResult> {
@@ -75,3 +75,4 @@ export class ApiClient {
     return new ApiError("API_UNKNOWN_ERROR", "Неизвестная ошибка API", 0)
   }
 }
+

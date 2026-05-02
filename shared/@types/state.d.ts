@@ -1,6 +1,6 @@
-declare global {
+﻿declare global {
   namespace iSharedState {
-    interface AuthState {
+    interface AuthorizationState {
       user: iSharedUser.PublicUserDto | null
       isAuthenticated: boolean
     }
@@ -18,10 +18,11 @@ declare global {
     }
 
     interface RootState {
-      auth: AuthState
+      authorization: AuthorizationState
       errors: ErrorsState
     }
   }
 }
 
 export { }
+

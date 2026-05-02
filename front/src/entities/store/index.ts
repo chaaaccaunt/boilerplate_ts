@@ -1,12 +1,12 @@
-import { InjectionKey } from 'vue'
+﻿import { InjectionKey } from 'vue'
 import { createStore, useStore as baseUseStore, Store } from 'vuex'
-import { auth, errors } from './modules'
+import { authorization, errors } from './modules'
 
 export const key: InjectionKey<Store<iSharedState.RootState>> = Symbol()
 
 export const store = createStore<iSharedState.RootState>({
   modules: {
-    auth,
+    authorization,
     errors
   }
 })
@@ -14,3 +14,4 @@ export const store = createStore<iSharedState.RootState>({
 export function useStore() {
   return baseUseStore(key)
 }
+

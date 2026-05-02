@@ -47,7 +47,7 @@ iSharedApi.ResponseEnvelope<TResult>
 Domain API methods должны возвращать распакованный тип `result`:
 
 ```ts
-login(payload: iSharedAuth.LoginPayloadDto): Promise<iSharedAuth.LoginResponseDto>
+login(payload: iSharedAuthorization.LoginPayloadDto): Promise<iSharedAuthorization.LoginResponseDto>
 ```
 
 Transport errors и backend envelope errors должны нормализоваться в `front/src/shared/api`, а не в components.
@@ -72,7 +72,7 @@ GET /v1/gateway/authorization/state
 Guard должен принимать решение по HTTP status:
 
 - `200` -> сессия валидна, переход разрешен;
-- любой статус, отличный от `200` -> локальный auth state/profile cache очищается, пользователь перенаправляется на `/login`.
+- любой статус, отличный от `200` -> локальный authorization state/profile cache очищается, пользователь перенаправляется на `/login`.
 
 Frontend может восстанавливать UI-профиль из публичной profile cookie, но не должен считать ее источником авторизации.
 
@@ -137,3 +137,4 @@ api.post({
 
 Vuex domain state должен жить в namespaced modules внутри `front/src/entities/store/modules`.
 Root store должен только собирать modules и экспортировать типизированный `useStore`.
+

@@ -67,7 +67,7 @@ GET /v1/gateway/authorization/state
 
 Backend route `/authorization/state` должен использовать `httpTokenValidator`.
 
-Если auth cookie и JWT валидны, endpoint должен вернуть `200 OK` и стандартный response envelope:
+Если authorization cookie и JWT валидны, endpoint должен вернуть `200 OK` и стандартный response envelope:
 
 ```json
 {
@@ -79,9 +79,9 @@ Backend route `/authorization/state` должен использовать `http
 }
 ```
 
-Если auth cookie отсутствует, просрочена или невалидна, endpoint должен вернуть ошибочный response и очистить все cookies, связанные с авторизацией:
+Если authorization cookie отсутствует, просрочена или невалидна, endpoint должен вернуть ошибочный response и очистить все cookies, связанные с авторизацией:
 
-- auth cookie;
+- authorization cookie;
 - profile cookie.
 
 Очистка cookies на pre-controller этапе должна выполняться через transport instructions middleware/httpServer, а не через controller.
@@ -89,7 +89,7 @@ Backend route `/authorization/state` должен использовать `http
 Frontend route guard должен принимать решение по HTTP status:
 
 - `200` -> сессия валидна, переход разрешен;
-- любой статус, отличный от `200` -> frontend очищает локальный auth state/profile cache и перенаправляет пользователя на `/login`.
+- любой статус, отличный от `200` -> frontend очищает локальный authorization state/profile cache и перенаправляет пользователя на `/login`.
 
 ## Публичная profile cookie
 
@@ -99,12 +99,12 @@ Profile cookie:
 
 - не должна быть `httpOnly`;
 - должна содержать только безопасный JSON profile для отображения интерфейса;
-- не должна содержать пароль, password hash, auth token, internal identifiers и иные чувствительные данные;
+- не должна содержать пароль, password hash, authorization token, internal identifiers и иные чувствительные данные;
 - не должна использоваться для принятия access decisions.
 
-Auth cookie остается единственным источником подтверждения сессии.
+authorization cookie остается единственным источником подтверждения сессии.
 
-Profile cookie является только UI-cache. Backend access decisions должны опираться на валидный auth cookie/JWT и server-side проверки.
+Profile cookie является только UI-cache. Backend access decisions должны опираться на валидный authorization cookie/JWT и server-side проверки.
 
 ## Миграции
 
@@ -193,7 +193,7 @@ Controller может вернуть transport instructions через controlle
 - Boilerplate не должен зашивать конкретную role-based access policy в ядро.
 - Базовый token payload должен быть project-neutral: `uid` и optional `claims`.
 - Конкретные роли, permissions, ownership rules, tenant rules и endpoint access policy определяются проектом, а не boilerplate.
-- Подробные правила для агентов описаны в `./docs/agent-auth-policy.md`.
+- Подробные правила для агентов описаны в `./docs/agent-authorization-policy.md`.
 
 ## Семантика логирования
 
@@ -299,3 +299,4 @@ nginx
 - Формат вывода и расширенный контекст логов определяются DevDebugger.
 - Агент не должен вручную дублировать расширенный контекст в сообщении лога без необходимости.
 - Временные диагностические логи, не соответствующие logging map, должны удаляться перед завершением задачи.
+
