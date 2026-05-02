@@ -69,7 +69,7 @@ export class HTTPServer {
         traceContext.addStep({
           layer: "httpServer",
           level: "debug",
-          event: "controller call",
+          event: "вызов контроллера",
           functionName: `${controllerName}.${controllerMethod}`,
           durationMs: 0,
           payload: request.body,
@@ -86,7 +86,7 @@ export class HTTPServer {
           {
             method: request.method,
             path: request.url,
-            event: "controller completed",
+            event: "контроллер завершил работу",
             controllerName,
             controllerMethod
           }
@@ -97,9 +97,14 @@ export class HTTPServer {
       } catch (error) {
         const normalizedError = this.normalizeError(error)
         status = this.getErrorStatus(normalizedError)
+
+        if (status >= 500) {
+          this.logInternalError(normalizedError, request, requestId, status)
+        }
+
         this.sendError(response, status, this.getErrorCode(normalizedError), this.getErrorMessage(normalizedError))
       } finally {
-        this.logger.log(this.getRequestLogLevel(status), 'request completed', {
+        this.logger.log(this.getRequestLogLevel(status), 'запрос завершен', {
           requestId,
           method: request.method,
           path: request.url,
@@ -111,7 +116,7 @@ export class HTTPServer {
   }
 
   private matchRoute(request: IncomingMessage): iContracts.iRoute {
-    if (!request.method || !request.url) throw new this.exceptions.BadRequestError("Invalid request")
+    if (!request.method || !request.url) throw new this.exceptions.BadRequestError("Некорректный запрос")
     const exist = this.routes.find(r => r.url.test(`${request.method}:${request.url}`))
     if (!exist) throw new this.exceptions.RouteNotFoundError()
     return exist
@@ -136,13 +141,13 @@ export class HTTPServer {
     if (error instanceof Exceptions.ControllerError.ConflictError) return 409
     if (error instanceof Exceptions.ControllerError.InternalError) return 500
 
-    throw new this.exceptions.InternalServerError("Unhandled server error", { cause: error })
+    throw new this.exceptions.InternalServerError("Необработанная ошибка сервера", { cause: error })
   }
 
   private normalizeError(error: unknown): Error {
     if (error instanceof Error && this.isMappedError(error)) return error
     if (error instanceof Error) return new this.exceptions.InternalServerError(error.message, { cause: error })
-    return new this.exceptions.InternalServerError("Unhandled server error", { cause: error })
+    return new this.exceptions.InternalServerError("Необработанная ошибка сервера", { cause: error })
   }
 
   private isMappedError(error: Error): boolean {
@@ -161,7 +166,43 @@ export class HTTPServer {
   }
 
   private getErrorMessage(error: Error): string {
+    if (this.isInternalError(error)) return "Внутренняя ошибка сервера"
     return error.message
+  }
+
+  private isInternalError(error: Error): boolean {
+    return (
+      error instanceof this.exceptions.InternalServerError ||
+      error instanceof Exceptions.ControllerError.InternalError
+    )
+  }
+
+  private logInternalError(error: Error, request: IncomingMessage, requestId: string, status: number): void {
+    this.logger.error("Необработанная ошибка сервера", {
+      requestId,
+      method: request.method,
+      path: request.url,
+      status,
+      error: {
+        name: error.name,
+        message: error.message,
+        cause: this.getErrorCauseMessage(error)
+      }
+    })
+  }
+
+  private getErrorCauseMessage(error: Error): string | null {
+    const details = "details" in error ? error.details : null
+
+    if (!this.isErrorDetails(details)) return null
+    if (details.cause instanceof Error) return details.cause.message
+    if (details.cause === undefined || details.cause === null) return null
+
+    return String(details.cause)
+  }
+
+  private isErrorDetails(value: unknown): value is { cause?: unknown } {
+    return typeof value === "object" && value !== null
   }
 
   private getErrorCode(error: Error): string {
@@ -212,8 +253,15 @@ export class HTTPServer {
 
   private sendJson(response: ServerResponse, status: number, payload: iContracts.iApiResponse): void {
     response.statusCode = status
+    this.setCorsHeaders(response)
     response.setHeader("Content-Type", "application/json; charset=utf-8")
     response.end(JSON.stringify(payload))
+  }
+
+  private setCorsHeaders(response: ServerResponse): void {
+    response.setHeader("Access-Control-Allow-Origin", this.config.origin)
+    response.setHeader("Access-Control-Allow-Credentials", "true")
+    response.setHeader("Vary", "Origin")
   }
 
   private applyControllerResult(response: ServerResponse, result: unknown): void {
@@ -279,7 +327,7 @@ export class HTTPServer {
   }
   listen(port: string) {
     this.server.listen(this.normalizePort(port), () => {
-      this.logger.info(`http server started on port ${port}`)
+      this.logger.info(`HTTP-сервер запущен на порту ${port}`)
     })
   }
 
@@ -287,13 +335,13 @@ export class HTTPServer {
     try {
       const parsed = JSON.parse(body.toString())
       if (!this.isPayload(parsed)) {
-        throw new this.exceptions.BadRequestError("Invalid request payload")
+        throw new this.exceptions.BadRequestError("Некорректные данные запроса")
       }
 
       return parsed
     } catch (error) {
       if (error instanceof this.exceptions.BadRequestError) throw error
-      throw new this.exceptions.BadRequestError("Invalid request payload", { cause: error })
+      throw new this.exceptions.BadRequestError("Некорректные данные запроса", { cause: error })
     }
   }
 

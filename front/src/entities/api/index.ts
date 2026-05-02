@@ -18,7 +18,7 @@ export function useApiClient(): ApiClient {
   const apiClient = inject(apiClientKey)
 
   if (!apiClient) {
-    throw new Error("ApiClient is not provided")
+    throw new Error("ApiClient не был передан в приложение")
   }
 
   return apiClient

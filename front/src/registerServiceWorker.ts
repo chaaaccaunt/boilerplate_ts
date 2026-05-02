@@ -6,27 +6,27 @@ if (process.env.NODE_ENV === 'production') {
   register(`${process.env.BASE_URL}service-worker.js`, {
     ready () {
       console.log(
-        'App is being served from cache by a service worker.\n' +
-        'For more details, visit https://goo.gl/AFskqB'
+        'Приложение обслуживается из кеша service worker.\n' +
+        'Подробнее: https://goo.gl/AFskqB'
       )
     },
     registered () {
-      console.log('Service worker has been registered.')
+      console.log('Service worker зарегистрирован.')
     },
     cached () {
-      console.log('Content has been cached for offline use.')
+      console.log('Контент сохранен в кеш для офлайн-режима.')
     },
     updatefound () {
-      console.log('New content is downloading.')
+      console.log('Загружается новый контент.')
     },
     updated () {
-      console.log('New content is available; please refresh.')
+      console.log('Доступен новый контент, обновите страницу.')
     },
     offline () {
-      console.log('No internet connection found. App is running in offline mode.')
+      console.log('Нет подключения к интернету. Приложение работает в офлайн-режиме.')
     },
     error (error) {
-      console.error('Error during service worker registration:', error)
+      console.error('Ошибка при регистрации service worker:', error)
     }
   })
 }

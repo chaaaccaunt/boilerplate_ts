@@ -14,7 +14,7 @@ export class HTTPMiddlewares {
 
   private verifyToken(headers: IncomingHttpHeaders): iContracts.iUserToken {
     if (!headers.cookie || !headers.cookie.length) {
-      throw new this.exceptions.MissingTokenError("Request without cookie")
+      throw new this.exceptions.MissingTokenError("Запрос без куки")
     }
 
     const cookies = headers.cookie.split(";")
@@ -22,14 +22,14 @@ export class HTTPMiddlewares {
     const exist = cookies.find((c) => cookieNameRegExp.test(c.trim()))
 
     if (!exist || !exist.length) {
-      throw new this.exceptions.MissingTokenError("Request without expected cookie")
+      throw new this.exceptions.MissingTokenError("В запросе отсутствует ожидаемая куки")
     }
 
     try {
       const token = exist.trim().split("=")[1]
 
       if (!token?.length) {
-        throw new this.exceptions.MissingTokenError("Empty auth cookie")
+        throw new this.exceptions.MissingTokenError("Пустая куки авторизации")
       }
 
       const verifyOptions: { audience?: string, issuer?: string } = {}
@@ -39,7 +39,7 @@ export class HTTPMiddlewares {
 
       const valid = verify(token, this.env.jwt_secret, verifyOptions)
       if (!this.isUserToken(valid)) {
-        throw new this.exceptions.InvalidTokenClaimsError("Access token payload is invalid")
+        throw new this.exceptions.InvalidTokenClaimsError("Некорректные данные токена доступа")
       }
 
       return valid
@@ -49,26 +49,26 @@ export class HTTPMiddlewares {
       }
 
       if (error instanceof TokenExpiredError) {
-        throw new this.exceptions.ExpiredTokenError("Access token expired", { cause: error })
+        throw new this.exceptions.ExpiredTokenError("Срок действия токена доступа истек", { cause: error })
       }
 
       if (error instanceof NotBeforeError) {
-        throw new this.exceptions.InvalidTokenClaimsError("Access token is not active yet", { cause: error })
+        throw new this.exceptions.InvalidTokenClaimsError("Токен доступа еще не активен", { cause: error })
       }
 
       if (error instanceof JsonWebTokenError) {
         if (error.message === "invalid signature") {
-          throw new this.exceptions.InvalidTokenSignatureError("Access token signature is invalid", { cause: error })
+          throw new this.exceptions.InvalidTokenSignatureError("Некорректная подпись токена доступа", { cause: error })
         }
 
         if (error.message === "jwt malformed" || error.message === "invalid token") {
-          throw new this.exceptions.MalformedTokenError("Access token is malformed", { cause: error })
+          throw new this.exceptions.MalformedTokenError("Некорректный формат токена доступа", { cause: error })
         }
 
-        throw new this.exceptions.TokenVerificationError("Access token verification failed", { cause: error })
+        throw new this.exceptions.TokenVerificationError("Не удалось проверить токен доступа", { cause: error })
       }
 
-      throw new this.exceptions.TokenVerificationError("Access token verification failed", { cause: error })
+      throw new this.exceptions.TokenVerificationError("Не удалось проверить токен доступа", { cause: error })
     }
   }
 

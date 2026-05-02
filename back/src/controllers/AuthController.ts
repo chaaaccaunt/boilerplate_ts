@@ -39,7 +39,7 @@ export class AuthController extends BaseController {
   }
 
   private async login(payload: iLoginPayload): Promise<iContracts.iControllerResult<iSharedAuth.LoginResponseDto>> {
-    if (!payload.data) throw new Exceptions.ControllerError.InternalError("AuthController.login payload is missing")
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для AuthController.login")
 
     const result = await this.service.login(payload.data)
 

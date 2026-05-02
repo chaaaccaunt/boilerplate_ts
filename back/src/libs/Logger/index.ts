@@ -147,7 +147,7 @@ export class Logger {
       return result
     }
 
-    throw new TypeError(`Unsupported log value type: ${typeof value}`)
+    throw new TypeError(`Неподдерживаемый тип значения для лога: ${typeof value}`)
   }
 
   #isLogObject(value: unknown): value is Record<string, unknown> {
@@ -227,7 +227,7 @@ export class MethodTracer {
         nextContext.addStep({
           layer,
           level,
-          event: context.event || 'method completed',
+          event: context.event || 'метод завершил работу',
           functionName,
           durationMs: Date.now() - startedAt,
           status: context.status,
@@ -247,7 +247,7 @@ export class MethodTracer {
         nextContext.addStep({
           layer,
           level: 'error',
-          event: context.event || 'method failed',
+          event: context.event || 'метод завершился ошибкой',
           functionName,
           durationMs: Date.now() - startedAt,
           status: context.status,
@@ -299,13 +299,13 @@ export class MethodTracer {
       }
 
     if (layer === 'controller') {
-      return new Exceptions.ControllerError.InternalError('Controller threw a non-Error value', { cause: error })
+      return new Exceptions.ControllerError.InternalError('Контроллер выбросил значение, не являющееся ошибкой', { cause: error })
     }
 
     if (layer === 'httpServer') {
-      return new Exceptions.HttpServerError.InternalServerError('HttpServer threw a non-Error value', { cause: error })
+      return new Exceptions.HttpServerError.InternalServerError('HTTP-сервер выбросил значение, не являющееся ошибкой', { cause: error })
     }
 
-    return new Exceptions.ServiceError.InternalError('Service threw a non-Error value', { cause: error })
+    return new Exceptions.ServiceError.InternalError('Сервис выбросил значение, не являющееся ошибкой', { cause: error })
   }
 }

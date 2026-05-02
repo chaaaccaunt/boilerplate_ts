@@ -7,6 +7,8 @@
   - static request
   - OPTIONS request
   - method denied for nginx location
+- CORS preflight headers `Access-Control-Allow-Methods` и `Access-Control-Allow-Headers` должны отправляться только на `OPTIONS` response на уровне nginx.
+- Actual API responses от `httpServer` должны отправлять только CORS headers, необходимые браузеру для чтения ответа: `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials` и `Vary: Origin`.
 - nginx использует `access_log` только для ответов с HTTP 405.
 - Все API requests должны передаваться через `proxy_pass` в `httpServer`.
 

@@ -28,19 +28,19 @@ abstract class HttpServerError extends AppError {
 }
 
 class BadRequestError extends HttpServerError {
-  constructor(message = 'Bad Request', details?: ExceptionDetails) {
+  constructor(message = 'Некорректный запрос', details?: ExceptionDetails) {
     super(message, 400, details)
   }
 }
 
 class MissingValidatorError extends AppError {
-  constructor(message = 'Payload validator scheme is missing', details?: ExceptionDetails) {
+  constructor(message = 'Отсутствует схема валидации данных запроса', details?: ExceptionDetails) {
     super(message, 'httpServer', details)
   }
 }
 
 class UnauthorizedError extends HttpServerError {
-  constructor(message = 'Unauthorized', details?: ExceptionDetails) {
+  constructor(message = 'Требуется авторизация', details?: ExceptionDetails) {
     super(message, 401, details)
   }
 }
@@ -56,109 +56,109 @@ abstract class AuthenticationError extends UnauthorizedError {
 }
 
 class MissingTokenError extends AuthenticationError {
-  constructor(message = 'Token is missing', details?: ExceptionDetails) {
+  constructor(message = 'Токен отсутствует', details?: ExceptionDetails) {
     super(message, 'token_missing', details)
   }
 }
 
 class MalformedTokenError extends AuthenticationError {
-  constructor(message = 'Token is malformed', details?: ExceptionDetails) {
+  constructor(message = 'Некорректный формат токена', details?: ExceptionDetails) {
     super(message, 'token_malformed', details)
   }
 }
 
 class ExpiredTokenError extends AuthenticationError {
-  constructor(message = 'Token is expired', details?: ExceptionDetails) {
+  constructor(message = 'Срок действия токена истек', details?: ExceptionDetails) {
     super(message, 'token_expired', details)
   }
 }
 
 class InvalidTokenSignatureError extends AuthenticationError {
-  constructor(message = 'Token signature is invalid', details?: ExceptionDetails) {
+  constructor(message = 'Некорректная подпись токена', details?: ExceptionDetails) {
     super(message, 'token_signature_invalid', details)
   }
 }
 
 class InvalidTokenClaimsError extends AuthenticationError {
-  constructor(message = 'Token claims are invalid', details?: ExceptionDetails) {
+  constructor(message = 'Некорректные данные токена', details?: ExceptionDetails) {
     super(message, 'token_claims_invalid', details)
   }
 }
 
 class TokenVerificationError extends AuthenticationError {
-  constructor(message = 'Token verification failed', details?: ExceptionDetails) {
+  constructor(message = 'Не удалось проверить токен', details?: ExceptionDetails) {
     super(message, 'token_verification_failed', details)
   }
 }
 
 class RouteNotFoundError extends HttpServerError {
-  constructor(message = 'Route Not Found', details?: ExceptionDetails) {
+  constructor(message = 'Маршрут не найден', details?: ExceptionDetails) {
     super(message, 404, details)
   }
 }
 
 class PayloadValidationError extends HttpServerError {
-  constructor(message = 'Payload Validation Failed', details?: ExceptionDetails) {
+  constructor(message = 'Ошибка валидации данных запроса', details?: ExceptionDetails) {
     super(message, 422, details)
   }
 }
 
 class InternalServerError extends HttpServerError {
-  constructor(message = 'Internal Server Error', details?: ExceptionDetails) {
+  constructor(message = 'Внутренняя ошибка сервера', details?: ExceptionDetails) {
     super(message, 500, details)
   }
 }
 
 class AccessDeniedError extends AppError {
-  constructor(message = 'Access Denied', details?: ExceptionDetails) {
+  constructor(message = 'Доступ запрещен', details?: ExceptionDetails) {
     super(message, 'controller', details)
   }
 }
 
 class ControllerUnauthorizedError extends AppError {
-  constructor(message = 'Unauthorized', details?: ExceptionDetails) {
+  constructor(message = 'Требуется авторизация', details?: ExceptionDetails) {
     super(message, 'controller', details)
   }
 }
 
 class ControllerNotFoundError extends AppError {
-  constructor(message = 'Not Found', details?: ExceptionDetails) {
+  constructor(message = 'Не найдено', details?: ExceptionDetails) {
     super(message, 'controller', details)
   }
 }
 
 class ControllerConflictError extends AppError {
-  constructor(message = 'Conflict', details?: ExceptionDetails) {
+  constructor(message = 'Конфликт данных', details?: ExceptionDetails) {
     super(message, 'controller', details)
   }
 }
 
 class ControllerInternalError extends AppError {
-  constructor(message = 'Internal Error', details?: ExceptionDetails) {
+  constructor(message = 'Внутренняя ошибка', details?: ExceptionDetails) {
     super(message, 'controller', details)
   }
 }
 
 class NotFoundError extends AppError {
-  constructor(message = 'Entity Not Found', details?: ExceptionDetails) {
+  constructor(message = 'Сущность не найдена', details?: ExceptionDetails) {
     super(message, 'service', details)
   }
 }
 
 class ServiceAuthenticationError extends AppError {
-  constructor(message = 'Authentication Failed', details?: ExceptionDetails) {
+  constructor(message = 'Ошибка аутентификации', details?: ExceptionDetails) {
     super(message, 'service', details)
   }
 }
 
 class ConflictError extends AppError {
-  constructor(message = 'Conflict', details?: ExceptionDetails) {
+  constructor(message = 'Конфликт данных', details?: ExceptionDetails) {
     super(message, 'service', details)
   }
 }
 
 class InternalError extends AppError {
-  constructor(message = 'Internal Error', details?: ExceptionDetails) {
+  constructor(message = 'Внутренняя ошибка', details?: ExceptionDetails) {
     super(message, 'service', details)
   }
 }

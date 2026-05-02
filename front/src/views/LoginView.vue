@@ -37,7 +37,7 @@ async function submit() {
 function getLoginErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
   if (error instanceof Error) return error.message
-  return "Login failed"
+  return "Не удалось войти"
 }
 </script>
 
@@ -45,12 +45,12 @@ function getLoginErrorMessage(error: unknown): string {
   <section class="login-view w-100">
     <form class="card shadow-sm border-0" @submit.prevent="submit">
       <header class="card-header bg-white border-0 pt-4 px-4">
-        <h1 class="h4 mb-0">Sign in</h1>
+        <h1 class="h4 mb-0">Вход</h1>
       </header>
 
       <div class="card-body p-4 d-grid gap-3">
         <div>
-          <label class="form-label" for="login-email">Email</label>
+          <label class="form-label" for="login-email">Электронная почта</label>
           <input
             id="login-email"
             v-model.trim="form.login"
@@ -62,7 +62,7 @@ function getLoginErrorMessage(error: unknown): string {
         </div>
 
         <div>
-          <label class="form-label" for="login-password">Password</label>
+          <label class="form-label" for="login-password">Пароль</label>
           <input
             id="login-password"
             v-model="form.password"
@@ -83,7 +83,7 @@ function getLoginErrorMessage(error: unknown): string {
             aria-hidden="true"
             class="spinner-border spinner-border-sm me-2"
           ></span>
-          {{ isSubmitting ? "Signing in" : "Sign in" }}
+          {{ isSubmitting ? "Входим" : "Войти" }}
         </button>
       </div>
     </form>

@@ -71,7 +71,7 @@ export class HttpClient {
 
   private assertValidRequestOptions<TPayload>(options: RequestOptions<TPayload>): void {
     if (options.method === "GET" && options.payload !== undefined) {
-      throw new ApiError("API_REQUEST_FAILED", "GET request cannot contain payload", 0)
+      throw new ApiError("API_REQUEST_FAILED", "GET-запрос не может содержать payload", 0)
     }
   }
 
@@ -103,7 +103,7 @@ export class HttpClient {
     const payload = await this.parseJson(response)
 
     if (!this.isEnvelope<TResult>(payload)) {
-      throw new ApiError("API_INVALID_RESPONSE", "API response envelope is invalid", response.status)
+      throw new ApiError("API_INVALID_RESPONSE", "Некорректный формат ответа API", response.status)
     }
 
     return payload
@@ -113,7 +113,7 @@ export class HttpClient {
     const contentType = response.headers.get("Content-Type") || ""
 
     if (!contentType.includes(JSON_CONTENT_TYPE)) {
-      throw new ApiError("API_INVALID_RESPONSE", "API response is not JSON", response.status)
+      throw new ApiError("API_INVALID_RESPONSE", "Ответ API не является JSON", response.status)
     }
   }
 
@@ -160,11 +160,11 @@ export class HttpClient {
 
   private getNetworkErrorMessage(error: unknown): string {
     if (error instanceof Error) return error.message
-    return "Network request failed"
+    return "Не удалось выполнить сетевой запрос"
   }
 
   private getJsonErrorMessage(error: unknown): string {
     if (error instanceof Error) return error.message
-    return "API response JSON is invalid"
+    return "Некорректный JSON в ответе API"
   }
 }

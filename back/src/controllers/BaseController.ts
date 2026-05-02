@@ -47,7 +47,7 @@ export abstract class BaseController {
           throw new Exceptions.ControllerError.InternalError(error.message, { cause: error })
         }
 
-        throw new Exceptions.ControllerError.InternalError('Unhandled controller exception', { cause: error })
+        throw new Exceptions.ControllerError.InternalError('Необработанная ошибка контроллера', { cause: error })
       }
     }
 

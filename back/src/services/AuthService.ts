@@ -9,19 +9,24 @@ export class AuthService {
   ) { }
 
   async login(payload: iAuth.iLoginPayload): Promise<iAuth.iLoginResult> {
-    const user = await this.model.findOne({ where: { login: payload.login } })
+    const user = await this.model.findOne({
+      where: { login: payload.login },
+      include: [{ association: this.model.associations.roles }]
+    })
 
     if (!user || !this.passwordsMatch(payload.password, user.password)) {
-      throw new Exceptions.ServiceError.AuthenticationError("Invalid login or password")
+      throw new Exceptions.ServiceError.AuthenticationError("Неверный логин или пароль")
     }
 
-    const tokenPayload: iContracts.iUserToken = {
-      uid: user.uid
-    }
     const signOptions: { audience?: string, issuer?: string } = {}
 
     if (this.httpConfig.jwt_audience) signOptions.audience = this.httpConfig.jwt_audience
     if (this.httpConfig.jwt_issuer) signOptions.issuer = this.httpConfig.jwt_issuer
+
+    const roles = user.roles.map((role) => ({
+      uid: role.uid,
+      name: role.name
+    } satisfies iSharedRole.RoleDto))
 
     const userDto = {
       uid: user.uid,
@@ -29,8 +34,16 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       surname: user.surname,
-      fullName: user.fullName
+      fullName: user.fullName,
+      roles
     } satisfies iSharedAuth.LoginResponseDto
+
+    const tokenPayload: iContracts.iUserToken = {
+      uid: user.uid,
+      claims: {
+        roles: roles.map((role) => role.name)
+      }
+    }
 
     return {
       user: userDto,

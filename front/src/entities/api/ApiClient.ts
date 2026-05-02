@@ -72,6 +72,6 @@ export class ApiClient {
   private normalizeError(error: unknown): ApiError {
     if (error instanceof ApiError) return error
     if (error instanceof Error) return new ApiError("API_UNKNOWN_ERROR", error.message, 0)
-    return new ApiError("API_UNKNOWN_ERROR", "Unknown API error", 0)
+    return new ApiError("API_UNKNOWN_ERROR", "Неизвестная ошибка API", 0)
   }
 }
