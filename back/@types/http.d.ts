@@ -1,7 +1,7 @@
 declare module "http" {
   interface IncomingMessage {
     user: iContracts.iUserToken
-    body: iContracts.iPayload
+    body: iContracts.iRequestBody
     scheme?: iContracts.iScheme
   }
   interface ServerResponse {

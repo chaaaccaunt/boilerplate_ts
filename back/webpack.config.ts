@@ -3,7 +3,7 @@ import TerserPlugin from "terser-webpack-plugin"
 import webpack from "webpack"
 import type { Configuration } from "webpack"
 
-const optionalDatabaseDrivers = /^(pg|pg-hstore|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk)$/
+const optionalRuntimeDependencies = /^(pg|pg-hstore|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk|bufferutil|utf-8-validate)$/
 const unusedSequelizeDialects = /sequelize[\\/]lib[\\/]dialects[\\/](mariadb|mssql|oracle|postgres|sqlite|db2|snowflake)/
 
 const config: Configuration = {
@@ -103,7 +103,7 @@ const config: Configuration = {
   },
   plugins: [
     new webpack.IgnorePlugin({
-      resourceRegExp: optionalDatabaseDrivers
+      resourceRegExp: optionalRuntimeDependencies
     }),
     new webpack.IgnorePlugin({
       checkResource(resource) {

@@ -10,6 +10,8 @@
 - поля, возникающие при ассоциации, объявленные через `NonAttribute`
 - `declare static associations: { ... }`
 
+Внешние ключи должны объявляться через `ForeignKey<T>`, например `declare userUid: ForeignKey<UUID>`.
+
 Пример:
 
 ```ts
@@ -17,7 +19,7 @@ export class SomeModel extends Model<InferAttributes<SomeModel>, InferCreationAt
   declare uid: CreationOptional<UUID>
   declare name: string
 
-  declare userUid: UUID
+  declare userUid: ForeignKey<UUID>
 
   static associate(models: iDatabase.Models) {
     this.belongsTo(models.User, { foreignKey: "userUid", as: "user" })

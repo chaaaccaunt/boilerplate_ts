@@ -5,7 +5,8 @@ import {
   Logger,
   MethodTracer,
   PayloadValidator,
-  TraceContext
+  TraceContext,
+  WebSocketServer
 } from "@/libs"
 import type {
   iAppConfig as LibAppConfig,
@@ -13,6 +14,13 @@ import type {
   iHTTPServerEnv as LibHTTPServerEnv,
   iLibsEnv as LibLibsEnv,
   iLoggerEnv as LibLoggerEnv,
+  iWebSocketConfig as LibWebSocketConfig,
+  iWebSocketEvent as LibWebSocketEvent,
+  iWebSocketEventContext as LibWebSocketEventContext,
+  iWebSocketEventHandler as LibWebSocketEventHandler,
+  iWebSocketEventResult as LibWebSocketEventResult,
+  iWebSocketGateway as LibWebSocketGateway,
+  iWebSocketNativeServer as LibWebSocketNativeServer,
   LogLevel as LibLogLevel,
   TraceLayer as LibTraceLayer
 } from "@/libs"
@@ -24,6 +32,8 @@ declare global {
     type Exceptions = typeof Exceptions
     type HTTPServer = InstanceType<typeof HTTPServer>
     type HTTPServerClass = typeof HTTPServer
+    type WebSocketServer = InstanceType<typeof WebSocketServer>
+    type WebSocketServerClass = typeof WebSocketServer
     type Logger = InstanceType<typeof Logger>
     type LoggerClass = typeof Logger
     type MethodTracer = InstanceType<typeof MethodTracer>
@@ -37,6 +47,13 @@ declare global {
     type iHTTPServerEnv = LibHTTPServerEnv
     type iLibsEnv = LibLibsEnv
     type iLoggerEnv = LibLoggerEnv
+    type iWebSocketConfig = LibWebSocketConfig
+    type iWebSocketEvent = LibWebSocketEvent
+    type iWebSocketEventContext = LibWebSocketEventContext
+    type iWebSocketEventHandler = LibWebSocketEventHandler
+    type iWebSocketEventResult = LibWebSocketEventResult
+    type iWebSocketGateway = LibWebSocketGateway
+    type iWebSocketNativeServer = LibWebSocketNativeServer
     type LogLevel = LibLogLevel
     type TraceLayer = LibTraceLayer
   }

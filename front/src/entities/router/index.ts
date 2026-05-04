@@ -10,10 +10,20 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import(/* webpackChunkName: "login" */ '@/views/LoginView.vue')
   },
   {
-    path: '/',
+    path: "/",
+    redirect: { name: "home" }
+  },
+  {
+    path: '/home',
     name: 'home',
     meta: { requiresAuthorization: true },
     component: () => import(/* webpackChunkName: "home" */ '@/views/HomeView.vue')
+  },
+  {
+    path: '/chat',
+    name: 'chat',
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "chat" */ '@/views/ChatView.vue')
   }
 ]
 

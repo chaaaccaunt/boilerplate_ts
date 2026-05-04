@@ -1,7 +1,7 @@
 import { Exceptions } from "../Exceptions"
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
-export type TraceLayer = 'httpServer' | 'controller' | 'service'
+export type TraceLayer = 'httpServer' | 'webSocketServer' | 'controller' | 'gateway' | 'service'
 
 export interface iLoggerEnv {
   VAR_APP_LOG_LEVEL?: LogLevel
@@ -34,6 +34,8 @@ interface LogContext {
   trace?: unknown
   controllerName?: string
   controllerMethod?: string
+  gatewayName?: string
+  gatewayEvent?: string
   serviceName?: string
   serviceMethod?: string
 }
@@ -168,6 +170,8 @@ interface TraceStep {
   error?: LogValue
   controllerName?: string
   controllerMethod?: string
+  gatewayName?: string
+  gatewayEvent?: string
   serviceName?: string
   serviceMethod?: string
 }

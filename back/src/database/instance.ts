@@ -1,4 +1,9 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
+import { ChatMessageFileModel, getChatMessageFileModel } from "./models/chat/ChatMessageFileModel"
+import { ChatMessageModel, getChatMessageModel } from "./models/chat/ChatMessageModel"
+import { ChatRoomMemberModel, getChatRoomMemberModel } from "./models/chat/ChatRoomMemberModel"
+import { ChatRoomModel, getChatRoomModel } from "./models/chat/ChatRoomModel"
+import { getStoredFileModel, StoredFileModel } from "./models/files/StoredFileModel"
 import { getUserRoleModel, UserRoleModel } from "./models/users/UserRoleModel"
 import { getUserModel, UserModel } from "./models/users/UserModel"
 
@@ -11,6 +16,11 @@ export interface DataBaseInstance {
 export interface iModels {
   User: typeof UserModel
   UserRole: typeof UserRoleModel
+  ChatRoom: typeof ChatRoomModel
+  ChatRoomMember: typeof ChatRoomMemberModel
+  ChatMessage: typeof ChatMessageModel
+  ChatMessageFile: typeof ChatMessageFileModel
+  StoredFile: typeof StoredFileModel
 }
 
 export class Database {
@@ -21,7 +31,12 @@ export class Database {
     this.sequelize = new SequelizeClass(config)
     this.models = {
       User: getUserModel(this.sequelize),
-      UserRole: getUserRoleModel(this.sequelize)
+      UserRole: getUserRoleModel(this.sequelize),
+      ChatRoom: getChatRoomModel(this.sequelize),
+      ChatRoomMember: getChatRoomMemberModel(this.sequelize),
+      ChatMessage: getChatMessageModel(this.sequelize),
+      ChatMessageFile: getChatMessageFileModel(this.sequelize),
+      StoredFile: getStoredFileModel(this.sequelize)
     }
 
     Object.keys(this.models).forEach((key) => {

@@ -15,45 +15,27 @@ export abstract class BaseController {
     controllerMethod: string,
     handler: (payload: TPayload) => Promise<TResult>
   ): iContracts.iRouteCallback<TPayload, TResult> {
-    const wrappedHandler = async (payload: TPayload): Promise<TResult> => {
-      try {
-        return await handler(payload)
-      } catch (error) {
-        if (error instanceof Exceptions.ControllerError.AccessDeniedError) {
-          throw error
-        }
-
-        if (error instanceof Exceptions.ControllerError.UnauthorizedError) {
-          throw error
-        }
-
-        if (error instanceof Exceptions.ServiceError.NotFoundError) {
-          throw new Exceptions.ControllerError.NotFoundError(error.message, { cause: error })
-        }
-
-        if (error instanceof Exceptions.ServiceError.AuthenticationError) {
-          throw new Exceptions.ControllerError.UnauthorizedError(error.message, { cause: error })
-        }
-
-        if (error instanceof Exceptions.ServiceError.ConflictError) {
-          throw new Exceptions.ControllerError.ConflictError(error.message, { cause: error })
-        }
-
-        if (error instanceof Exceptions.ServiceError.InternalError) {
-          throw new Exceptions.ControllerError.InternalError(error.message, { cause: error })
-        }
-
-        if (error instanceof Error) {
-          throw new Exceptions.ControllerError.InternalError(error.message, { cause: error })
-        }
-
-        throw new Exceptions.ControllerError.InternalError('Необработанная ошибка контроллера', { cause: error })
-      }
-    }
+    const wrappedHandler = (payload: TPayload): Promise<TResult> => Promise.resolve()
+      .then(() => handler(payload))
+      .catch((error) => {
+        throw this.mapControllerError(error)
+      })
 
     return Object.assign(wrappedHandler, {
       controllerName: this.constructor.name,
       controllerMethod
     })
+  }
+
+  private mapControllerError(error: unknown): Error {
+    if (error instanceof Exceptions.ControllerError.AccessDeniedError) return error
+    if (error instanceof Exceptions.ControllerError.UnauthorizedError) return error
+    if (error instanceof Exceptions.ServiceError.NotFoundError) return new Exceptions.ControllerError.NotFoundError(error.message, { cause: error })
+    if (error instanceof Exceptions.ServiceError.AuthenticationError) return new Exceptions.ControllerError.UnauthorizedError(error.message, { cause: error })
+    if (error instanceof Exceptions.ServiceError.ConflictError) return new Exceptions.ControllerError.ConflictError(error.message, { cause: error })
+    if (error instanceof Exceptions.ServiceError.InternalError) return new Exceptions.ControllerError.InternalError(error.message, { cause: error })
+    if (error instanceof Error) return new Exceptions.ControllerError.InternalError(error.message, { cause: error })
+
+    return new Exceptions.ControllerError.InternalError("Необработанная ошибка контроллера", { cause: error })
   }
 }

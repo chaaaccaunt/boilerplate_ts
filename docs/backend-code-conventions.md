@@ -56,6 +56,26 @@ private readonly exceptions: iLibs.Exceptions
 `AppConfiguration`, env helpers и готовый `config` относятся к libs и должны находиться внутри `./back/src/libs/Config`.
 Отдельный bootstrap layer не используется.
 
+## Асинхронный код
+
+Backend code не должен использовать `async/await` как стиль по умолчанию.
+
+Для infrastructure, controllers и services предпочтителен обычный promise flow:
+
+```ts
+return service.find(payload.uid)
+  .then((entity) => mapper.toDto(entity))
+  .catch((error) => {
+    throw new Exceptions.ControllerError.InternalError("Не удалось получить данные", { cause: error })
+  })
+```
+
+`async/await` разрешен только там, где promise flow делает код менее читаемым из-за вложенности больше трех уровней или из-за необходимости явно выразить сложный последовательный сценарий.
+
+Если используется `async/await`, ошибки должны быть явно обработаны на текущем слое или гарантированно проброшены в уже существующий mapper ошибок этого слоя. Нельзя оставлять неочевидные `await`-цепочки без понятной точки обработки ошибки.
+
+В controller и service короткие методы, которые только вызывают один async dependency и мапят результат, должны писаться через `return dependency.method(...).then(...)`, а не через `async` + `await`.
+
 ## Production bundle backend
 
 Production-сборка backend должна собираться как Node.js bundle.
@@ -79,3 +99,24 @@ Webpack-конфигурация backend должна:
 - использовать production-оптимизации, подходящие для крупных production-приложений.
 
 Если проект меняет основной database dialect, список ignored optional database drivers в `./back/webpack.config.ts` должен быть пересмотрен явно.
+
+## WebSocket gateways
+
+WebSocket gateways должны располагаться в `./back/src/realtime`.
+
+Gateway naming должен быть полным и доменным:
+
+```text
+UsersSocketGateway
+NotificationsSocketGateway
+AuthorizationSocketGateway
+```
+
+Сокращения вроде `AuthSocketGateway`, `WsGateway`, `MsgGateway` не используются.
+
+Gateway должен описывать только transport-boundary события и не должен содержать бизнес-логику.
+Бизнес-логика должна находиться в services.
+
+WebSocket infrastructure находится в `./back/src/libs/WebSocketServer`.
+Она подключается в `bin/index.ts` по умолчанию.
+Новые gateways должны подключаться явно через `webSocketServer.use(...)`.

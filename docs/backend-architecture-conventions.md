@@ -65,7 +65,7 @@ Frontend route guard должен проверять состояние авто
 GET /v1/gateway/authorization/state
 ```
 
-Backend route `/authorization/state` должен использовать `httpTokenValidator`.
+Backend route `/authorization/state` должен использовать `requireAuthorization: true`, а `httpServer` должен выполнить `httpTokenValidator` на pre-controller этапе.
 
 Если authorization cookie и JWT валидны, endpoint должен вернуть `200 OK` и стандартный response envelope:
 
@@ -166,6 +166,15 @@ Controller является слоем, который преобразует о
 
 Все API responses должны возвращаться как JSON с `Content-Type: application/json; charset=utf-8`.
 
+Исключение: download endpoints, которые явно возвращают содержимое файла, могут отдавать бинарный response с корректными `Content-Type` и `Content-Disposition`.
+
+Upload/download файлов должны корректно поддерживать UTF-8 и кириллицу в именах файлов:
+
+- multipart parser должен читать filename-параметры как UTF-8;
+- metadata файла должна хранить оригинальное имя файла без потери кириллицы;
+- download response должен отдавать `Content-Disposition` с `filename*` в UTF-8;
+- для совместимости можно дополнительно отдавать ASCII-safe `filename`, но он не должен заменять оригинальное UTF-8 имя.
+
 `httpServer` обязан использовать единый response envelope.
 
 Успешный response:
@@ -195,6 +204,72 @@ Controller может вернуть transport instructions через controlle
 - Конкретные роли, permissions, ownership rules, tenant rules и endpoint access policy определяются проектом, а не boilerplate.
 - Подробные правила для агентов описаны в `./docs/agent-authorization-policy.md`.
 
+## WebSocket transport
+
+WebSocket transport является базовой частью boilerplate и запускается по умолчанию вместе с HTTP server.
+
+Базовая инфраструктура WebSocket находится в:
+
+```text
+back/src/libs/WebSocketServer
+```
+
+Доменные realtime gateways должны находиться в:
+
+```text
+back/src/realtime
+```
+
+`WebSocketServer` подключается в `back/src/bin/index.ts` к тому же native HTTP server.
+Новые gateways подключаются явно через `webSocketServer.use(...)`.
+
+WebSocket архитектура:
+
+```text
+WebSocketServer
+  принимает подключение
+  извлекает authorization cookie/JWT
+  валидирует пользователя
+  валидирует payload события
+  вызывает gateway
+
+Gateway
+  описывает события домена
+  проверяет доступ к событию
+  вызывает service
+
+Service
+  выполняет бизнес-логику
+  работает с данными
+  не знает про socket.io, socket instance или WebSocket protocol
+```
+
+Payload события должен валидироваться по схеме конкретного события.
+Один общий payload validator на весь socket не используется.
+
+WebSocket errors должны возвращаться в event callback в формате, совместимом с API envelope:
+
+- `ok: true`, `result`, `error: null`;
+- `ok: false`, `result: null`, `error.code`, `error.message`.
+
+WebSocket transport не должен раскрывать клиенту внутренние детали service/controller ошибок.
+
+Boilerplate содержит базовый chat gateway с поддержкой:
+
+- публичного чата;
+- групповых чатов;
+- приватных чатов;
+- сообщений с файлами.
+
+Chat gateway является realtime-аналогом controller boundary:
+
+- проверяет доступ к событию или вызывает service-level access check без загрузки лишних данных;
+- вызывает service для бизнес-логики;
+- не раскрывает frontend внутренние ошибки service/database.
+
+Событие `chat:room:join` должно только проверить доступ к комнате и подписать socket на room channel.
+Загрузка сообщений должна выполняться отдельным событием `chat:messages:list`.
+
 ## Семантика логирования
 
 nginx не включается в logging map.
@@ -202,7 +277,9 @@ nginx не включается в logging map.
 Логирование выполняется только на уровнях:
 
 - `httpServer`
+- `webSocketServer`
 - `controller`
+- `gateway`
 - `service`
 
 ### httpServer
@@ -218,6 +295,17 @@ nginx не включается в logging map.
   - sanitized payload
 - `error` -> unhandled server error
 
+### webSocketServer
+
+- `info` -> WebSocket подключение установлено
+- `info` -> WebSocket подключение закрыто
+- `warn` -> token validation error
+- `warn` -> payload validation failed
+- `debug` -> WebSocket событие получено:
+  - event name
+  - sanitized payload
+- `error` -> unhandled WebSocket transport error
+
 ### controller
 
 - `info` -> controller name, controller method name
@@ -227,6 +315,13 @@ nginx не включается в logging map.
   - request context
 - `warn` -> access denied
 - `error` -> controller exception
+
+### gateway
+
+- `info` -> gateway name, event name
+- `debug` -> service call
+- `warn` -> access denied
+- `error` -> gateway exception
 
 ### service
 

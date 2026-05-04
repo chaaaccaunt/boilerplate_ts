@@ -1,7 +1,7 @@
 <template>
   <main class="login-layout">
     <div class="login-layout__content">
-      <slot />
+      <router-view></router-view>
     </div>
   </main>
 </template>

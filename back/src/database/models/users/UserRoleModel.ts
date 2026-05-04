@@ -4,6 +4,7 @@ import {
   DataTypes,
   InferAttributes,
   InferCreationAttributes,
+  ForeignKey,
   Model,
   Sequelize
 } from "sequelize"
@@ -14,7 +15,7 @@ export class UserRoleModel extends Model<InferAttributes<UserRoleModel>, InferCr
   declare uid: CreationOptional<UUID>
   declare name: string
 
-  declare userUid: UUID
+  declare userUid: ForeignKey<UUID>
 
   static associate(models: iDatabase.Models) {
     this.belongsTo(models.User, { foreignKey: "userUid", as: "user" })

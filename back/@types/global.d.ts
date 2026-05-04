@@ -1,4 +1,3 @@
-﻿import { Middlewares } from "@/middlewares"
 import { UUID } from "crypto"
 
 declare global {
@@ -9,9 +8,24 @@ declare global {
       claims?: iPayload
     }
 
-    type iMiddlewares = ("httpTokenValidator" | "payloadValidator")
+    type iRequestBodyType = "json" | "multipart"
     type iPayloadValue = string | number | boolean | null | iPayload | iPayloadValue[]
     type iPayload = Record<string, iPayloadValue>
+    type iRequestBody = iPayload | iMultipartPayload
+
+    interface iUploadedFile {
+      fieldName: string
+      originalName: string
+      mimeType: string
+      encoding: string
+      size: number
+      storagePath: string
+    }
+
+    interface iMultipartPayload {
+      fields: iPayload
+      files: iUploadedFile[]
+    }
 
     interface iCookieOptions {
       httpOnly?: boolean
@@ -33,6 +47,14 @@ declare global {
       clearCookies?: string[]
     }
 
+    interface iFileControllerResult {
+      file: {
+        path: string
+        originalName: string
+        mimeType: string
+      }
+    }
+
     type iApiError = iSharedApi.ErrorDto
     type iApiResponse<TResult = unknown> = iSharedApi.ResponseEnvelope<TResult>
 
@@ -43,10 +65,11 @@ declare global {
       controllerMethod: string
     }
 
-    interface iRoute<P extends iContracts.iPayload = iContracts.iPayload, R = unknown> {
+    interface iRoute<P = iContracts.iRequestBody, R = unknown> {
       url: RegExp
       method: "GET" | "POST" | "PATCH" | "DELETE"
-      middlewares: iMiddlewares[]
+      requireAuthorization?: boolean
+      requestBodyType?: iRequestBodyType
       clearCookiesOnError?: string[]
       callback: iRouteCallback<{ user?: iContracts.iUserToken, data?: P }, R>
       validator?: { [key: string]: iValidator }
@@ -93,6 +116,18 @@ declare global {
   namespace iAuthorization {
     type iLoginPayload = iSharedAuthorization.LoginPayloadDto
     type iPublicUser = iSharedUser.PublicUserDto
+
+    interface iLoginControllerPayload {
+      data?: iLoginPayload
+    }
+
+    interface iLogoutControllerPayload {
+      user?: iContracts.iUserToken
+    }
+
+    interface iStateControllerPayload {
+      user?: iContracts.iUserToken
+    }
 
     interface iLoginResult {
       user: iSharedAuthorization.LoginResponseDto

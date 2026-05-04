@@ -26,4 +26,16 @@ export async function seedAuthorizationData(models: iDatabase.Models): Promise<v
       }
     })
   }
+
+  await models.ChatRoom.findOrCreate({
+    where: {
+      type: "public",
+      title: "Общий чат"
+    },
+    defaults: {
+      type: "public",
+      title: "Общий чат",
+      createdByUserUid: user.uid
+    }
+  })
 }

@@ -11,14 +11,13 @@ const layouts = {
   login: LoginLayout,
 };
 
-const resolveLayout = computed(() => layouts[route.meta.requiresAuthorization ? "main" : "login"]);
+const resolveLayout = computed(
+  () => layouts[route.meta.requiresAuthorization ? "main" : "login"]
+);
 </script>
 
 <template>
-  <component :is="resolveLayout">
-    <router-view />
-  </component>
+  <component :is="resolveLayout"></component>
 </template>
 
 <style lang="scss"></style>
-

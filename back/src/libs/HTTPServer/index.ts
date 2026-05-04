@@ -1,8 +1,11 @@
-import { ServerResponse, IncomingMessage, createServer, Server } from "http";
-import { randomUUID } from "crypto";
-import { Exceptions } from "../Exceptions";
-import { HTTPMiddlewares } from "./middlewares";
-import { Logger, MethodTracer, TraceContext, LogLevel } from "../Logger";
+import { ServerResponse, IncomingMessage, createServer, Server } from "http"
+import { randomUUID } from "crypto"
+import { Exceptions } from "../Exceptions"
+import { HTTPMiddlewares } from "./middlewares"
+import { Logger, MethodTracer, TraceContext } from "../Logger"
+import { HTTPRequestBodyParser } from "./RequestBodyParser"
+import { HTTPResponseSender } from "./ResponseSender"
+import { HTTPErrorMapper } from "./ErrorMapper"
 
 export interface iHTTPServerEnv {
   VAR_HTTP_PORT: string
@@ -22,98 +25,234 @@ export interface iHTTPConfig {
   jwt_audience?: string
 }
 
+interface RequestContext {
+  requestId: string
+  traceContext: TraceContext
+  route: iContracts.iRoute | null
+}
+
 export class HTTPServer {
+  private readonly jsonRequestBodyLimit = 1_000_000
+  private readonly multipartRequestBodyLimit = 100_000_000
   protected server: Server
   readonly routes: iContracts.iRoute[] = []
   readonly exceptions = Exceptions.HttpServerError
   readonly Middlewares: HTTPMiddlewares
   readonly tracer: MethodTracer
+  private readonly bodyParser: HTTPRequestBodyParser
+  private readonly responseSender: HTTPResponseSender
+  private readonly errorMapper: HTTPErrorMapper
+
   constructor(readonly config: iHTTPConfig, private logger = new Logger()) {
     this.Middlewares = new HTTPMiddlewares(this.config, this.exceptions)
     this.tracer = new MethodTracer(this.logger)
-    this.server = createServer((request, response) => this.handleRequest(request, response));
+    this.bodyParser = new HTTPRequestBodyParser(this.exceptions, this.jsonRequestBodyLimit, this.multipartRequestBodyLimit)
+    this.responseSender = new HTTPResponseSender(this.config)
+    this.errorMapper = new HTTPErrorMapper(this.exceptions, this.logger)
+    this.server = createServer((request, response) => this.handleRequest(request, response))
   }
-  private handleRequest(request: IncomingMessage, response: ServerResponse) {
-    let body = Buffer.from([])
-    const requestId = randomUUID()
-    const traceContext = new TraceContext()
-    request.on("data", (chunk: Buffer) => {
-      body = Buffer.concat([body, chunk])
-      if (body.length > 1e6) {
-        request.socket.destroy()
-      }
+
+  private handleRequest(request: IncomingMessage, response: ServerResponse): void {
+    const context: RequestContext = {
+      requestId: randomUUID(),
+      traceContext: new TraceContext(),
+      route: null
+    }
+
+    Promise.resolve()
+      .then(() => this.resolveRoute(request, context))
+      .then((route) => this.processRoute(request, response, route, context))
+      .then((status) => this.logRequest(request, context, status))
+      .catch((error) => this.finishRequestWithError(error, request, response, context))
+  }
+
+  private resolveRoute(request: IncomingMessage, context: RequestContext): iContracts.iRoute {
+    const route = this.matchRoute(request)
+    context.route = route
+    return route
+  }
+
+  private processRoute(
+    request: IncomingMessage,
+    response: ServerResponse,
+    route: iContracts.iRoute,
+    context: RequestContext
+  ): Promise<number> {
+    if (route.requireAuthorization) {
+      this.Middlewares.httpTokenValidator(request, response)
+    }
+
+    if (this.getRequestBodyType(route) === "multipart") {
+      return this.processMultipartRoute(request, response, route, context)
+    }
+
+    return this.processJsonRoute(request, response, route, context)
+  }
+
+  private processJsonRoute(
+    request: IncomingMessage,
+    response: ServerResponse,
+    route: iContracts.iRoute,
+    context: RequestContext
+  ): Promise<number> {
+    return this.bodyParser.readBody(request, this.jsonRequestBodyLimit)
+      .then((body) => {
+        this.prepareJsonRequestPayload(request, route, body)
+        this.validateRequestPayload(request, response, route)
+        return this.callController(request, response, route, context.traceContext)
+      })
+      .then(() => 200)
+  }
+
+  private processMultipartRoute(
+    request: IncomingMessage,
+    response: ServerResponse,
+    route: iContracts.iRoute,
+    context: RequestContext
+  ): Promise<number> {
+    let multipartBody: iContracts.iMultipartPayload | null = null
+    let controllerCalled = false
+
+    return this.bodyParser.parseMultipartRequest(request)
+      .then((body) => {
+        multipartBody = body
+        this.prepareMultipartRequestPayload(request, response, route, body)
+        controllerCalled = true
+        return this.callController(request, response, route, context.traceContext)
+      })
+      .then(() => 200)
+      .catch((error) => {
+        if (!multipartBody || controllerCalled) {
+          return Promise.reject(error)
+        }
+
+        return this.bodyParser.cleanupUploadedFiles(multipartBody.files)
+          .then(() => Promise.reject(error))
+      })
+  }
+
+  private prepareJsonRequestPayload(request: IncomingMessage, route: iContracts.iRoute, body: Buffer): void {
+    if (route.validator) request.scheme = route.validator
+
+    if (request.method === "GET") {
+      request.body = request.url?.split("?")[1] ? Object.fromEntries(new URLSearchParams(request.url.split("?")[1])) : {}
+      return
+    }
+
+    request.body = body.length ? this.bodyParser.parseJsonBody(body) : {}
+  }
+
+  private prepareMultipartRequestPayload(
+    request: IncomingMessage,
+    response: ServerResponse,
+    route: iContracts.iRoute,
+    body: iContracts.iMultipartPayload
+  ): void {
+    request.body = body
+
+    if (!route.validator) return
+
+    request.scheme = route.validator
+    request.body = body.fields
+    this.validateRequestPayload(request, response, route)
+    request.body = body
+  }
+
+  private validateRequestPayload(request: IncomingMessage, response: ServerResponse, route: iContracts.iRoute): void {
+    if (!route.validator) return
+
+    const validationError = this.Middlewares.payloadValidator(request, response)
+    if (!validationError) return
+
+    throw new this.exceptions.PayloadValidationError(validationError.message)
+  }
+
+  private callController(
+    request: IncomingMessage,
+    response: ServerResponse,
+    route: iContracts.iRoute,
+    traceContext: TraceContext
+  ): Promise<void> {
+    const { controllerName, controllerMethod } = route.callback
+
+    traceContext.addStep({
+      layer: "httpServer",
+      level: "debug",
+      event: "вызов контроллера",
+      functionName: `${controllerName}.${controllerMethod}`,
+      durationMs: 0,
+      payload: request.body,
+      controllerName,
+      controllerMethod
     })
-    request.on("end", async () => {
-      let status = 200
-      try {
-        const route = this.matchRoute(request)
 
-        if (route.validator) {
-          request.scheme = route.validator
-          if (request.method === "GET") request.body = request.url?.split("?")[1] ? Object.fromEntries(new URLSearchParams(request.url.split("?")[1])) : {}
-          else request.body = body.length ? this.parseRequestBody(body) : {}
-        }
-
-        for (const middleware of route.middlewares) {
-          const hasError = this.Middlewares[middleware](request, response)
-
-          if (hasError) {
-            status = hasError.status
-            this.applyClearCookies(response, route.clearCookiesOnError || [])
-            this.sendError(response, status, this.getMiddlewareErrorCode(status), hasError.message)
-            return
-          }
-        }
-
-        const { controllerName, controllerMethod } = route.callback
-
-        traceContext.addStep({
-          layer: "httpServer",
-          level: "debug",
-          event: "вызов контроллера",
-          functionName: `${controllerName}.${controllerMethod}`,
-          durationMs: 0,
-          payload: request.body,
-          controllerName,
-          controllerMethod
-        })
-
-        const data = await this.tracer.trace(
-          traceContext,
-          "controller",
-          controllerMethod,
-          "info",
-          async () => route.callback({ user: request.user, data: request.body }),
-          {
-            method: request.method,
-            path: request.url,
-            event: "контроллер завершил работу",
-            controllerName,
-            controllerMethod
-          }
-        )
-
-        this.applyControllerResult(response, data)
-        this.sendSuccess(response, 200, this.getControllerResultData(data))
-      } catch (error) {
-        const normalizedError = this.normalizeError(error)
-        status = this.getErrorStatus(normalizedError)
-
-        if (status >= 500) {
-          this.logInternalError(normalizedError, request, requestId, status)
-        }
-
-        this.sendError(response, status, this.getErrorCode(normalizedError), this.getErrorMessage(normalizedError))
-      } finally {
-        this.logger.log(this.getRequestLogLevel(status), 'запрос завершен', {
-          requestId,
-          method: request.method,
-          path: request.url,
-          status,
-          trace: traceContext.getTrace()
-        })
+    return this.tracer.trace(
+      traceContext,
+      "controller",
+      controllerMethod,
+      "info",
+      () => route.callback({ user: request.user, data: request.body }),
+      {
+        method: request.method,
+        path: request.url,
+        event: "контроллер завершил работу",
+        controllerName,
+        controllerMethod
       }
+    )
+      .then((data) => {
+        this.responseSender.applyControllerResult(response, data)
+        if (this.responseSender.isFileControllerResult(data)) {
+          this.responseSender.sendFile(response, data)
+          return
+        }
+
+        this.responseSender.sendSuccess(response, 200, this.responseSender.getControllerResultData(data))
+      })
+  }
+
+  private finishRequestWithError(
+    error: unknown,
+    request: IncomingMessage,
+    response: ServerResponse,
+    context: RequestContext
+  ): void {
+    const normalizedError = this.errorMapper.normalize(error)
+    const status = this.errorMapper.getStatus(normalizedError)
+
+    if (status === 401) {
+      this.responseSender.applyClearCookies(response, context.route?.clearCookiesOnError || [])
+    }
+
+    if (status >= 500) {
+      this.errorMapper.logInternalError(normalizedError, request, context.requestId, status)
+    }
+
+    if (!request.readableEnded) {
+      request.resume()
+    }
+
+    this.responseSender.sendError(
+      response,
+      status,
+      this.errorMapper.getCode(normalizedError),
+      this.errorMapper.getMessage(normalizedError)
+    )
+    this.logRequest(request, context, status)
+  }
+
+  private logRequest(request: IncomingMessage, context: RequestContext, status: number): void {
+    this.logger.log(this.errorMapper.getLogLevel(status), "запрос завершен", {
+      requestId: context.requestId,
+      method: request.method,
+      path: request.url,
+      status,
+      trace: context.traceContext.getTrace()
     })
+  }
+
+  private getRequestBodyType(route: iContracts.iRoute): iContracts.iRequestBodyType {
+    return route.requestBodyType || "json"
   }
 
   private matchRoute(request: IncomingMessage): iContracts.iRoute {
@@ -127,240 +266,27 @@ export class HTTPServer {
     routes.forEach((route) => {
       const routePath = route.url.source.replace(/^\^/, "").replace(/\$$/, "")
       this.routes.push({ ...route, url: new RegExp(`^${route.method}:\\/v1\\/gateway${routePath}$`) })
-    });
-  }
-
-  private getErrorStatus(error: Error): number {
-    if (error instanceof this.exceptions.BadRequestError) return 400
-    if (error instanceof this.exceptions.UnauthorizedError) return 401
-    if (error instanceof this.exceptions.RouteNotFoundError) return 404
-    if (error instanceof this.exceptions.PayloadValidationError) return 422
-    if (error instanceof this.exceptions.InternalServerError) return 500
-    if (error instanceof Exceptions.ControllerError.UnauthorizedError) return 401
-    if (error instanceof Exceptions.ControllerError.AccessDeniedError) return 403
-    if (error instanceof Exceptions.ControllerError.NotFoundError) return 404
-    if (error instanceof Exceptions.ControllerError.ConflictError) return 409
-    if (error instanceof Exceptions.ControllerError.InternalError) return 500
-
-    throw new this.exceptions.InternalServerError("Необработанная ошибка сервера", { cause: error })
-  }
-
-  private normalizeError(error: unknown): Error {
-    if (error instanceof Error && this.isMappedError(error)) return error
-    if (error instanceof Error) return new this.exceptions.InternalServerError(error.message, { cause: error })
-    return new this.exceptions.InternalServerError("Необработанная ошибка сервера", { cause: error })
-  }
-
-  private isMappedError(error: Error): boolean {
-    return (
-      error instanceof this.exceptions.BadRequestError ||
-      error instanceof this.exceptions.UnauthorizedError ||
-      error instanceof this.exceptions.RouteNotFoundError ||
-      error instanceof this.exceptions.PayloadValidationError ||
-      error instanceof this.exceptions.InternalServerError ||
-      error instanceof Exceptions.ControllerError.UnauthorizedError ||
-      error instanceof Exceptions.ControllerError.AccessDeniedError ||
-      error instanceof Exceptions.ControllerError.NotFoundError ||
-      error instanceof Exceptions.ControllerError.ConflictError ||
-      error instanceof Exceptions.ControllerError.InternalError
-    )
-  }
-
-  private getErrorMessage(error: Error): string {
-    if (this.isInternalError(error)) return "Внутренняя ошибка сервера"
-    return error.message
-  }
-
-  private isInternalError(error: Error): boolean {
-    return (
-      error instanceof this.exceptions.InternalServerError ||
-      error instanceof Exceptions.ControllerError.InternalError
-    )
-  }
-
-  private logInternalError(error: Error, request: IncomingMessage, requestId: string, status: number): void {
-    this.logger.error("Необработанная ошибка сервера", {
-      requestId,
-      method: request.method,
-      path: request.url,
-      status,
-      error: {
-        name: error.name,
-        message: error.message,
-        cause: this.getErrorCauseMessage(error)
-      }
     })
   }
 
-  private getErrorCauseMessage(error: Error): string | null {
-    const details = "details" in error ? error.details : null
-
-    if (!this.isErrorDetails(details)) return null
-    if (details.cause instanceof Error) return details.cause.message
-    if (details.cause === undefined || details.cause === null) return null
-
-    return String(details.cause)
-  }
-
-  private isErrorDetails(value: unknown): value is { cause?: unknown } {
-    return typeof value === "object" && value !== null
-  }
-
-  private getErrorCode(error: Error): string {
-    if (error instanceof this.exceptions.AuthenticationError) return `AUTHORIZATION_${error.reasonCode.toUpperCase()}`
-    if (error instanceof this.exceptions.BadRequestError) return "BAD_REQUEST"
-    if (error instanceof this.exceptions.RouteNotFoundError) return "ROUTE_NOT_FOUND"
-    if (error instanceof this.exceptions.PayloadValidationError) return "PAYLOAD_VALIDATION_FAILED"
-    if (error instanceof this.exceptions.InternalServerError) return "INTERNAL_ERROR"
-    if (error instanceof Exceptions.ControllerError.UnauthorizedError) return "AUTHENTICATION_FAILED"
-    if (error instanceof Exceptions.ControllerError.AccessDeniedError) return "ACCESS_DENIED"
-    if (error instanceof Exceptions.ControllerError.NotFoundError) return "NOT_FOUND"
-    if (error instanceof Exceptions.ControllerError.ConflictError) return "CONFLICT"
-    if (error instanceof Exceptions.ControllerError.InternalError) return "INTERNAL_ERROR"
-
-    return "INTERNAL_ERROR"
-  }
-
-  private getMiddlewareErrorCode(status: number): string {
-    if (status === 403) return "ACCESS_DENIED"
-    if (status === 401) return "AUTHENTICATION_FAILED"
-    if (status === 422) return "PAYLOAD_VALIDATION_FAILED"
-    return "REQUEST_FAILED"
-  }
-
-  private getRequestLogLevel(status: number): LogLevel {
-    if (status >= 500) return "error"
-    if (status >= 400) return "warn"
-    return "info"
-  }
-
-  private sendSuccess(response: ServerResponse, status: number, result: unknown): void {
-    this.sendJson(response, status, {
-      ok: true,
-      result,
-      error: null
-    })
-  }
-
-  private sendError(response: ServerResponse, status: number, code: string, message: string): void {
-    this.sendJson(response, status, {
-      ok: false,
-      result: null,
-      error: {
-        code,
-        message
-      }
-    })
-  }
-
-  private sendJson(response: ServerResponse, status: number, payload: iContracts.iApiResponse): void {
-    response.statusCode = status
-    this.setCorsHeaders(response)
-    response.setHeader("Content-Type", "application/json; charset=utf-8")
-    response.end(JSON.stringify(payload))
-  }
-
-  private setCorsHeaders(response: ServerResponse): void {
-    response.setHeader("Access-Control-Allow-Origin", this.config.origin)
-    response.setHeader("Access-Control-Allow-Credentials", "true")
-    response.setHeader("Vary", "Origin")
-  }
-
-  private applyControllerResult(response: ServerResponse, result: unknown): void {
-    if (!this.isControllerResult(result)) return
-
-    const cookies = [
-      ...(result.setCookies || []).map((cookie) => this.serializeCookie(cookie)),
-      ...this.getClearCookieHeaders(result.clearCookies || [])
-    ]
-
-    if (cookies.length) {
-      response.setHeader("Set-Cookie", cookies)
-    }
-  }
-
-  private applyClearCookies(response: ServerResponse, cookieNames: string[]): void {
-    const cookies = this.getClearCookieHeaders(cookieNames)
-
-    if (cookies.length) {
-      response.setHeader("Set-Cookie", cookies)
-    }
-  }
-
-  private getClearCookieHeaders(cookieNames: string[]): string[] {
-    return cookieNames.map((name) => this.serializeCookie({
-      name,
-      value: "",
-      options: {
-        httpOnly: true,
-        sameSite: "strict",
-        path: "/",
-        maxAge: 0
-      }
-    }))
-  }
-
-  private getControllerResultData(result: unknown): unknown {
-    if (this.isControllerResult(result)) return result.data
-    return result
-  }
-
-  private isControllerResult(result: unknown): result is iContracts.iControllerResult {
-    if (typeof result !== "object" || result === null || Array.isArray(result)) return false
-    return "data" in result || "setCookies" in result || "clearCookies" in result
-  }
-
-  private serializeCookie(cookie: iContracts.iSetCookie): string {
-    const options = cookie.options || {}
-    const parts = [`${cookie.name}=${encodeURIComponent(cookie.value)}`]
-
-    if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`)
-    if (options.path) parts.push(`Path=${options.path}`)
-    if (options.httpOnly) parts.push("HttpOnly")
-    if (options.secure) parts.push("Secure")
-    if (options.sameSite) parts.push(`SameSite=${this.formatSameSite(options.sameSite)}`)
-
-    return parts.join("; ")
-  }
-
-  private formatSameSite(value: iContracts.iCookieOptions["sameSite"]): string {
-    if (value === "strict") return "Strict"
-    if (value === "lax") return "Lax"
-    return "None"
+  getNativeServer(): Server {
+    return this.server
   }
 
   private normalizePort(val: string) {
-    const port = parseInt(val, 10);
+    const port = parseInt(val, 10)
     if (Number.isNaN(port)) {
-      return val;
+      return val
     }
     if (port >= 0) {
-      return port;
+      return port
     }
-    return false;
+    return false
   }
+
   listen(port: string) {
     this.server.listen(this.normalizePort(port), () => {
       this.logger.info(`HTTP-сервер запущен на порту ${port}`)
     })
   }
-
-  private parseRequestBody(body: Buffer): iContracts.iPayload {
-    try {
-      const parsed = JSON.parse(body.toString())
-      if (!this.isPayload(parsed)) {
-        throw new this.exceptions.BadRequestError("Некорректные данные запроса")
-      }
-
-      return parsed
-    } catch (error) {
-      if (error instanceof this.exceptions.BadRequestError) throw error
-      throw new this.exceptions.BadRequestError("Некорректные данные запроса", { cause: error })
-    }
-  }
-
-  private isPayload(value: unknown): value is iContracts.iPayload {
-    return typeof value === "object" && value !== null && !Array.isArray(value)
-  }
 }
-

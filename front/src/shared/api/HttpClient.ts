@@ -13,6 +13,7 @@ interface RequestOptions<TPayload> {
 }
 
 type RequestInitOptions = Pick<RequestInit, "body" | "headers" | "method" | "credentials">
+export type UploadProgressCallback = (progress: number) => void
 
 interface ApiErrorPayload {
   code: string
@@ -34,9 +35,11 @@ const JSON_CONTENT_TYPE = "application/json"
 
 export class HttpClient {
   private readonly baseUrl: string
+  private readonly baseOrigin: string
 
   constructor(config: HttpClientConfig) {
     this.baseUrl = this.normalizeBaseUrl(config.baseUrl)
+    this.baseOrigin = new URL(this.baseUrl).origin
   }
 
   async request<TResult, TPayload = never>(options: RequestOptions<TPayload>): Promise<TResult> {
@@ -50,12 +53,67 @@ export class HttpClient {
     return envelope.result
   }
 
+  upload<TResult>(path: `/${string}`, formData: FormData, onProgress?: UploadProgressCallback): Promise<TResult> {
+    return this.fetchUploadResponse(path, formData, onProgress)
+      .then((response) => this.parseEnvelope<TResult>(response)
+        .then((envelope) => {
+          if (!envelope.ok) {
+            throw new ApiError(envelope.error.code, envelope.error.message, response.status)
+          }
+
+          return envelope.result
+        }))
+  }
+
+  resolvePublicUrl(path: `/${string}`): string {
+    return new URL(path, this.baseOrigin).toString()
+  }
+
   private async fetchResponse<TPayload>(options: RequestOptions<TPayload>): Promise<Response> {
     try {
       return await fetch(this.getUrl(options.path), this.getRequestInit(options))
     } catch (error) {
       throw new ApiError("API_NETWORK_ERROR", this.getNetworkErrorMessage(error), 0)
     }
+  }
+
+  private fetchUploadResponse(path: `/${string}`, formData: FormData, onProgress?: UploadProgressCallback): Promise<Response> {
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest()
+
+      request.open("POST", this.getUrl(path))
+      request.withCredentials = true
+      request.responseType = "text"
+
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          onProgress(Math.round((event.loaded / event.total) * 100))
+        }
+      }
+
+      request.onload = () => {
+        const headers = new Headers()
+        request.getAllResponseHeaders()
+          .trim()
+          .split(/[\r\n]+/)
+          .filter(Boolean)
+          .forEach((line) => {
+            const separatorIndex = line.indexOf(":")
+            if (separatorIndex === -1) return
+            headers.append(line.slice(0, separatorIndex).trim(), line.slice(separatorIndex + 1).trim())
+          })
+
+        resolve(new Response(request.responseText, {
+          status: request.status,
+          statusText: request.statusText,
+          headers
+        }))
+      }
+
+      request.onerror = () => reject(new ApiError("API_NETWORK_ERROR", "Не удалось выполнить сетевой запрос", 0))
+      request.onabort = () => reject(new ApiError("API_NETWORK_ERROR", "Загрузка файла отменена", 0))
+      request.send(formData)
+    })
   }
 
   private getRequestInit<TPayload>(options: RequestOptions<TPayload>): RequestInitOptions {

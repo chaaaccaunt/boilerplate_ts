@@ -5,7 +5,6 @@ import { Exceptions } from "../../Exceptions";
 import { PayloadValidator } from "../../Validator";
 
 export class HTTPMiddlewares {
-
   constructor(private env: iHTTPConfig, private exceptions: typeof Exceptions.HttpServerError) { }
 
   private getCookieNameRegExp() {

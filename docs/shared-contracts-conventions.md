@@ -67,6 +67,30 @@ iSharedApi.ResponseEnvelope<TResult>
 
 Backend-only данные, например password hashes, access tokens stored in cookies, Sequelize metadata, DB-only columns и internal service results, не должны попадать в shared DTO, если они не являются намеренной частью HTTP JSON contract.
 
+## Публичные chat DTO
+
+Chat DTO должны отдавать frontend только данные, необходимые для отображения интерфейса и дальнейших разрешенных действий.
+
+Публичные chat response DTO не должны раскрывать backend/internal user identifiers:
+
+- `ChatRoomDto` не должен содержать `createdByUserUid`;
+- `ChatMessageDto` не должен содержать `senderUserUid`;
+- отправитель сообщения должен передаваться отдельным JSON-safe объектом с публичными полями отображения.
+
+Для boilerplate публичный отправитель сообщения описывается так:
+
+```ts
+interface ChatMessageSenderDto {
+  firstName: string
+  lastName: string
+}
+```
+
+Frontend отображает отправителя как `Фамилия Имя`.
+
+Служебные identifiers могут оставаться во входных payload только там, где они являются явной частью пользовательского действия, например `roomUid` для выбора комнаты или `fileUid` для отправки уже загруженного файла.
+Такие identifiers не должны использоваться как отображаемый текст UI.
+
 Для публичной profile cookie должен использоваться отдельный shared contract, не равный полному `PublicUserDto`, если `PublicUserDto` содержит internal identifiers.
 
 Profile cookie contract не должен содержать:

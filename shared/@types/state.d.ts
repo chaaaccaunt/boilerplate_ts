@@ -17,8 +17,15 @@
       items: ErrorItem[]
     }
 
+    interface ChatState {
+      rooms: iSharedChat.ChatRoomDto[]
+      activeRoomUid: string | null
+      messagesByRoomUid: Record<string, iSharedChat.ChatMessageDto[]>
+    }
+
     interface RootState {
       authorization: AuthorizationState
+      chat: ChatState
       errors: ErrorsState
     }
   }

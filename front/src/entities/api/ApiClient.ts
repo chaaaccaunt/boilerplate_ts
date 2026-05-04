@@ -1,6 +1,7 @@
 import { Store } from "vuex"
-import { ApiError, HttpClient } from "@/shared/api"
+import { ApiError, HttpClient, UploadProgressCallback } from "@/shared/api"
 import { AuthorizationApi } from "../authorization/api/AuthorizationApi"
+import { FilesApi } from "../files/api/FilesApi"
 
 type ApiPath = `/${string}`
 type VuexMutation = string
@@ -14,12 +15,14 @@ interface ApiRequestOptions<TPayload> {
 
 export class ApiClient {
   readonly authorization: AuthorizationApi
+  readonly files: FilesApi
 
   constructor(
     private readonly http: HttpClient,
     private readonly store: Store<iSharedState.RootState>
   ) {
     this.authorization = new AuthorizationApi(this)
+    this.files = new FilesApi(this)
   }
 
   get<TResult>(options: Omit<ApiRequestOptions<never>, "payload">): Promise<TResult> {
@@ -36,6 +39,32 @@ export class ApiClient {
 
   delete<TResult>(options: Omit<ApiRequestOptions<never>, "payload">): Promise<TResult> {
     return this.request<TResult, never>("DELETE", options)
+  }
+
+  upload<TResult>(path: ApiPath, formData: FormData, reportError = true, onProgress?: UploadProgressCallback): Promise<TResult> {
+    return this.uploadRequest<TResult>(path, formData, reportError, onProgress)
+  }
+
+  resolvePublicUrl(path: ApiPath): string {
+    return this.http.resolvePublicUrl(path)
+  }
+
+  private async uploadRequest<TResult>(path: ApiPath, formData: FormData, reportError: boolean, onProgress?: UploadProgressCallback): Promise<TResult> {
+    try {
+      return await this.http.upload<TResult>(path, formData, onProgress)
+    } catch (error) {
+      const apiError = this.normalizeError(error)
+
+      if (reportError) {
+        await this.store.dispatch("errors/add", {
+          code: apiError.code,
+          message: apiError.message,
+          status: apiError.status
+        })
+      }
+
+      throw apiError
+    }
   }
 
   private async request<TResult, TPayload>(

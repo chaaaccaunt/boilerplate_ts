@@ -8,16 +8,21 @@ export class AuthorizationService {
     private readonly httpConfig: iLibs.iHTTPConfig
   ) { }
 
-  async login(payload: iAuthorization.iLoginPayload): Promise<iAuthorization.iLoginResult> {
-    const user = await this.model.findOne({
+  login(payload: iAuthorization.iLoginPayload): Promise<iAuthorization.iLoginResult> {
+    return this.model.findOne({
       where: { login: payload.login },
       include: [{ association: this.model.associations.roles }]
     })
+      .then((user) => {
+        if (!user || !this.passwordsMatch(payload.password, user.password)) {
+          throw new Exceptions.ServiceError.AuthenticationError("Неверный логин или пароль")
+        }
 
-    if (!user || !this.passwordsMatch(payload.password, user.password)) {
-      throw new Exceptions.ServiceError.AuthenticationError("Неверный логин или пароль")
-    }
+        return this.createLoginResult(user)
+      })
+  }
 
+  private createLoginResult(user: iDatabase.Models["User"]["prototype"]): iAuthorization.iLoginResult {
     const signOptions: { audience?: string, issuer?: string } = {}
 
     if (this.httpConfig.jwt_audience) signOptions.audience = this.httpConfig.jwt_audience
@@ -59,4 +64,3 @@ export class AuthorizationService {
     return timingSafeEqual(inputBuffer, storedBuffer)
   }
 }
-

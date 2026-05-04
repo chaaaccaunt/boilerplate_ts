@@ -138,3 +138,26 @@ api.post({
 Vuex domain state должен жить в namespaced modules внутри `front/src/entities/store/modules`.
 Root store должен только собирать modules и экспортировать типизированный `useStore`.
 
+## Realtime client
+
+Frontend realtime-вызовы должны идти через единый `WebSocketClient` из `front/src/shared/realtime`.
+
+Components не должны импортировать `socket.io-client` напрямую.
+Компоненты получают realtime client через `useWebSocketClient`.
+
+WebSocket event callbacks должны использовать тот же envelope-подход, что и HTTP API:
+
+- `ok: true`, `result`, `error: null`;
+- `ok: false`, `result: null`, `error.code`, `error.message`.
+
+Чат и передача файлов должны использовать shared contracts из `shared/@types/chat.d.ts`.
+Файлы в boilerplate не должны передаваться как base64 payload через WebSocket event.
+Загрузка файлов должна выполняться отдельным HTTP multipart request с обязательной авторизацией.
+Upload progress должен реализовываться внутри transport/API слоев `front/src/shared/api` и `front/src/entities/*/api`, а не прямым `XMLHttpRequest` или `fetch` из view/component.
+Компонент может передать callback прогресса в domain API method и отображать полученное значение в UI.
+Backend хранит содержимое файла в `uploads`, metadata файла в отдельной database model и возвращает frontend только JSON-safe metadata и файловый идентификатор.
+Metadata загруженного файла должна содержать общий `description`, если он был передан при upload, и публичный API `url` для получения файла.
+Загруженные файлы, выбранные для сообщения, должны отображаться над полем ввода сообщения как metadata уже загруженных файлов.
+Сообщения WebSocket должны передавать идентификатор уже загруженного файла через shared DTO, а не содержимое файла.
+Публичный chat UI не должен показывать backend/internal user identifiers. Для отправителя сообщения отображаются только публичные поля из shared DTO, в boilerplate это `Фамилия Имя`.
+Для production-проектов допустимо заменить хранение файлов на object storage, но публичный frontend contract должен меняться явно через shared DTO.
