@@ -8,7 +8,9 @@ type WebSocketEvent =
   | "chat:messages:list"
   | "chat:message:send"
 
-type WebSocketServerEvent = "chat:message:created"
+type WebSocketServerEvent =
+  | "chat:message:created"
+  | "users:created"
 
 export class WebSocketClient {
   private readonly socket: Socket

@@ -11,6 +11,21 @@ export abstract class BaseController {
     this.routes.push(...routes)
   }
 
+  protected access(
+    payload: { user?: iContracts.iUserToken },
+    allowedRoles: readonly iSharedUserRole.UserRoleName[] = []
+  ): iContracts.iUserToken {
+    if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
+    if (!allowedRoles.length) return payload.user
+
+    const roleNames = this.getUserRoleNames(payload.user)
+    const hasAllowedRole = allowedRoles.some((roleName) => roleNames.includes(roleName))
+
+    if (!hasAllowedRole) throw new Exceptions.ControllerError.AccessDeniedError()
+
+    return payload.user
+  }
+
   protected handle<TPayload, TResult>(
     controllerMethod: string,
     handler: (payload: TPayload) => Promise<TResult>
@@ -37,5 +52,15 @@ export abstract class BaseController {
     if (error instanceof Error) return new Exceptions.ControllerError.InternalError(error.message, { cause: error })
 
     return new Exceptions.ControllerError.InternalError("Необработанная ошибка контроллера", { cause: error })
+  }
+
+  private getUserRoleNames(user: iContracts.iUserToken): iSharedUserRole.UserRoleName[] {
+    const roles = user.claims?.roles
+
+    if (!Array.isArray(roles)) return []
+
+    return roles.filter((role): role is iSharedUserRole.UserRoleName => (
+      role === "administrator" || role === "user"
+    ))
   }
 }

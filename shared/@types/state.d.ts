@@ -17,6 +17,11 @@
       items: ErrorItem[]
     }
 
+    interface UsersState {
+      users: iSharedUser.PublicUserDto[]
+      roles: iSharedUserRole.UserRoleDto[]
+    }
+
     interface ChatState {
       rooms: iSharedChat.ChatRoomDto[]
       activeRoomUid: string | null
@@ -25,6 +30,7 @@
 
     interface RootState {
       authorization: AuthorizationState
+      users: UsersState
       chat: ChatState
       errors: ErrorsState
     }

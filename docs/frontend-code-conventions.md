@@ -145,10 +145,30 @@ Frontend realtime-вызовы должны идти через единый `We
 Components не должны импортировать `socket.io-client` напрямую.
 Компоненты получают realtime client через `useWebSocketClient`.
 
+После успешной авторизации приложение должно инициализировать WebSocket connection и подписки на application-level события в authenticated layout, например в `MainLayout`.
+
+Подписки на события, которые нужны всему авторизованному приложению, не должны создаваться внутри отдельных views. Views могут подписываться только на локальные события экрана и обязаны отписываться при unmount.
+
+Базовый порядок frontend realtime initialization:
+
+```text
+authorization success
+router opens authenticated layout
+MainLayout calls WebSocketClient.connect()
+MainLayout registers application-level event subscriptions
+domain event handler commits payload into Vuex modules
+```
+
+При logout frontend должен отписаться от application-level событий, очистить локальный authorization state/profile cache и вызвать `WebSocketClient.disconnect()`.
+
 WebSocket event callbacks должны использовать тот же envelope-подход, что и HTTP API:
 
 - `ok: true`, `result`, `error: null`;
 - `ok: false`, `result: null`, `error.code`, `error.message`.
+
+CRUD notifications от backend должны обрабатываться через shared DTO contracts и Vuex modules. Компоненты не должны вручную синхронизировать списки сущностей в обход store.
+
+Если пользователь сам выполнил CRUD operation через HTTP API, его локальное состояние должно обновляться из HTTP response. Realtime notification для этой операции по умолчанию получают остальные подключенные клиенты.
 
 Чат и передача файлов должны использовать shared contracts из `shared/@types/chat.d.ts`.
 Файлы в boilerplate не должны передаваться как base64 payload через WebSocket event.

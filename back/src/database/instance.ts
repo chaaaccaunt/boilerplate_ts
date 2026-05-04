@@ -4,6 +4,7 @@ import { ChatMessageModel, getChatMessageModel } from "./models/chat/ChatMessage
 import { ChatRoomMemberModel, getChatRoomMemberModel } from "./models/chat/ChatRoomMemberModel"
 import { ChatRoomModel, getChatRoomModel } from "./models/chat/ChatRoomModel"
 import { getStoredFileModel, StoredFileModel } from "./models/files/StoredFileModel"
+import { getRoleModel, RoleModel } from "./models/users/RoleModel"
 import { getUserRoleModel, UserRoleModel } from "./models/users/UserRoleModel"
 import { getUserModel, UserModel } from "./models/users/UserModel"
 
@@ -15,6 +16,7 @@ export interface DataBaseInstance {
 
 export interface iModels {
   User: typeof UserModel
+  Role: typeof RoleModel
   UserRole: typeof UserRoleModel
   ChatRoom: typeof ChatRoomModel
   ChatRoomMember: typeof ChatRoomMemberModel
@@ -31,6 +33,7 @@ export class Database {
     this.sequelize = new SequelizeClass(config)
     this.models = {
       User: getUserModel(this.sequelize),
+      Role: getRoleModel(this.sequelize),
       UserRole: getUserRoleModel(this.sequelize),
       ChatRoom: getChatRoomModel(this.sequelize),
       ChatRoomMember: getChatRoomMemberModel(this.sequelize),

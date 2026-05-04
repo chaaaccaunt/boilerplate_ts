@@ -2,6 +2,7 @@ import { Store } from "vuex"
 import { ApiError, HttpClient, UploadProgressCallback } from "@/shared/api"
 import { AuthorizationApi } from "../authorization/api/AuthorizationApi"
 import { FilesApi } from "../files/api/FilesApi"
+import { UsersApi } from "../users/api/UsersApi"
 
 type ApiPath = `/${string}`
 type VuexMutation = string
@@ -16,6 +17,7 @@ interface ApiRequestOptions<TPayload> {
 export class ApiClient {
   readonly authorization: AuthorizationApi
   readonly files: FilesApi
+  readonly users: UsersApi
 
   constructor(
     private readonly http: HttpClient,
@@ -23,6 +25,7 @@ export class ApiClient {
   ) {
     this.authorization = new AuthorizationApi(this)
     this.files = new FilesApi(this)
+    this.users = new UsersApi(this)
   }
 
   get<TResult>(options: Omit<ApiRequestOptions<never>, "payload">): Promise<TResult> {

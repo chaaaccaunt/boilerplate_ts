@@ -8,7 +8,7 @@ const logger = new Logger()
 const database = new Database(config.db)
 const httpServer = new HTTPServer(config.http)
 const webSocketServer = new WebSocketServer(httpServer.getNativeServer(), config.http)
-new Controllers(httpServer, database.models)
+new Controllers(httpServer, database.models, webSocketServer)
 webSocketServer.use([new ChatSocketGateway(database.models)])
 
 start().catch((error) => {

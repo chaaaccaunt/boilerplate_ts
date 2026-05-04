@@ -23,6 +23,11 @@ export interface iWebSocketEventResult<TResult = unknown> {
   result: TResult
 }
 
+export interface iWebSocketBroadcastOptions {
+  excludeSocketId?: string
+  excludeUserUid?: iContracts.iUserToken["uid"]
+}
+
 export interface iWebSocketEventHandler<TPayload = iContracts.iPayload, TResult = unknown> {
   (context: iWebSocketEventContext, payload: TPayload): Promise<TResult> | TResult
 }

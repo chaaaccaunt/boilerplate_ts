@@ -203,6 +203,7 @@ Controller может вернуть transport instructions через controlle
 - Базовый token payload должен быть project-neutral: `uid` и optional `claims`.
 - Конкретные роли, permissions, ownership rules, tenant rules и endpoint access policy определяются проектом, а не boilerplate.
 - Подробные правила для агентов описаны в `./docs/agent-authorization-policy.md`.
+- Базовая инфраструктура пользователей и системных ролей описана в `./docs/users-and-roles-conventions.md`.
 
 ## WebSocket transport
 
@@ -253,6 +254,42 @@ WebSocket errors должны возвращаться в event callback в фо
 - `ok: false`, `result: null`, `error.code`, `error.message`.
 
 WebSocket transport не должен раскрывать клиенту внутренние детали service/controller ошибок.
+
+## CRUD realtime notifications
+
+При выполнении CRUD operation backend должен отправлять подключенным клиентам WebSocket server соответствующее realtime-событие с JSON-safe payload.
+
+По умолчанию CRUD notification отправляется всем авторизованным клиентам, кроме инициатора операции. Инициатор получает результат операции через HTTP response envelope.
+
+Если доменный сценарий требует уведомить также инициатора или ограничить аудиторию конкретными пользователями/room, это должно быть явно описано в project-specific policy.
+
+Событие должно описывать уже выполненное изменение, а не намерение выполнить действие:
+
+- create -> `<domain>:created`;
+- update -> `<domain>:updated`;
+- delete -> `<domain>:deleted`.
+
+Payload события должен быть описан в shared DTO contracts и не должен содержать password, password hash, authorization token, server-only metadata, ORM instances или Node-only types.
+
+HTTP response на CRUD request остается обычным response envelope. Realtime-событие является отдельным broadcast side effect после успешного выполнения service operation.
+
+Если операция завершилась ошибкой, WebSocket notification отправлять нельзя.
+
+Backend boundary для CRUD notification:
+
+```text
+controller
+  check access
+  call service
+  after successful service result -> emit realtime event except actor
+  return HTTP response
+```
+
+Service не должен знать про socket.io, WebSocket server instance или transport event names.
+
+Для универсальных CRUD notifications следует использовать infrastructure method WebSocket server, а не обращаться к native socket.io server напрямую из controller.
+
+Если событие должно быть доступно не всем пользователям, фильтрация аудитории выполняется на gateway/transport boundary или через явно описанную project-specific access policy. Boilerplate не должен молча зашивать такие правила.
 
 Boilerplate содержит базовый chat gateway с поддержкой:
 

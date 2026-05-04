@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed } from "vue"
+import { computed, onBeforeUnmount, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { useApiClient, useStore, useWebSocketClient } from "@/entities"
 
@@ -9,8 +9,21 @@ const apiClient = useApiClient()
 const webSocketClient = useWebSocketClient()
 
 const userName = computed(() => store.state.authorization.user?.fullName || store.state.authorization.user?.login || "")
+const isAdministrator = computed(() => Boolean(store.state.authorization.user?.roles.some((role) => role.name === "administrator")))
+
+onMounted(() => {
+  webSocketClient.connect()
+  webSocketClient.on<iSharedUser.UserCreatedEventDto>("users:created", ({ user }) => {
+    store.commit("users/addUser", user)
+  })
+})
+
+onBeforeUnmount(() => {
+  webSocketClient.off("users:created")
+})
 
 function logout(): void {
+  webSocketClient.off("users:created")
   apiClient.authorization.logout()
     .then(() => {
       webSocketClient.disconnect()
@@ -33,6 +46,9 @@ function logout(): void {
         </router-link>
         <router-link class="nav-link rounded" active-class="active" :to="{ name: 'chat' }">
           Чат
+        </router-link>
+        <router-link v-if="isAdministrator" class="nav-link rounded" active-class="active" :to="{ name: 'users' }">
+          Пользователи
         </router-link>
       </nav>
     </aside>

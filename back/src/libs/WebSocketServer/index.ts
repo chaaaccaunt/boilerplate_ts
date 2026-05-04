@@ -2,6 +2,7 @@ import { Server as SocketServer, Socket } from "socket.io"
 import { Logger, MethodTracer, TraceContext } from "../Logger"
 import { WebSocketMiddlewares } from "./middlewares"
 import {
+  iWebSocketBroadcastOptions,
   iWebSocketConfig,
   iWebSocketEvent,
   iWebSocketEventContext,
@@ -38,6 +39,14 @@ export class WebSocketServer {
   listen(): void {
     this.socketServer.use((socket, next) => this.middlewares.validateConnectionToken(socket, next))
     this.socketServer.on("connection", (socket) => this.handleConnection(socket))
+  }
+
+  broadcast<TResult>(eventName: string, result: TResult, options: iWebSocketBroadcastOptions = {}): void {
+    for (const [, socket] of this.socketServer.sockets.sockets) {
+      if (this.shouldSkipBroadcastSocket(socket, options)) continue
+
+      socket.emit(eventName, this.createSuccessEnvelope(result))
+    }
   }
 
   private handleConnection(socket: Socket): void {
@@ -133,11 +142,7 @@ export class WebSocketServer {
   }
 
   private emitSuccess(callback: ((response: unknown) => void) | undefined, result: unknown): void {
-    callback?.({
-      ok: true,
-      result,
-      error: null
-    })
+    callback?.(this.createSuccessEnvelope(result))
   }
 
   private emitError(callback: ((response: unknown) => void) | undefined, code: string, message: string): void {
@@ -161,10 +166,28 @@ export class WebSocketServer {
   private isPayload(value: unknown): value is iContracts.iPayload {
     return typeof value === "object" && value !== null && !Array.isArray(value)
   }
+
+  private shouldSkipBroadcastSocket(socket: Socket, options: iWebSocketBroadcastOptions): boolean {
+    if (options.excludeSocketId && socket.id === options.excludeSocketId) return true
+
+    const user = socket.data.user as iContracts.iUserToken | undefined
+    if (options.excludeUserUid && user?.uid === options.excludeUserUid) return true
+
+    return false
+  }
+
+  private createSuccessEnvelope<TResult>(result: TResult): iSharedApi.ResponseEnvelope<TResult> {
+    return {
+      ok: true,
+      result,
+      error: null
+    }
+  }
 }
 
 export type {
   iWebSocketConfig,
+  iWebSocketBroadcastOptions,
   iWebSocketEvent,
   iWebSocketEventContext,
   iWebSocketEventHandler,

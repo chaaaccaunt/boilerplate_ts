@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "crypto"
+import { compareSync } from "bcryptjs"
 import { sign } from "jsonwebtoken"
 import { Exceptions } from "@/libs"
 
@@ -11,10 +11,13 @@ export class AuthorizationService {
   login(payload: iAuthorization.iLoginPayload): Promise<iAuthorization.iLoginResult> {
     return this.model.findOne({
       where: { login: payload.login },
-      include: [{ association: this.model.associations.roles }]
+      include: [{
+        association: this.model.associations.roles,
+        include: [{ association: "role" }]
+      }]
     })
       .then((user) => {
-        if (!user || !this.passwordsMatch(payload.password, user.password)) {
+        if (!user || !compareSync(payload.password, user.password)) {
           throw new Exceptions.ServiceError.AuthenticationError("Неверный логин или пароль")
         }
 
@@ -28,9 +31,9 @@ export class AuthorizationService {
     if (this.httpConfig.jwt_audience) signOptions.audience = this.httpConfig.jwt_audience
     if (this.httpConfig.jwt_issuer) signOptions.issuer = this.httpConfig.jwt_issuer
 
-    const roles = user.roles.map((role) => ({
-      uid: role.uid,
-      name: role.name
+    const roles = user.roles.map((userRole) => ({
+      uid: userRole.role.uid,
+      name: userRole.role.name
     } satisfies iSharedUserRole.UserRoleDto))
 
     const userDto = {
@@ -54,13 +57,5 @@ export class AuthorizationService {
       user: userDto,
       accessToken: sign(tokenPayload, this.httpConfig.jwt_secret, signOptions)
     }
-  }
-
-  private passwordsMatch(input: string, stored: string): boolean {
-    const inputBuffer = Buffer.from(input)
-    const storedBuffer = Buffer.from(stored)
-
-    if (inputBuffer.length !== storedBuffer.length) return false
-    return timingSafeEqual(inputBuffer, storedBuffer)
   }
 }

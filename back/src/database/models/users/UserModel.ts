@@ -3,7 +3,7 @@ import { CreationOptional, DataTypes, InferAttributes, InferCreationAttributes, 
 import type { Association, NonAttribute } from "sequelize";
 import type { UserRoleModel } from "./UserRoleModel";
 
-export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> implements iSharedUser.PublicUserDto {
+export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> {
   declare uid: CreationOptional<UUID>
   declare phone: CreationOptional<string>
   declare login: string
@@ -46,7 +46,7 @@ export function getUserModel(sequelize: Sequelize) {
         allowNull: true,
       },
       password: {
-        type: DataTypes.STRING(64),
+        type: DataTypes.STRING(255),
         allowNull: false,
       },
       firstName: {

@@ -7,6 +7,7 @@ export { PayloadValidator } from "./Validator"
 export { HTTPServer, iHTTPServerEnv, iHTTPConfig } from "./HTTPServer"
 export { WebSocketServer } from "./WebSocketServer"
 export type {
+  iWebSocketBroadcastOptions,
   iWebSocketConfig,
   iWebSocketEvent,
   iWebSocketEventContext,

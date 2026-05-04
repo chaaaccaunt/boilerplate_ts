@@ -9,22 +9,26 @@ import {
   Sequelize
 } from "sequelize"
 import type { Association, NonAttribute } from "sequelize"
+import type { RoleModel } from "./RoleModel"
 import type { UserModel } from "./UserModel"
 
-export class UserRoleModel extends Model<InferAttributes<UserRoleModel>, InferCreationAttributes<UserRoleModel>> implements iSharedUserRole.UserRoleDto {
+export class UserRoleModel extends Model<InferAttributes<UserRoleModel>, InferCreationAttributes<UserRoleModel>> {
   declare uid: CreationOptional<UUID>
-  declare name: string
 
   declare userUid: ForeignKey<UUID>
+  declare roleUid: ForeignKey<UUID>
 
   static associate(models: iDatabase.Models) {
     this.belongsTo(models.User, { foreignKey: "userUid", as: "user" })
+    this.belongsTo(models.Role, { foreignKey: "roleUid", as: "role" })
   }
 
   declare user: NonAttribute<UserModel>
+  declare role: NonAttribute<RoleModel>
 
   declare static associations: {
     user: Association<UserRoleModel, UserModel>
+    role: Association<UserRoleModel, RoleModel>
   };
 }
 
@@ -36,11 +40,11 @@ export function getUserRoleModel(sequelize: Sequelize) {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4
       },
-      name: {
-        type: DataTypes.STRING(64),
+      userUid: {
+        type: DataTypes.UUID,
         allowNull: false
       },
-      userUid: {
+      roleUid: {
         type: DataTypes.UUID,
         allowNull: false
       }
@@ -54,7 +58,7 @@ export function getUserRoleModel(sequelize: Sequelize) {
       indexes: [
         {
           unique: true,
-          fields: ["userUid", "name"]
+          fields: ["userUid", "roleUid"]
         }
       ]
     }
