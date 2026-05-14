@@ -1,12 +1,12 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
-import { ChatMessageFileModel, getChatMessageFileModel } from "./models/chat/ChatMessageFileModel"
-import { ChatMessageModel, getChatMessageModel } from "./models/chat/ChatMessageModel"
-import { ChatRoomMemberModel, getChatRoomMemberModel } from "./models/chat/ChatRoomMemberModel"
-import { ChatRoomModel, getChatRoomModel } from "./models/chat/ChatRoomModel"
-import { getStoredFileModel, StoredFileModel } from "./models/files/StoredFileModel"
-import { getRoleModel, RoleModel } from "./models/users/RoleModel"
-import { getUserRoleModel, UserRoleModel } from "./models/users/UserRoleModel"
-import { getUserModel, UserModel } from "./models/users/UserModel"
+import { ChatMessageFileModel, getChatMessageFileModel } from "@/models/chat/ChatMessageFileModel"
+import { ChatMessageModel, getChatMessageModel } from "@/models/chat/ChatMessageModel"
+import { ChatRoomMemberModel, getChatRoomMemberModel } from "@/models/chat/ChatRoomMemberModel"
+import { ChatRoomModel, getChatRoomModel } from "@/models/chat/ChatRoomModel"
+import { getStoredFileModel, StoredFileModel } from "@/models/files/StoredFileModel"
+import { getRoleModel, RoleModel } from "@/models/users/RoleModel"
+import { getUserRoleModel, UserRoleModel } from "@/models/users/UserRoleModel"
+import { getUserModel, UserModel } from "@/models/users/UserModel"
 
 export interface DataBaseInstance {
   Sequelize: typeof Sequelize

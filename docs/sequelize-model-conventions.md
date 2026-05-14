@@ -38,17 +38,17 @@ export class SomeModel extends Model<InferAttributes<SomeModel>, InferCreationAt
 После создания Sequelize model class агент обязан выполнить дальнейшие шаги только в явно запрошенном пользователем объеме:
 
 - Если модель использует типы из других моделей в association-полях или `declare static associations`, импортировать соответствующие model class в файл модели.
-- Если модель должна быть доступна через общий список моделей backend package, импортировать model class и factory (`get...Model`) в `./back/src/database/instance.ts`.
-- Добавить модель в interface `iModels` в `./back/src/database/instance.ts` в формате `ModelName: typeof ModelClass`.
+- Если модель должна быть доступна через общий список моделей текущего backend-сервиса, импортировать model class и factory (`get...Model`) в `./services/monolith/src/database/instance.ts`.
+- Добавить модель в interface `iModels` в `./services/monolith/src/database/instance.ts` в формате `ModelName: typeof ModelClass`.
 - Добавить модель в объект `this.models` внутри constructor `Database` в формате `ModelName: getModelName(this.sequelize)`.
 - После создания всех моделей вызвать `associate(this.models)` для каждой модели через обход объекта `this.models`.
 - Не подключать созданную модель в `iModels`, `this.models`, controllers, services или routes без отдельного явного запроса пользователя.
 
-Пример подключения модели в `./back/src/database/instance.ts`:
+Пример подключения модели в `./services/monolith/src/database/instance.ts`:
 
 ```ts
-import { getUserModel, UserModel } from "./models/users/UserModel"
-import { getUserRoleModel, UserRoleModel } from "./models/users/UserRoleModel"
+import { getUserModel, UserModel } from "@/models/users/UserModel"
+import { getUserRoleModel, UserRoleModel } from "@/models/users/UserRoleModel"
 
 export interface iModels {
   User: typeof UserModel

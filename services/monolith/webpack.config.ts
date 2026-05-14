@@ -5,6 +5,7 @@ import type { Configuration } from "webpack"
 
 const optionalRuntimeDependencies = /^(pg|pg-hstore|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk|bufferutil|utf-8-validate)$/
 const unusedSequelizeDialects = /sequelize[\\/]lib[\\/]dialects[\\/](mariadb|mssql|oracle|postgres|sqlite|db2|snowflake)/
+const rootPath = resolve(__dirname, "../..")
 
 const config: Configuration = {
   mode: "production",
@@ -26,6 +27,8 @@ const config: Configuration = {
   },
   resolve: {
     alias: {
+      "@/libs": resolve(rootPath, "libs"),
+      "@/models": resolve(rootPath, "models"),
       "@": resolve(__dirname, "src")
     },
     extensions: [".ts", ".js", ".json"]

@@ -58,7 +58,18 @@ declare global {
     type iApiError = iSharedApi.ErrorDto
     type iApiResponse<TResult = unknown> = iSharedApi.ResponseEnvelope<TResult>
 
-    type iRouteCallback<TPayload = { user?: iContracts.iUserToken, data?: iContracts.iPayload }, R = unknown> = {
+    interface iRequestContextPayload<TData = iContracts.iPayload> {
+      requestId: string
+      user?: iContracts.iUserToken
+      data?: TData
+    }
+
+    interface iMicroServiceRequestPayload<TData = iContracts.iPayload> {
+      requestId: string
+      data?: TData
+    }
+
+    type iRouteCallback<TPayload = iRequestContextPayload, R = unknown> = {
       bivarianceHack(payload: TPayload): Promise<R>
     }["bivarianceHack"] & {
       controllerName: string
@@ -71,8 +82,21 @@ declare global {
       requireAuthorization?: boolean
       requestBodyType?: iRequestBodyType
       clearCookiesOnError?: string[]
-      callback: iRouteCallback<{ user?: iContracts.iUserToken, data?: P }, R>
+      callback: iRouteCallback<iRequestContextPayload<P>, R>
       validator?: { [key: string]: iValidator }
+    }
+
+    type iMicroServiceRouteCallback<TPayload = iMicroServiceRequestPayload, R = unknown> = {
+      bivarianceHack(payload: TPayload): Promise<R>
+    }["bivarianceHack"] & {
+      serviceName: string
+      serviceMethod: string
+    }
+
+    interface iMicroServiceRoute<P = iContracts.iRequestBody, R = unknown> {
+      url: RegExp
+      method: "GET" | "POST" | "PATCH" | "DELETE"
+      callback: iMicroServiceRouteCallback<iMicroServiceRequestPayload<P>, R>
     }
 
     interface iCommonValues {

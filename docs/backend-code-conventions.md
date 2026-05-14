@@ -30,7 +30,7 @@ private readonly helpers: iDatabase.Database["Sequelize"]
 
 ## Экспорты libs и глобальные типы
 
-Все публичные exports backend package из `./back/src/libs` должны быть доступны через единый public barrel `@/libs`.
+Все публичные exports общей backend infrastructure из `./libs` должны быть доступны через единый public barrel `@/libs`.
 
 Прикладной код не должен импортировать напрямую из внутренних файлов libs:
 
@@ -46,15 +46,42 @@ import { iHTTPConfig } from "@/libs/HTTPServer"
 import { Exceptions, Logger } from "@/libs"
 ```
 
-Типы, экспортируемые из libs, должны быть объявлены в глобальном namespace `iLibs` в `./back/@types/libs.d.ts` и использоваться без локального импорта:
+Типы, экспортируемые из libs, должны быть объявлены в глобальном namespace `iLibs` в `./@types/libs.d.ts` и использоваться без локального импорта:
 
 ```ts
 private readonly httpConfig: iLibs.iHTTPConfig
 private readonly exceptions: iLibs.Exceptions
 ```
 
-`AppConfiguration`, env helpers и готовый `config` относятся к libs и должны находиться внутри `./back/src/libs/Config`.
+`AppConfiguration`, env helpers и готовый `config` относятся к libs и должны находиться внутри `./libs/Config`.
 Отдельный bootstrap layer не используется.
+
+## HTTP transport для gateway и микросервисов
+
+Gateway и публичные API entrypoints используют `HTTPServer`.
+
+`HTTPServer` отвечает за:
+
+- генерацию `requestId`;
+- trace request lifecycle через `TraceContext` / `MethodTracer`;
+- authentication;
+- payload validation;
+- вызов controller boundary;
+- передачу `requestId` в controller payload.
+
+Backend-микросервисы используют `MicroServiceHTTPServer`.
+
+`MicroServiceHTTPServer` отвечает только за internal HTTP transport между gateway и backend-сервисом:
+
+- читает JSON payload без schema validation;
+- требует header `x-request-id`;
+- передает `requestId` в service-local callback payload;
+- возвращает response envelope;
+- логирует завершение internal request без trace.
+
+`MicroServiceHTTPServer` не должен использовать `HTTPMiddlewares`, `PayloadValidator`, `TraceContext` или `MethodTracer`.
+
+`requestId` передается между gateway и микросервисом через header `x-request-id`. Не добавлять `requestId` в shared DTO как domain field.
 
 ## Асинхронный код
 
@@ -80,10 +107,10 @@ return service.find(payload.uid)
 
 Production-сборка backend должна собираться как Node.js bundle.
 
-Основной результат сборки должен находиться в `./back/dist/app.js` и запускаться командой:
+Основной результат сборки временного backend-сервиса должен находиться в `./services/monolith/dist/app.js` и запускаться командой:
 
 ```bash
-npm run start:back:dist
+npm run start:service:monolith:dist
 ```
 
 Backend bundle должен быть рассчитан на запуск без локальной папки `node_modules` рядом с `dist`.
@@ -98,11 +125,11 @@ Webpack-конфигурация backend должна:
 - оставлять MySQL runtime совместимым с `sequelize` и `mysql2`;
 - использовать production-оптимизации, подходящие для крупных production-приложений.
 
-Если проект меняет основной database dialect, список ignored optional database drivers в `./back/webpack.config.ts` должен быть пересмотрен явно.
+Если проект меняет основной database dialect, список ignored optional database drivers в `./services/monolith/webpack.config.ts` должен быть пересмотрен явно.
 
 ## WebSocket gateways
 
-WebSocket gateways должны располагаться в `./back/src/realtime`.
+WebSocket gateways текущего backend-сервиса должны располагаться в `./services/monolith/src/realtime`.
 
 Gateway naming должен быть полным и доменным:
 
@@ -117,6 +144,6 @@ AuthorizationSocketGateway
 Gateway должен описывать только transport-boundary события и не должен содержать бизнес-логику.
 Бизнес-логика должна находиться в services.
 
-WebSocket infrastructure находится в `./back/src/libs/WebSocketServer`.
-Она подключается в `bin/index.ts` по умолчанию.
+WebSocket infrastructure находится в `./libs/WebSocketServer`.
+Она подключается в service-local `bin/index.ts` по умолчанию.
 Новые gateways должны подключаться явно через `webSocketServer.use(...)`.

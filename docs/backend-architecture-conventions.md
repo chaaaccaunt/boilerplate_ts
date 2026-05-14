@@ -126,6 +126,7 @@ Runtime backend в production отвечает за подключение к Б
 
 - parse request
 - resolve route
+- generate request id
 - extract token/cookie
 - authenticate
 - validate payload
@@ -138,6 +139,15 @@ Runtime backend в production отвечает за подключение к Б
 - `422 Unprocessable Content` при ошибке валидации payload.
 
 Если pre-controller этап завершен успешно, `httpServer` обязан передать управление в controller через `return controller.callback(request, response)`.
+
+Для gateway-сценариев `httpServer` передает controller payload с `requestId`.
+Если controller вызывает backend-сервис, `requestId` должен быть передан в сервисный запрос через header:
+
+```text
+x-request-id
+```
+
+`requestId` относится к transport/request context и не должен становиться частью domain DTO.
 
 Controller обязан:
 
@@ -157,10 +167,39 @@ Service обязан:
 - execute business logic
 - access DB
 - throw domain/internal errors
+- log business events with request id, если request id был передан transport boundary
 
 Service не должен знать о HTTP status codes напрямую.
 Service не должен возвращать HTTP response и не должен принимать архитектурные решения уровня transport/protocol.
 Controller является слоем, который преобразует ошибки service в HTTP response.
+
+## Backend microservice HTTP transport
+
+Backend-микросервисы должны использовать `MicroServiceHTTPServer` из `./libs/MicroServiceHTTPServer`.
+
+`MicroServiceHTTPServer` предназначен только для internal requests от gateway и не является публичным HTTP boundary.
+
+`MicroServiceHTTPServer` обязан:
+
+- принимать обязательный header `x-request-id`;
+- передавать `requestId` в service-local callback payload;
+- возвращать JSON response envelope;
+- логировать завершение internal request с `requestId`;
+- логировать ошибку internal request с `requestId`.
+
+`MicroServiceHTTPServer` не должен:
+
+- генерировать новый `requestId`;
+- выполнять authentication или authorization;
+- запускать middleware pipeline;
+- валидировать payload по schema;
+- использовать `TraceContext`, `TraceStep` или `MethodTracer`;
+- логировать request trace.
+
+Если `x-request-id` отсутствует, `MicroServiceHTTPServer` должен вернуть controlled `400 Bad Request`.
+
+Gateway остается владельцем внешней authentication, authorization, request tracing и payload validation.
+Микросервис может проверять только business invariants внутри service layer и логировать бизнес-логику через единый `Logger`.
 
 ## Формат API-ответа
 
@@ -212,16 +251,16 @@ WebSocket transport является базовой частью boilerplate и 
 Базовая инфраструктура WebSocket находится в:
 
 ```text
-back/src/libs/WebSocketServer
+libs/WebSocketServer
 ```
 
-Доменные realtime gateways должны находиться в:
+Доменные realtime gateways текущего backend-сервиса должны находиться в:
 
 ```text
-back/src/realtime
+services/monolith/src/realtime
 ```
 
-`WebSocketServer` подключается в `back/src/bin/index.ts` к тому же native HTTP server.
+`WebSocketServer` подключается в `services/monolith/src/bin/index.ts` к тому же native HTTP server.
 Новые gateways подключаются явно через `webSocketServer.use(...)`.
 
 WebSocket архитектура:
@@ -314,6 +353,7 @@ nginx не включается в logging map.
 Логирование выполняется только на уровнях:
 
 - `httpServer`
+- `microServiceHTTPServer`
 - `webSocketServer`
 - `controller`
 - `gateway`
@@ -331,6 +371,15 @@ nginx не включается в logging map.
   - controller method
   - sanitized payload
 - `error` -> unhandled server error
+
+### microServiceHTTPServer
+
+- `warn` -> отсутствует или некорректен `x-request-id`
+- `info` -> internal request завершен успешно
+- `warn` -> internal request завершен controlled client/domain error
+- `error` -> internal request завершен internal error
+- Не логировать trace.
+- Не логировать payload повторно.
 
 ### webSocketServer
 
@@ -369,6 +418,7 @@ nginx не включается в logging map.
 - `info` -> entity not found
 - `warn` -> conflict / business rule failed
 - `error` -> DB error / internal exception
+- service logs должны включать `requestId`, если service вызван из gateway или `MicroServiceHTTPServer`.
 
 ## Ограничения
 
@@ -381,6 +431,7 @@ nginx не включается в logging map.
 - Не менять уровень логирования без явной причины.
 - Не переносить HTTP status mapping в service.
 - Не использовать service как слой HTTP-ответов.
+- Не добавлять authentication, authorization, payload validation, middleware pipeline или tracing в `MicroServiceHTTPServer`.
 - Проверка access на уровне endpoint должна выполняться в controller.
 - Бизнес-логика и работа с данными должны выполняться в service.
 - Ошибки service должны преобразовываться в HTTP status codes только на уровне controller.

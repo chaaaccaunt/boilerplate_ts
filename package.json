@@ -3,22 +3,22 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "back",
-    "front"
+    "services/monolith",
+    "monolith"
   ],
   "scripts": {
-    "dev": "start npm run dev:back && start npm run dev:front",
-    "dev:back": "npm --workspace back run start",
-    "dev:front": "npm --workspace front run serve",
-    "start:back:dist": "npm --workspace back run start:dist",
+    "dev": "start npm run dev:service:monolith && start npm run dev:monolith",
+    "dev:service:monolith": "npm --workspace boilerplate-ts-service-monolith run start",
+    "dev:monolith": "npm --workspace boilerplate-ts-monolith run serve",
+    "start:service:monolith:dist": "npm --workspace boilerplate-ts-service-monolith run start:dist",
     "install:all": "npm install",
-    "install:back": "npm install --workspace back",
-    "install:front": "npm install --workspace front",
+    "install:service:monolith": "npm install --workspace boilerplate-ts-service-monolith",
+    "install:monolith": "npm install --workspace boilerplate-ts-monolith",
     "typecheck:shared": "npx tsc -p shared/tsconfig.json --noEmit",
-    "typecheck:back": "npm --workspace back run typecheck",
-    "typecheck:front": "npm --workspace front run typecheck",
-    "typecheck:all": "npm run typecheck:shared && npm run typecheck:back && npm run typecheck:front",
-    "build:back": "npm --workspace back run build",
-    "build:front": "npm --workspace front run build"
+    "typecheck:service:monolith": "npm --workspace boilerplate-ts-service-monolith run typecheck",
+    "typecheck:monolith": "npm --workspace boilerplate-ts-monolith run typecheck",
+    "typecheck:all": "npm run typecheck:shared && npm run typecheck:service:monolith && npm run typecheck:monolith",
+    "build:service:monolith": "npm --workspace boilerplate-ts-service-monolith run build",
+    "build:monolith": "npm --workspace boilerplate-ts-monolith run build"
   }
 }

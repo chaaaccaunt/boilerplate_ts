@@ -99,7 +99,7 @@ export class HTTPServer {
       .then((body) => {
         this.prepareJsonRequestPayload(request, route, body)
         this.validateRequestPayload(request, response, route)
-        return this.callController(request, response, route, context.traceContext)
+        return this.callController(request, response, route, context.traceContext, context.requestId)
       })
       .then(() => 200)
   }
@@ -118,7 +118,7 @@ export class HTTPServer {
         multipartBody = body
         this.prepareMultipartRequestPayload(request, response, route, body)
         controllerCalled = true
-        return this.callController(request, response, route, context.traceContext)
+        return this.callController(request, response, route, context.traceContext, context.requestId)
       })
       .then(() => 200)
       .catch((error) => {
@@ -171,7 +171,8 @@ export class HTTPServer {
     request: IncomingMessage,
     response: ServerResponse,
     route: iContracts.iRoute,
-    traceContext: TraceContext
+    traceContext: TraceContext,
+    requestId: string
   ): Promise<void> {
     const { controllerName, controllerMethod } = route.callback
 
@@ -191,7 +192,7 @@ export class HTTPServer {
       "controller",
       controllerMethod,
       "info",
-      () => route.callback({ user: request.user, data: request.body }),
+      () => route.callback({ requestId, user: request.user, data: request.body }),
       {
         method: request.method,
         path: request.url,

@@ -28,6 +28,7 @@
 1. Архитектура и проектные conventions
 
 - Backend, frontend и shared-contract conventions описаны в `./docs`.
+- Корневая структура fullstack boilerplate описана в `./docs/repository-architecture-conventions.md`.
 - Перед работой над подсистемой агент обязан просмотреть `./docs` и прочитать релевантные документы для затрагиваемой области.
 
 2. Политика объявления типов

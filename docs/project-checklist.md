@@ -35,7 +35,7 @@
 - Базовые роли `administrator` и `user` должны существовать в справочнике `roles`.
 - Development seed должен сохранять пароль администратора как bcrypt hash.
 - Создание пользователей должно быть доступно только пользователю с ролью `administrator`.
-- Frontend должен получать пользователей и роли через `front/src/entities/users/api`.
+- Frontend должен получать пользователей и роли через `monolith/src/entities/users/api`.
 
 ## Проверки перед завершением задачи
 

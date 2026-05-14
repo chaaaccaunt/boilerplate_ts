@@ -8,16 +8,16 @@
 shared/@types
   JSON DTO contracts
 
-front/src/shared/api
+monolith/src/shared/api
   transport: fetch, credentials, response envelope, API errors
 
-front/src/entities/<domain>/api
+monolith/src/entities/<domain>/api
   endpoint methods, типизированные shared DTO contracts
 
-front/src/entities/<domain>/store
+monolith/src/entities/<domain>/store
   Vuex module state/actions/mutations
 
-front/src/views и components
+monolith/src/views и components
   только UI
 ```
 
@@ -30,7 +30,7 @@ Shared contracts не должны зависеть от frontend или backend
 
 Frontend использует Bootstrap как базовый CSS-фреймворк для layout, forms, buttons, alerts и стандартных utility-классов.
 
-Глобальное подключение Bootstrap CSS должно выполняться на уровне entrypoint приложения, например в `front/src/main.ts`.
+Глобальное подключение Bootstrap CSS должно выполняться на уровне entrypoint приложения, например в `monolith/src/main.ts`.
 
 Кастомные стили должны оставаться локальными для component/view/layout и дополнять Bootstrap только там, где framework-классов недостаточно.
 
@@ -50,7 +50,7 @@ Domain API methods должны возвращать распакованный 
 login(payload: iSharedAuthorization.LoginPayloadDto): Promise<iSharedAuthorization.LoginResponseDto>
 ```
 
-Transport errors и backend envelope errors должны нормализоваться в `front/src/shared/api`, а не в components.
+Transport errors и backend envelope errors должны нормализоваться в `monolith/src/shared/api`, а не в components.
 
 HTTP errors, которые должны быть видны приложению, должны отправляться в Vuex `errors` module через единый `ApiClient`.
 
@@ -88,7 +88,7 @@ Frontend dev-server должен работать локально по умол
 
 Если `VUE_APP_BASE_URL` не задан, frontend должен падать с понятной ошибкой и не должен подставлять fallback вроде пустой строки или `undefined`.
 
-Если задан `VUE_APP_HOSTNAME`, `front/vue.config.js` должен выводить dev-server `allowedHosts` и HMR websocket settings из этого значения.
+Если задан `VUE_APP_HOSTNAME`, `monolith/vue.config.js` должен выводить dev-server `allowedHosts` и HMR websocket settings из этого значения.
 
 Пример:
 
@@ -135,12 +135,12 @@ api.post({
 })
 ```
 
-Vuex domain state должен жить в namespaced modules внутри `front/src/entities/store/modules`.
+Vuex domain state должен жить в namespaced modules внутри `monolith/src/entities/store/modules`.
 Root store должен только собирать modules и экспортировать типизированный `useStore`.
 
 ## Realtime client
 
-Frontend realtime-вызовы должны идти через единый `WebSocketClient` из `front/src/shared/realtime`.
+Frontend realtime-вызовы должны идти через единый `WebSocketClient` из `monolith/src/shared/realtime`.
 
 Components не должны импортировать `socket.io-client` напрямую.
 Компоненты получают realtime client через `useWebSocketClient`.
@@ -173,7 +173,7 @@ CRUD notifications от backend должны обрабатываться чер
 Чат и передача файлов должны использовать shared contracts из `shared/@types/chat.d.ts`.
 Файлы в boilerplate не должны передаваться как base64 payload через WebSocket event.
 Загрузка файлов должна выполняться отдельным HTTP multipart request с обязательной авторизацией.
-Upload progress должен реализовываться внутри transport/API слоев `front/src/shared/api` и `front/src/entities/*/api`, а не прямым `XMLHttpRequest` или `fetch` из view/component.
+Upload progress должен реализовываться внутри transport/API слоев `monolith/src/shared/api` и `monolith/src/entities/*/api`, а не прямым `XMLHttpRequest` или `fetch` из view/component.
 Компонент может передать callback прогресса в domain API method и отображать полученное значение в UI.
 Backend хранит содержимое файла в `uploads`, metadata файла в отдельной database model и возвращает frontend только JSON-safe metadata и файловый идентификатор.
 Metadata загруженного файла должна содержать общий `description`, если он был передан при upload, и публичный API `url` для получения файла.

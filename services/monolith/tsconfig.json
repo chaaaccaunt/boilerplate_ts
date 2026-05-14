@@ -1,8 +1,10 @@
 {
-  "extends": "../tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "include": [
-    "../shared/**/*.d.ts",
-    "./@types",
+    "../../shared/**/*.d.ts",
+    "../../@types",
+    "../../libs/**/*.ts",
+    "../../models/**/*.ts",
     "./webpack.config.ts",
     "./src/**/*.ts"
   ],
@@ -14,6 +16,15 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "paths": {
+      "@/libs": [
+        "../../libs/index"
+      ],
+      "@/libs/*": [
+        "../../libs/*"
+      ],
+      "@/models/*": [
+        "../../models/*"
+      ],
       "@/*": [
         "./src/*"
       ]
@@ -22,9 +33,9 @@
       "node"
     ],
     "typeRoots": [
-      "./@types",
+      "../../@types",
       "./node_modules/@types",
-      "../node_modules/@types"
+      "../../node_modules/@types"
     ]
   },
   "ts-node": {

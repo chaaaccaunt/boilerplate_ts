@@ -3,7 +3,7 @@
 Realtime слой предназначен для WebSocket gateways.
 
 WebSocket transport является базовой частью boilerplate и запускается по умолчанию.
-`WebSocketServer` подключается в `back/src/bin/index.ts` к тому же native HTTP server.
+`WebSocketServer` подключается в `services/monolith/src/bin/index.ts` к тому же native HTTP server.
 
 Правила слоя:
 

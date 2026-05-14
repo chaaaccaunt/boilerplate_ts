@@ -7,7 +7,7 @@
 Для backend package используется:
 
 ```text
-./back/@types
+./@types
 ```
 
 Для shared JSON/API/state contracts используется:
@@ -19,7 +19,7 @@
 Frontend-local declaration files должны находиться внутри frontend package, например:
 
 ```text
-./front/src/*.d.ts
+./monolith/src/*.d.ts
 ```
 
 Не следует объявлять domain types в runtime-файлах, кроме случаев, когда это оправдано локальным техническим использованием и не относится к доменной модели.

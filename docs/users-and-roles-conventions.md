@@ -54,10 +54,10 @@ Backend endpoint создания пользователя должен:
 Frontend должен создавать пользователей через слои:
 
 ```text
-front/src/shared/api
-front/src/entities/users/api
-front/src/entities/store/modules/users
-front/src/views
+monolith/src/shared/api
+monolith/src/entities/users/api
+monolith/src/entities/store/modules/users
+monolith/src/views
 ```
 
 Components не должны обращаться к `fetch` напрямую.
