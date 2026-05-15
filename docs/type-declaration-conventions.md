@@ -2,7 +2,7 @@
 
 ## Типы уровня package
 
-Все domain types и interfaces должны выноситься в package-local `@types` и размещаться в соответствующем файле согласно доменному namespace.
+Переиспользуемые domain types, public contracts и package-level interfaces должны выноситься в package-local `@types` и размещаться в соответствующем файле согласно доменному namespace.
 
 Для backend package используется:
 
@@ -22,4 +22,4 @@ Frontend-local declaration files должны находиться внутри 
 ./monolith/src/*.d.ts
 ```
 
-Не следует объявлять domain types в runtime-файлах, кроме случаев, когда это оправдано локальным техническим использованием и не относится к доменной модели.
+Локальные технические types/interfaces, которые используются только внутри одного runtime-файла и не являются частью доменной модели или публичного contract, можно объявлять рядом с реализацией.

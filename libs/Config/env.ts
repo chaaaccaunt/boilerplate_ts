@@ -10,12 +10,9 @@ export class Envs {
   }
 
   static getEnvFileData() {
-    let cwd = process.cwd()
-    for (let i = 0; i < 9; i++) {
-      const exist = resolve(cwd, `${prefix}.env`)
-      if (existsSync(exist)) return { path: exist, data: readFileSync(exist, "utf-8") }
-      else cwd = resolve(cwd, "..")
-    }
+    const exist = resolve(process.cwd(), `${prefix}.env`)
+    if (existsSync(exist)) return { path: exist, data: readFileSync(exist, "utf-8") }
+
     writeFileSync(resolve(process.cwd(), `${prefix}.env`), "")
   }
 

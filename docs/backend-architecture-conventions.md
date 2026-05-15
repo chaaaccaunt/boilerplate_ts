@@ -2,15 +2,16 @@
 
 ## Правила обработки HTTP
 
-- nginx не входит в приложение и не участвует в application logging.
-- nginx обрабатывает только свои технические сценарии:
+- nginx не входит в Node.js-приложение и не участвует в application logging.
+- nginx обрабатывает edge-сценарии до передачи запроса в `httpServer`:
   - static request
   - OPTIONS request
   - method denied for nginx location
+  - CSRF/Origin check для state-changing API requests
 - CORS preflight headers `Access-Control-Allow-Methods` и `Access-Control-Allow-Headers` должны отправляться только на `OPTIONS` response на уровне nginx.
 - Actual API responses от `httpServer` должны отправлять только CORS headers, необходимые браузеру для чтения ответа: `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials` и `Vary: Origin`.
 - nginx использует `access_log` только для ответов с HTTP 405.
-- Все API requests должны передаваться через `proxy_pass` в `httpServer`.
+- Все API requests, прошедшие edge-проверки nginx, должны передаваться через `proxy_pass` в `httpServer`.
 
 ## Режим работы базы данных
 
@@ -50,12 +51,14 @@ Preflight headers `Access-Control-Allow-Methods` и `Access-Control-Allow-Header
 
 Cookie policy должна быть явно описана и не должна подбираться fallback-значениями.
 
-Для cookie-based authentication необходимо отдельно определить CSRF-стратегию. Минимальная стратегия для boilerplate:
+Для cookie-based authentication CSRF/Origin-проверка выполняется на уровне nginx до `proxy_pass`.
 
-- проверять `Origin` для state-changing requests: `POST`, `PATCH`, `DELETE`;
-- разрешать только `config.http.origin`;
-- при несовпадении origin возвращать `403 Forbidden`;
+- nginx должен проверять `Origin` для state-changing requests: `POST`, `PATCH`, `DELETE`;
+- nginx должен разрешать только настроенный публичный frontend origin;
+- при несовпадении origin nginx должен возвращать `403 Forbidden`;
 - не раскрывать клиенту внутренние детали access policy.
+
+`httpServer` не должен дублировать CSRF/Origin-проверку, если запросы проходят через настроенный nginx boundary.
 
 ## Проверка состояния авторизации
 
@@ -79,46 +82,20 @@ Backend route `/authorization/state` должен использовать `requ
 }
 ```
 
-Если authorization cookie отсутствует, просрочена или невалидна, endpoint должен вернуть ошибочный response и очистить все cookies, связанные с авторизацией:
-
-- authorization cookie;
-- profile cookie.
+Если authorization cookie отсутствует, просрочена или невалидна, endpoint должен вернуть ошибочный response и очистить authorization cookie.
 
 Очистка cookies на pre-controller этапе должна выполняться через transport instructions middleware/httpServer, а не через controller.
 
 Frontend route guard должен принимать решение по HTTP status:
 
 - `200` -> сессия валидна, переход разрешен;
-- любой статус, отличный от `200` -> frontend очищает локальный authorization state/profile cache и перенаправляет пользователя на `/login`.
+- любой статус, отличный от `200` -> frontend очищает локальный authorization state и перенаправляет пользователя на `/login`.
 
-## Публичная profile cookie
-
-После успешной авторизации backend может установить дополнительную публичную profile cookie для frontend bootstrap.
-
-Profile cookie:
-
-- не должна быть `httpOnly`;
-- должна содержать только безопасный JSON profile для отображения интерфейса;
-- не должна содержать пароль, password hash, authorization token, internal identifiers и иные чувствительные данные;
-- не должна использоваться для принятия access decisions.
-
-authorization cookie остается единственным источником подтверждения сессии.
-
-Profile cookie является только UI-cache. Backend access decisions должны опираться на валидный authorization cookie/JWT и server-side проверки.
-
-## Миграции
+## Production schema
 
 Production schema changes не должны выполняться через runtime `sequelize.sync()`.
 
-Production database schema должна подготавливаться отдельным migration process до запуска приложения.
-
-Допустимые варианты migration runner:
-
-- Umzug;
-- sequelize-cli;
-- собственный минимальный migration runner.
-
-Для boilerplate предпочтителен Umzug, если нет отдельного требования к другому инструменту.
+Production database schema должна подготавливаться до запуска приложения отдельным процессом, выбранным конкретным проектом.
 
 Runtime backend в production отвечает за подключение к БД и проверку готовности schema через реальные запросы, но не изменяет schema самостоятельно.
 
@@ -246,7 +223,7 @@ Controller может вернуть transport instructions через controlle
 
 ## WebSocket transport
 
-WebSocket transport является базовой частью boilerplate и запускается по умолчанию вместе с HTTP server.
+WebSocket transport является опциональным модулем boilerplate и используется только в проектах, которым нужен realtime.
 
 Базовая инфраструктура WebSocket находится в:
 
@@ -260,7 +237,7 @@ libs/WebSocketServer
 services/monolith/src/realtime
 ```
 
-`WebSocketServer` подключается в `services/monolith/src/bin/index.ts` к тому же native HTTP server.
+Если проект использует realtime, `WebSocketServer` подключается в `services/monolith/src/bin/index.ts` к тому же native HTTP server.
 Новые gateways подключаются явно через `webSocketServer.use(...)`.
 
 WebSocket архитектура:
@@ -296,7 +273,7 @@ WebSocket transport не должен раскрывать клиенту вну
 
 ## CRUD realtime notifications
 
-При выполнении CRUD operation backend должен отправлять подключенным клиентам WebSocket server соответствующее realtime-событие с JSON-safe payload.
+Если проект использует realtime CRUD notifications, backend отправляет подключенным клиентам WebSocket server соответствующее realtime-событие с JSON-safe payload.
 
 По умолчанию CRUD notification отправляется всем авторизованным клиентам, кроме инициатора операции. Инициатор получает результат операции через HTTP response envelope.
 
@@ -330,21 +307,11 @@ Service не должен знать про socket.io, WebSocket server instance
 
 Если событие должно быть доступно не всем пользователям, фильтрация аудитории выполняется на gateway/transport boundary или через явно описанную project-specific access policy. Boilerplate не должен молча зашивать такие правила.
 
-Boilerplate содержит базовый chat gateway с поддержкой:
+Доменные realtime gateways являются аналогом controller boundary:
 
-- публичного чата;
-- групповых чатов;
-- приватных чатов;
-- сообщений с файлами.
-
-Chat gateway является realtime-аналогом controller boundary:
-
-- проверяет доступ к событию или вызывает service-level access check без загрузки лишних данных;
-- вызывает service для бизнес-логики;
-- не раскрывает frontend внутренние ошибки service/database.
-
-Событие `chat:room:join` должно только проверить доступ к комнате и подписать socket на room channel.
-Загрузка сообщений должна выполняться отдельным событием `chat:messages:list`.
+- проверяют доступ к событию или вызывают service-level access check без загрузки лишних данных;
+- вызывают service для бизнес-логики;
+- не раскрывают frontend внутренние ошибки service/database.
 
 ## Семантика логирования
 
@@ -449,6 +416,7 @@ nginx
 ├─ static request   -> 200 / 404
 ├─ OPTIONS request  -> 204
 ├─ method denied    -> 405
+├─ CSRF/Origin fail -> 403
 └─ API request      -> proxy_pass
                           |
                           v
@@ -479,7 +447,6 @@ nginx
 ## Политика логирования при разработке
 
 - Во время разработки агент обязан соблюдать logging map по месту возникновения события и его уровню.
-- Формат вывода и расширенный контекст логов определяются DevDebugger.
 - Агент не должен вручную дублировать расширенный контекст в сообщении лога без необходимости.
 - Временные диагностические логи, не соответствующие logging map, должны удаляться перед завершением задачи.
 

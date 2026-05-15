@@ -10,6 +10,11 @@ export interface iAppConfig {
   }
   http: iHTTPConfig
   db: Options
+  internalServices: {
+    authorizationUrl?: string
+    usersUrl?: string
+    chatUrl?: string
+  }
 }
 
 export class AppConfiguration {
@@ -18,6 +23,9 @@ export class AppConfiguration {
     "VAR_APP_LOG_LEVEL",
     "VAR_HTTP_JWT_AUDIENCE",
     "VAR_HTTP_JWT_ISSUER",
+    "VAR_AUTHORIZATION_SERVICE_URL",
+    "VAR_USERS_SERVICE_URL",
+    "VAR_CHAT_SERVICE_URL",
   ] as const
 
   readonly config: iAppConfig
@@ -45,6 +53,11 @@ export class AppConfiguration {
         username: this.getRequiredEnv("VAR_DB_USER"),
         dialect: "mysql",
         dialectModule: mysql2
+      },
+      internalServices: {
+        authorizationUrl: this.requiredEnvKeys.VAR_AUTHORIZATION_SERVICE_URL,
+        usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
+        chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL
       }
     }
   }
@@ -61,7 +74,10 @@ export class AppConfiguration {
       VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
       VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
       VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
-      VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL
+      VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL,
+      VAR_AUTHORIZATION_SERVICE_URL: process.env.VAR_AUTHORIZATION_SERVICE_URL,
+      VAR_USERS_SERVICE_URL: process.env.VAR_USERS_SERVICE_URL,
+      VAR_CHAT_SERVICE_URL: process.env.VAR_CHAT_SERVICE_URL
     }
   }
 

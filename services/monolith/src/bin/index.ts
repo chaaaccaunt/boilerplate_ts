@@ -20,7 +20,7 @@ async function start(): Promise<void> {
   await database.sequelize.authenticate()
 
   if (process.env.NODE_ENV !== "production") {
-    await database.sequelize.sync({ force: true })
+    await database.sequelize.sync()
     await seedAuthorizationData(database.models)
   }
 

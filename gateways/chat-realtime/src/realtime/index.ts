@@ -1,0 +1,1 @@
+export { ChatSocketGateway } from "./chat"

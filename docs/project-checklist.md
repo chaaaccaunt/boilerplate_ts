@@ -16,6 +16,7 @@
   - `VAR_HTTP_ORIGIN`;
   - `VAR_HTTP_COOKIE_NAME`;
   - `VAR_HTTP_JWT_SECRET`.
+- Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
 
 ## Режим работы БД
 
@@ -29,6 +30,7 @@
 - Проверить обязательную переменную `VUE_APP_BASE_URL`.
 - Если frontend доступен через внешний development hostname, указать `VUE_APP_HOSTNAME`.
 - Не использовать fallback для обязательных env-переменных.
+- Проверить, что обязательные frontend env-переменные не равны placeholder/default-значениям.
 
 ## Пользователи и роли
 
@@ -39,7 +41,7 @@
 
 ## Проверки перед завершением задачи
 
-- Запустить `npm run typecheck:all`.
+- Запустить `npm run typecheck:all`, если задача меняла TypeScript-код, shared contracts, backend/frontend contracts или runtime-логику, и зависимости проекта доступны.
 - Если менялись shared contracts, убедиться, что проходят:
   - shared typecheck;
   - backend typecheck;
@@ -53,5 +55,6 @@
 - Frontend build должен проходить.
 - `sequelize.sync()` не должен запускаться при `NODE_ENV=production`.
 - Seed не должен запускаться при `NODE_ENV=production`.
-- Cookie/CORS/CSRF policy должна быть явно настроена.
+- Cookie/CORS policy приложения должна быть явно настроена.
+- CSRF/Origin policy должна быть явно настроена на уровне nginx.
 - Не должно быть фиксированных production-паролей или тестовых учетных данных.

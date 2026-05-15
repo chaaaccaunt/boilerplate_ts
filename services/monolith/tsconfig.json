@@ -1,8 +1,8 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.json",
   "include": [
-    "../../shared/**/*.d.ts",
-    "../../@types",
+    "../../@types/**/*.d.ts",
+    "../../shared/@types/**/*.d.ts",
     "../../libs/**/*.ts",
     "../../models/**/*.ts",
     "./webpack.config.ts",
@@ -12,29 +12,23 @@
     "node_modules"
   ],
   "compilerOptions": {
-    "target": "esnext",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "baseUrl": "../..",
     "paths": {
       "@/libs": [
-        "../../libs/index"
+        "libs/index"
       ],
       "@/libs/*": [
-        "../../libs/*"
+        "libs/*"
       ],
       "@/models/*": [
-        "../../models/*"
+        "models/*"
       ],
       "@/*": [
-        "./src/*"
+        "services/monolith/src/*"
       ]
     },
-    "types": [
-      "node"
-    ],
     "typeRoots": [
       "../../@types",
-      "./node_modules/@types",
       "../../node_modules/@types"
     ]
   },

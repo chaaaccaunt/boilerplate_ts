@@ -91,18 +91,6 @@ Frontend отображает отправителя как `Фамилия Им
 Служебные identifiers могут оставаться во входных payload только там, где они являются явной частью пользовательского действия, например `roomUid` для выбора комнаты или `fileUid` для отправки уже загруженного файла.
 Такие identifiers не должны использоваться как отображаемый текст UI.
 
-Для публичной profile cookie должен использоваться отдельный shared contract, не равный полному `PublicUserDto`, если `PublicUserDto` содержит internal identifiers.
-
-Profile cookie contract не должен содержать:
-
-- password;
-- password hash;
-- authorization token;
-- internal identifiers;
-- server-only metadata.
-
-Profile cookie contract может содержать только данные, необходимые frontend для первичного отображения UI после reload.
-
 ## Маппинг на backend
 
 Если backend model намеренно содержит все поля, необходимые public JSON DTO, model class должен implement этот DTO.

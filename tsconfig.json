@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "paths": {
+      "@/libs": [
+        "./libs/index"
+      ],
+      "@/libs/*": [
+        "./libs/*"
+      ],
+      "@/models/*": [
+        "./models/*"
+      ]
+    },
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "./@types",
+      "./node_modules/@types"
+    ]
+  },
+  "include": [
+    "./@types/**/*.d.ts",
+    "./shared/@types/**/*.d.ts",
+    "./libs/**/*.ts",
+    "./models/**/*.ts"
+  ]
+}
