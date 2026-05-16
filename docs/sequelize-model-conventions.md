@@ -38,13 +38,17 @@ export class SomeModel extends Model<InferAttributes<SomeModel>, InferCreationAt
 После создания Sequelize model class агент обязан выполнить дальнейшие шаги только в явно запрошенном пользователем объеме:
 
 - Если модель использует типы из других моделей в association-полях или `declare static associations`, импортировать соответствующие model class в файл модели.
-- Если модель должна быть доступна через общий список моделей текущего backend-сервиса, импортировать model class и factory (`get...Model`) в `./services/monolith/src/database/instance.ts`.
-- Добавить модель в interface `iModels` в `./services/monolith/src/database/instance.ts` в формате `ModelName: typeof ModelClass`.
+- Если модель должна быть доступна через общий список моделей конкретного backend-сервиса, импортировать model class и factory (`get...Model`) в `./services/<service-name>/src/database/instance.ts`.
+- Добавить модель в interface `iModels` в `./services/<service-name>/src/database/instance.ts` в формате `ModelName: typeof ModelClass`.
 - Добавить модель в объект `this.models` внутри constructor `Database` в формате `ModelName: getModelName(this.sequelize)`.
 - После создания всех моделей вызвать `associate(this.models)` для каждой модели через обход объекта `this.models`.
+- Добавить SQL-миграцию для новой или измененной таблицы в `./services/database-migration/src/database/migrations`.
+- Миграция должна создавать или изменять schema явно и не должна заменяться runtime `sequelize.sync()`.
 - Не подключать созданную модель в `iModels`, `this.models`, controllers, services или routes без отдельного явного запроса пользователя.
+- После добавления или изменения Sequelize model набор миграций должен поднимать актуальную schema на пустой базе через `npm run project -- reset`.
+- Нельзя полагаться на dev `sequelize.sync()` как на единственный способ создания таблиц, потому что reset-flow выполняет setup и миграции до запуска backend-сервисов.
 
-Пример подключения модели в `./services/monolith/src/database/instance.ts`:
+Пример подключения модели в `./services/<service-name>/src/database/instance.ts`:
 
 ```ts
 import { getUserModel, UserModel } from "@/models/users/UserModel"

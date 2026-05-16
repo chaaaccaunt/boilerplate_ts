@@ -45,8 +45,7 @@ export class ChatSocketGateway implements iWebSocketGateway {
   private listRooms(context: iWebSocketEventContext): Promise<iSharedChat.ChatRoomsListResponseDto> {
     return this.chatServiceClient.request<iSharedChat.ChatRoomsListResponseDto, { userUid: string }>({
       requestId: randomUUID(),
-      method: "GET",
-      path: "/chat/rooms",
+      path: "/chat/rooms/list",
       payload: { userUid: context.user.uid }
     })
       .then((result) => Promise.all(result.rooms.map((room) => context.socket.join(this.getRoomChannel(room.uid))))
@@ -82,8 +81,7 @@ export class ChatSocketGateway implements iWebSocketGateway {
   private listMessages(context: iWebSocketEventContext, payload: iSharedChat.ChatMessagesListPayloadDto): Promise<iSharedChat.ChatMessagesListResponseDto> {
     return this.chatServiceClient.request<iSharedChat.ChatMessagesListResponseDto, iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>({
       requestId: randomUUID(),
-      method: "GET",
-      path: "/chat/messages",
+      path: "/chat/messages/list",
       payload: {
         ...payload,
         userUid: context.user.uid

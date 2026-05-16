@@ -1,16 +1,14 @@
 import { HTTPServer } from "@/libs"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
+import { AuthorizationService } from "@/services/AuthorizationService"
 import { AuthorizationGatewayController } from "./AuthorizationGatewayController"
 import { BaseController } from "./BaseController"
 
 export class Controllers {
   private readonly controllers: BaseController[]
 
-  constructor(httpServer: HTTPServer, authorizationServiceUrl: string) {
-    const authorizationServiceClient = new InternalServiceClient(authorizationServiceUrl)
-
+  constructor(httpServer: HTTPServer, authorizationService: AuthorizationService) {
     this.controllers = [
-      new AuthorizationGatewayController(authorizationServiceClient, httpServer.config)
+      new AuthorizationGatewayController(authorizationService, httpServer.config)
     ]
 
     this.controllers.forEach((controller) => {

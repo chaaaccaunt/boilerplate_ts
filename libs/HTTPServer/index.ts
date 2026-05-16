@@ -11,6 +11,8 @@ export interface iHTTPServerEnv {
   VAR_HTTP_PORT: string
   VAR_HTTP_ORIGIN: string
   VAR_HTTP_COOKIE_NAME: string
+  VAR_HTTP_PUBLIC_USER_COOKIE_NAME?: string
+  VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN?: string
   VAR_HTTP_JWT_SECRET: string
   VAR_HTTP_JWT_ISSUER?: string
   VAR_HTTP_JWT_AUDIENCE?: string
@@ -20,6 +22,8 @@ export interface iHTTPConfig {
   port: string
   origin: string
   cookie_name: string
+  public_user_cookie_name?: string
+  public_user_cookie_domain?: string
   jwt_secret: string
   jwt_issuer?: string
   jwt_audience?: string

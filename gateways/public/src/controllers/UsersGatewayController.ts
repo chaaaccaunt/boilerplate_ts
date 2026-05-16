@@ -53,8 +53,7 @@ export class UsersGatewayController extends BaseController {
 
     return this.usersServiceClient.request<iSharedUser.ListUsersResponseDto>({
       requestId: payload.requestId,
-      method: "GET",
-      path: "/users"
+      path: "/users/list"
     })
       .then((data) => ({ data }))
   }
@@ -77,8 +76,7 @@ export class UsersGatewayController extends BaseController {
 
     return this.usersServiceClient.request<iSharedUser.ListRolesResponseDto>({
       requestId: payload.requestId,
-      method: "GET",
-      path: "/users/roles"
+      path: "/users/roles/list"
     })
       .then((data) => ({ data }))
   }

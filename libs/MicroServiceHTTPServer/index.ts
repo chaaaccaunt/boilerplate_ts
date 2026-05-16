@@ -55,6 +55,8 @@ export class MicroServiceHTTPServer {
     route: iContracts.iMicroServiceRoute,
     context: MicroServiceRequestContext
   ): Promise<number> {
+    this.assertPostRequest(request)
+
     return this.readJsonRequestPayload(request)
       .then((payload) => route.callback({ requestId: context.requestId, data: payload }))
       .then((result) => {
@@ -64,10 +66,6 @@ export class MicroServiceHTTPServer {
   }
 
   private readJsonRequestPayload(request: IncomingMessage): Promise<iContracts.iPayload> {
-    if (request.method === "GET") {
-      return Promise.resolve(request.url?.split("?")[1] ? Object.fromEntries(new URLSearchParams(request.url.split("?")[1])) : {})
-    }
-
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = []
       let size = 0
@@ -210,10 +208,18 @@ export class MicroServiceHTTPServer {
   private matchRoute(request: IncomingMessage): iContracts.iMicroServiceRoute {
     if (!request.method || !request.url) throw new Exceptions.HttpServerError.BadRequestError("Некорректный запрос")
 
-    const route = this.routes.find((item) => item.url.test(`${request.method}:${request.url}`))
+    const path = request.url.split("?")[0]
+    const route = this.routes.find((item) => item.url.test(`${request.method}:${path}`))
+    
     if (!route) throw new Exceptions.HttpServerError.RouteNotFoundError()
 
     return route
+  }
+
+  private assertPostRequest(request: IncomingMessage): void {
+    if (request.method === "POST") return
+
+    throw new Exceptions.HttpServerError.BadRequestError("Внутренний transport микросервиса поддерживает только POST-запросы")
   }
 
   private sendSuccess(response: ServerResponse, status: number, result: unknown): void {

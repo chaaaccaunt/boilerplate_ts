@@ -1,13 +1,16 @@
 import { Exceptions } from "@/libs"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
+import { AuthorizationService } from "@/services/AuthorizationService"
 import { BaseController } from "./BaseController"
 
 export class AuthorizationGatewayController extends BaseController {
+  private readonly publicUserCookieName: string
+
   constructor(
-    private readonly serviceClient: InternalServiceClient,
+    private readonly service: AuthorizationService,
     private readonly httpConfig: iLibs.iHTTPConfig
   ) {
     super()
+    this.publicUserCookieName = this.getRequiredPublicUserCookieName()
 
     const loginRoute: iContracts.iRoute<iSharedAuthorization.LoginPayloadDto, iContracts.iControllerResult<iSharedAuthorization.LoginResponseDto>> = {
       url: /^\/authorization\/login\/?$/,
@@ -23,6 +26,7 @@ export class AuthorizationGatewayController extends BaseController {
       url: /^\/authorization\/logout\/?$/,
       method: "POST",
       requireAuthorization: true,
+      clearCookiesOnError: this.getAuthorizationCookieNames(),
       callback: this.handle("logout", this.logout.bind(this))
     }
 
@@ -30,7 +34,7 @@ export class AuthorizationGatewayController extends BaseController {
       url: /^\/authorization\/state\/?$/,
       method: "GET",
       requireAuthorization: true,
-      clearCookiesOnError: [this.httpConfig.cookie_name],
+      clearCookiesOnError: this.getAuthorizationCookieNames(),
       callback: this.handle("state", this.state.bind(this))
     }
 
@@ -40,11 +44,7 @@ export class AuthorizationGatewayController extends BaseController {
   private login(payload: iContracts.iRequestContextPayload<iSharedAuthorization.LoginPayloadDto>): Promise<iContracts.iControllerResult<iSharedAuthorization.LoginResponseDto>> {
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для AuthorizationGatewayController.login")
 
-    return this.serviceClient.request<iAuthorization.iLoginResult, iSharedAuthorization.LoginPayloadDto>({
-      requestId: payload.requestId,
-      path: "/authorization/login",
-      payload: payload.data
-    })
+    return this.service.login(payload.data)
       .then((result) => ({
         data: result.user,
         setCookies: [
@@ -57,6 +57,16 @@ export class AuthorizationGatewayController extends BaseController {
               sameSite: "strict",
               path: "/"
             }
+          },
+          {
+            name: this.publicUserCookieName,
+            value: JSON.stringify(result.user),
+            options: {
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "strict",
+              path: "/",
+              domain: this.httpConfig.public_user_cookie_domain
+            }
           }
         ]
       }))
@@ -67,7 +77,7 @@ export class AuthorizationGatewayController extends BaseController {
 
     return Promise.resolve({
       data: { success: true },
-      clearCookies: [this.httpConfig.cookie_name]
+      clearCookies: this.getAuthorizationCookieNames()
     })
   }
 
@@ -79,5 +89,19 @@ export class AuthorizationGatewayController extends BaseController {
         authenticated: true
       }
     })
+  }
+
+  private getAuthorizationCookieNames(): string[] {
+    return [this.httpConfig.cookie_name, this.publicUserCookieName]
+  }
+
+  private getRequiredPublicUserCookieName(): string {
+    const cookieName = this.httpConfig.public_user_cookie_name
+
+    if (!cookieName) {
+      throw new Error("Не задана обязательная переменная окружения VAR_HTTP_PUBLIC_USER_COOKIE_NAME")
+    }
+
+    return cookieName
   }
 }

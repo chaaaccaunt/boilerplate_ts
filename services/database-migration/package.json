@@ -1,0 +1,38 @@
+{
+  "name": "boilerplate-ts-service-database-migration",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/bin/index.ts",
+  "boilerplate": {
+    "runWithDevAll": false
+  },
+  "scripts": {
+    "setup": "ts-node -r tsconfig-paths/register ./src/bin/setup.ts",
+    "setup:dist": "node dist/setup.js",
+    "drop-database": "ts-node -r tsconfig-paths/register ./src/bin/drop-database.ts",
+    "grant-runtime": "ts-node -r tsconfig-paths/register ./src/bin/grant-runtime.ts",
+    "seed-development": "ts-node -r tsconfig-paths/register ./src/bin/seed-development.ts",
+    "start": "ts-node -r tsconfig-paths/register ./src/bin",
+    "start:dist": "node dist/app.js",
+    "typecheck": "tsc --noEmit",
+    "build": "webpack --config webpack.config.ts"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.3",
+    "@types/node": "^24.12.2",
+    "@types/webpack": "^5.28.5",
+    "babel-loader": "^8.4.1",
+    "terser-webpack-plugin": "^5.5.0",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.2",
+    "sequelize": "^6.37.7"
+  }
+}

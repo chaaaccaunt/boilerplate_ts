@@ -12,19 +12,18 @@
     "node_modules"
   ],
   "compilerOptions": {
-    "baseUrl": "../..",
     "paths": {
       "@/libs": [
-        "libs/index"
+        "../../libs/index"
       ],
       "@/libs/*": [
-        "libs/*"
+        "../../libs/*"
       ],
       "@/models/*": [
-        "models/*"
+        "../../models/*"
       ],
       "@/*": [
-        "gateways/files/src/*"
+        "./src/*"
       ]
     },
     "typeRoots": [

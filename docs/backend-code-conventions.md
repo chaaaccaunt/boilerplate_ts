@@ -79,9 +79,17 @@ Backend-микросервисы используют `MicroServiceHTTPServer`.
 - возвращает response envelope;
 - логирует завершение internal request без trace.
 
+Gateway-to-service clients должны отправлять internal requests только методом `POST` с JSON body.
+Business payload не должен передаваться через query string.
+Опция `method: "GET"` во внутренних клиентах gateway-to-service не используется.
+
 `MicroServiceHTTPServer` не должен использовать `HTTPMiddlewares`, `PayloadValidator`, `TraceContext` или `MethodTracer`.
 
 `requestId` передается между gateway и микросервисом через header `x-request-id`. Не добавлять `requestId` в shared DTO как domain field.
+
+Service controllers должны наследоваться от `MicroServiceController` из `@/libs`.
+`MicroServiceController` должен использоваться как общий базовый класс для `getRoutes`, `addRoutes` и metadata wrapper route callback.
+Папка `routes` внутри `services/<service-name>/src` не используется.
 
 ## Асинхронный код
 
@@ -107,10 +115,10 @@ return service.find(payload.uid)
 
 Production-сборка backend должна собираться как Node.js bundle.
 
-Основной результат сборки временного backend-сервиса должен находиться в `./services/monolith/dist/app.js` и запускаться командой:
+Основной результат сборки backend-сервиса должен находиться в `./services/<service-name>/dist/app.js` и запускаться командой:
 
 ```bash
-npm run start:service:monolith:dist
+npm run project -- start-dist service <service-name>
 ```
 
 Backend bundle должен быть рассчитан на запуск без локальной папки `node_modules` рядом с `dist`.
@@ -125,11 +133,11 @@ Webpack-конфигурация backend должна:
 - оставлять MySQL runtime совместимым с `sequelize` и `mysql2`;
 - использовать production-оптимизации, подходящие для крупных production-приложений.
 
-Если проект меняет основной database dialect, список ignored optional database drivers в `./services/monolith/webpack.config.ts` должен быть пересмотрен явно.
+Если проект меняет основной database dialect, список ignored optional database drivers в `./services/<service-name>/webpack.config.ts` должен быть пересмотрен явно.
 
 ## WebSocket gateways
 
-WebSocket gateways текущего backend-сервиса должны располагаться в `./services/monolith/src/realtime`.
+WebSocket gateways должны располагаться в package того gateway, который владеет realtime boundary, например `./gateways/chat-realtime/src/realtime`.
 
 Gateway naming должен быть полным и доменным:
 

@@ -1,4 +1,4 @@
-﻿import type { ApiClient } from "@/entities/api/ApiClient"
+﻿import type { ApiClient } from "@/application/api/ApiClient"
 
 export class AuthorizationApi {
   constructor(private readonly api: ApiClient) { }

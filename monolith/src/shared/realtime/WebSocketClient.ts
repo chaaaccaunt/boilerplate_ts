@@ -19,7 +19,8 @@ export class WebSocketClient {
     this.socket = io(this.normalizeBaseUrl(baseUrl), {
       withCredentials: true,
       autoConnect: false,
-      transports: ["websocket"]
+      transports: ["websocket"],
+      path: "/v1/connection"
     })
   }
 

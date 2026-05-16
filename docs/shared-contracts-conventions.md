@@ -26,6 +26,10 @@ Shared contracts описывают только JSON-safe DTO shape, котор
 
 Fallback-значения разрешены только для полей, которые явно объявлены optional и для которых отсутствие значения является нормальным сценарием.
 
+Fallback-значения запрещены для обязательных системных сущностей и invariant проекта.
+Если код ожидает обязательную запись, например системную публичную chat room, отсутствие такой записи должно приводить к явной controlled error.
+Нельзя заменять обязательную сущность первой доступной записью, пустым объектом, случайным identifier или другим похожим значением.
+
 Примеры допустимого fallback:
 
 ```ts
@@ -38,6 +42,7 @@ const label = optionalLabel ?? "Без названия"
 const apiUrl = process.env.VUE_APP_BASE_URL || ""
 const userUid = response.uid || crypto.randomUUID()
 const roles = user.roles || []
+const activeRoomUid = rooms.find((room) => room.type === "public")?.uid || rooms[0]?.uid
 ```
 
 Если значение обязательно для корректной работы, нужно не скрывать проблему fallback-ом, а остановить выполнение с понятной ошибкой.

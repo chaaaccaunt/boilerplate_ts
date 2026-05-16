@@ -51,6 +51,20 @@ Preflight headers `Access-Control-Allow-Methods` и `Access-Control-Allow-Header
 
 Cookie policy должна быть явно описана и не должна подбираться fallback-значениями.
 
+Authorization gateway должен выставлять две разные cookie:
+
+- защищенную authorization cookie с JWT, имя которой задается обязательной переменной `VAR_HTTP_COOKIE_NAME`;
+- публичную информативную user cookie, имя которой задается обязательной для authorization gateway переменной `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`.
+
+Если frontend и authorization gateway доступны на разных subdomain одного site, domain публичной user cookie должен задаваться явно через `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN`, например `.example.com`.
+Эта настройка применяется только к публичной user cookie, которую frontend читает через `document.cookie`.
+Authorization cookie с JWT не должна автоматически получать общий domain только ради frontend state restoration.
+
+Публичная user cookie используется только frontend для восстановления отображаемого authorization state после обновления страницы.
+Она должна содержать только JSON-safe публичные данные пользователя из shared contract, включая публичные роли, и не должна содержать password, password hash, authorization token, JWT claims, server-only metadata или ORM/runtime данные.
+Публичная user cookie не является источником access decisions: backend и route guard должны доверять только защищенной authorization cookie/JWT и endpoint `/authorization/state`.
+При logout и при невалидной authorization cookie backend должен очищать обе cookie.
+
 Для cookie-based authentication CSRF/Origin-проверка выполняется на уровне nginx до `proxy_pass`.
 
 - nginx должен проверять `Origin` для state-changing requests: `POST`, `PATCH`, `DELETE`;
@@ -96,6 +110,13 @@ Frontend route guard должен принимать решение по HTTP st
 Production schema changes не должны выполняться через runtime `sequelize.sync()`.
 
 Production database schema должна подготавливаться до запуска приложения отдельным процессом, выбранным конкретным проектом.
+В этом boilerplate для такого процесса используется package `services/database-migration`, который применяет SQL-миграции и фиксирует их в таблице `database_migrations`.
+Первичная настройка database и service user выполняется через `services/database-migration` script `setup`.
+Setup-скрипт должен использовать admin credentials только для создания database, создания service user и выдачи явно указанных прав.
+Runtime backend не должен запускаться под admin database user.
+Runtime backend-сервис или gateway должен использовать service database user с минимальными правами на конкретные таблицы.
+Права должны соответствовать runtime-сценариям package, а не удобству dev seed или миграций.
+Если package только читает таблицы, например authorization gateway читает `users`, `roles` и `user_roles`, его database user должен иметь только `SELECT` на эти таблицы.
 
 Runtime backend в production отвечает за подключение к БД и проверку готовности schema через реальные запросы, но не изменяет schema самостоятельно.
 
@@ -159,6 +180,7 @@ Backend-микросервисы должны использовать `MicroSer
 `MicroServiceHTTPServer` обязан:
 
 - принимать обязательный header `x-request-id`;
+- принимать только `POST` requests с JSON payload;
 - передавать `requestId` в service-local callback payload;
 - возвращать JSON response envelope;
 - логировать завершение internal request с `requestId`;
@@ -170,13 +192,41 @@ Backend-микросервисы должны использовать `MicroSer
 - выполнять authentication или authorization;
 - запускать middleware pipeline;
 - валидировать payload по schema;
+- принимать business payload через query string;
+- использовать `GET`, `PATCH` или `DELETE` для internal gateway-to-service transport;
 - использовать `TraceContext`, `TraceStep` или `MethodTracer`;
 - логировать request trace.
 
 Если `x-request-id` отсутствует, `MicroServiceHTTPServer` должен вернуть controlled `400 Bad Request`.
+Если internal request использует метод, отличный от `POST`, `MicroServiceHTTPServer` должен вернуть controlled `400 Bad Request`.
+
+Backend-сервисы должны описывать internal endpoints через service-local controllers в `services/<service-name>/src/controllers`.
+Папка `routes` внутри backend-сервисов не используется.
+Service controllers должны наследоваться от общего `MicroServiceController` из `./libs/MicroServiceController`.
+`MicroServiceController` является владельцем общей логики `getRoutes`, `addRoutes` и wrapping route callback metadata.
+Service-local controllers не должны заново объявлять собственные реализации `getRoutes`, `addRoutes` или общего `handle`, если достаточно базового поведения `MicroServiceController`.
+
+Internal route regex в service controllers должен соответствовать фактическому формату matcher в `MicroServiceHTTPServer`: `<METHOD>:<path>`.
+Так как internal transport разрешает только `POST`, route должен объявляться с префиксом `POST:`.
+
+Пример:
+
+```ts
+const listRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListUsersResponseDto> = {
+  url: /^POST:\/users\/list\/?$/,
+  method: "POST",
+  callback: this.handle(this.service.constructor.name, "list", this.list.bind(this))
+}
+```
+
+Route regex вида `/^\/users\/list\/?$/` для `MicroServiceHTTPServer` недопустим, потому что он не совпадет с проверяемой строкой `POST:/users/list`.
 
 Gateway остается владельцем внешней authentication, authorization, request tracing и payload validation.
 Микросервис может проверять только business invariants внутри service layer и логировать бизнес-логику через единый `Logger`.
+
+Если gateway создан как самостоятельная публичная boundary в обход `gateways/public`, он должен быть автономным и не должен проксировать базовую domain logic в одноименный backend-микросервис.
+Такой gateway использует `HTTPServer`, собственный service layer и собственный database bootstrap внутри package.
+Отдельный backend-микросервис для него создается только по явному архитектурному решению проекта, а не как обязательное продолжение факта существования gateway.
 
 ## Формат API-ответа
 
@@ -231,13 +281,13 @@ WebSocket transport является опциональным модулем boi
 libs/WebSocketServer
 ```
 
-Доменные realtime gateways текущего backend-сервиса должны находиться в:
+Доменные realtime gateways должны находиться в package того gateway, который владеет realtime boundary, например:
 
 ```text
-services/monolith/src/realtime
+gateways/chat-realtime/src/realtime
 ```
 
-Если проект использует realtime, `WebSocketServer` подключается в `services/monolith/src/bin/index.ts` к тому же native HTTP server.
+Если проект использует realtime, `WebSocketServer` подключается в `gateways/<gateway-name>/src/bin/index.ts` к тому же native HTTP server.
 Новые gateways подключаются явно через `webSocketServer.use(...)`.
 
 WebSocket архитектура:

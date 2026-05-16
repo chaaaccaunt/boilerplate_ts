@@ -4,14 +4,15 @@ import { Options } from "sequelize"
 import { iHTTPConfig } from "../HTTPServer"
 import { Envs } from "./env"
 
+export { Envs }
+
 export interface iAppConfig {
   app: {
     LOG_LEVEL?: string
   }
   http: iHTTPConfig
-  db: Options
+  db?: Options
   internalServices: {
-    authorizationUrl?: string
     usersUrl?: string
     chatUrl?: string
   }
@@ -21,9 +22,14 @@ export class AppConfiguration {
   private readonly requiredEnvKeys: NodeJS.ProcessEnv
   private readonly optionalEnvKeys: readonly (keyof NodeJS.ProcessEnv)[] = [
     "VAR_APP_LOG_LEVEL",
+    "VAR_DB_HOST",
+    "VAR_DB_NAME",
+    "VAR_DB_PASSWORD",
+    "VAR_DB_USER",
+    "VAR_HTTP_PUBLIC_USER_COOKIE_NAME",
+    "VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN",
     "VAR_HTTP_JWT_AUDIENCE",
     "VAR_HTTP_JWT_ISSUER",
-    "VAR_AUTHORIZATION_SERVICE_URL",
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
   ] as const
@@ -42,20 +48,14 @@ export class AppConfiguration {
         port: this.getRequiredEnv("VAR_HTTP_PORT"),
         origin: this.getRequiredEnv("VAR_HTTP_ORIGIN"),
         cookie_name: this.getRequiredEnv("VAR_HTTP_COOKIE_NAME"),
+        public_user_cookie_name: this.requiredEnvKeys.VAR_HTTP_PUBLIC_USER_COOKIE_NAME,
+        public_user_cookie_domain: this.requiredEnvKeys.VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN,
         jwt_audience: this.requiredEnvKeys.VAR_HTTP_JWT_AUDIENCE,
         jwt_issuer: this.requiredEnvKeys.VAR_HTTP_JWT_ISSUER,
         jwt_secret: this.getRequiredEnv("VAR_HTTP_JWT_SECRET"),
       },
-      db: {
-        host: this.getRequiredEnv("VAR_DB_HOST"),
-        database: this.getRequiredEnv("VAR_DB_NAME"),
-        password: this.getRequiredEnv("VAR_DB_PASSWORD"),
-        username: this.getRequiredEnv("VAR_DB_USER"),
-        dialect: "mysql",
-        dialectModule: mysql2
-      },
+      db: this.getDatabaseConfig(),
       internalServices: {
-        authorizationUrl: this.requiredEnvKeys.VAR_AUTHORIZATION_SERVICE_URL,
         usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
         chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL
       }
@@ -71,11 +71,12 @@ export class AppConfiguration {
       VAR_HTTP_PORT: process.env.VAR_HTTP_PORT,
       VAR_HTTP_ORIGIN: process.env.VAR_HTTP_ORIGIN,
       VAR_HTTP_COOKIE_NAME: process.env.VAR_HTTP_COOKIE_NAME,
+      VAR_HTTP_PUBLIC_USER_COOKIE_NAME: process.env.VAR_HTTP_PUBLIC_USER_COOKIE_NAME,
+      VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: process.env.VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN,
       VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
       VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
       VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
       VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL,
-      VAR_AUTHORIZATION_SERVICE_URL: process.env.VAR_AUTHORIZATION_SERVICE_URL,
       VAR_USERS_SERVICE_URL: process.env.VAR_USERS_SERVICE_URL,
       VAR_CHAT_SERVICE_URL: process.env.VAR_CHAT_SERVICE_URL
     }
@@ -92,6 +93,33 @@ export class AppConfiguration {
       const existValues = Envs.getEnvFileData()
       if (existValues) writeFileSync(existValues.path, `${existValues.data}\n${missingKeys.map(k => `${k}=УкажитеЗначение`).join("\n")}`)
       throw new Error(`Отсутствуют обязательные переменные окружения: ${missingKeys.join(", ")}`)
+    }
+
+    this.validateDatabaseEnv()
+  }
+
+  private validateDatabaseEnv(): void {
+    const databaseKeys: (keyof NodeJS.ProcessEnv)[] = ["VAR_DB_HOST", "VAR_DB_NAME", "VAR_DB_PASSWORD", "VAR_DB_USER"]
+    const providedDatabaseKeys = databaseKeys.filter((key) => Boolean(this.requiredEnvKeys[key]))
+
+    if (providedDatabaseKeys.length > 0 && providedDatabaseKeys.length < databaseKeys.length) {
+      const missingDatabaseKeys = databaseKeys.filter((key) => !this.requiredEnvKeys[key])
+      throw new Error(`Не полностью задана конфигурация БД: ${missingDatabaseKeys.join(", ")}`)
+    }
+  }
+
+  private getDatabaseConfig(): Options | undefined {
+    if (!this.requiredEnvKeys.VAR_DB_HOST && !this.requiredEnvKeys.VAR_DB_NAME && !this.requiredEnvKeys.VAR_DB_PASSWORD && !this.requiredEnvKeys.VAR_DB_USER) {
+      return undefined
+    }
+
+    return {
+      host: this.getRequiredEnv("VAR_DB_HOST"),
+      database: this.getRequiredEnv("VAR_DB_NAME"),
+      password: this.getRequiredEnv("VAR_DB_PASSWORD"),
+      username: this.getRequiredEnv("VAR_DB_USER"),
+      dialect: "mysql",
+      dialectModule: mysql2
     }
   }
 
@@ -121,3 +149,11 @@ export class AppConfiguration {
 const configInstance = new AppConfiguration()
 
 export const config = configInstance.deepFreeze(configInstance.config)
+
+export function getRequiredDatabaseConfig(): Options {
+  if (!config.db) {
+    throw new Error("Для этого package не задана конфигурация БД")
+  }
+
+  return config.db
+}

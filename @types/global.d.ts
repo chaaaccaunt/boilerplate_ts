@@ -32,6 +32,7 @@ declare global {
       secure?: boolean
       sameSite?: "strict" | "lax" | "none"
       path?: string
+      domain?: string
       maxAge?: number
     }
 

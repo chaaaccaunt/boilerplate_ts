@@ -6,6 +6,7 @@ export interface iLibsEnv extends iLoggerEnv, iHTTPServerEnv { }
 export { PayloadValidator } from "./Validator"
 export { HTTPServer, iHTTPServerEnv, iHTTPConfig } from "./HTTPServer"
 export { MicroServiceHTTPServer, iMicroServiceHTTPConfig } from "./MicroServiceHTTPServer"
+export { MicroServiceController } from "./MicroServiceController"
 export { WebSocketServer } from "./WebSocketServer"
 export type {
   iWebSocketBroadcastOptions,
@@ -19,4 +20,4 @@ export type {
 } from "./WebSocketServer"
 export { Exceptions } from "./Exceptions"
 export { Logger, MethodTracer, TraceContext, LogLevel, TraceLayer, iLoggerEnv } from "./Logger"
-export { AppConfiguration, config, iAppConfig } from "./Config"
+export { AppConfiguration, Envs, config, getRequiredDatabaseConfig, iAppConfig } from "./Config"

@@ -26,7 +26,8 @@ export class WebSocketServer {
       cors: {
         origin: config.origin,
         credentials: true
-      }
+      },
+      path: "/v1/connection"
     })
     this.middlewares = new WebSocketMiddlewares(config)
     this.tracer = new MethodTracer(logger)

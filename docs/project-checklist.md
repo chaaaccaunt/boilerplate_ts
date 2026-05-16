@@ -15,8 +15,29 @@
   - `VAR_HTTP_PORT`;
   - `VAR_HTTP_ORIGIN`;
   - `VAR_HTTP_COOKIE_NAME`;
+  - `VAR_HTTP_PUBLIC_USER_COOKIE_NAME` для authorization gateway;
+  - `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` для authorization gateway, если frontend и API находятся на разных subdomain;
   - `VAR_HTTP_JWT_SECRET`.
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
+- Проверить matrix прав database users для каждого backend-сервиса и gateway, который ходит в БД:
+  - `package -> table -> allowed operations`;
+  - runtime-пользователь не имеет прав на таблицы, которые package не использует;
+  - runtime-пользователь не имеет `CREATE`, `ALTER`, `DROP`, если package не является migration/setup process;
+  - read-only package имеет только `SELECT`;
+  - seed/setup данные не требуют расширения runtime-прав package сверх его реальных runtime-сценариев.
+
+## Перед первичной настройкой БД
+
+- Проверить обязательные переменные migration package:
+  - `VAR_DB_ADMIN_USER`;
+  - `VAR_DB_ADMIN_PASSWORD`;
+  - `VAR_DB_SERVICE_HOST`;
+  - `VAR_DB_SERVICE_GRANTS`.
+- Проверить, что grants выдаются минимально необходимому service user и не используют `<database>.*`, если package работает только с частью таблиц.
+- Для каждого нового package зафиксировать grants по конкретным таблицам до запуска setup.
+- Выполнить настройку БД и пользователя сервиса через `npm run project -- workspace service:database-migration setup`.
+- После настройки выполнить миграции через `npm run project -- migrate`.
+- Если нужно полностью пересоздать development database, использовать `npm run project -- reset`: команда удалит базу, заново выполнит setup, применит миграции, выдаст runtime grants и выполнит development seed.
 
 ## Режим работы БД
 
@@ -28,6 +49,7 @@
 ## Перед запуском frontend
 
 - Проверить обязательную переменную `VUE_APP_BASE_URL`.
+- Проверить обязательную переменную `VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME`.
 - Если frontend доступен через внешний development hostname, указать `VUE_APP_HOSTNAME`.
 - Не использовать fallback для обязательных env-переменных.
 - Проверить, что обязательные frontend env-переменные не равны placeholder/default-значениям.
@@ -41,7 +63,8 @@
 
 ## Проверки перед завершением задачи
 
-- Запустить `npm run typecheck:all`, если задача меняла TypeScript-код, shared contracts, backend/frontend contracts или runtime-логику, и зависимости проекта доступны.
+- Запустить `npm run project -- typecheck all`, если задача меняла TypeScript-код, shared contracts, backend/frontend contracts или runtime-логику, и зависимости проекта доступны.
+- Если менялся internal gateway-to-service transport, проверить, что backend-сервисы используют controllers в `src/controllers`, не содержат `src/routes`, а internal route regex имеет формат `^POST:/...$`.
 - Если менялись shared contracts, убедиться, что проходят:
   - shared typecheck;
   - backend typecheck;
@@ -51,6 +74,8 @@
 
 ## Проверки перед production
 
+- Проверить, что nginx-конфиги в `./nginx` соответствуют текущим публичным gateway, WebSocket gateway, frontend origin и package-local `VAR_HTTP_PORT`.
+- Выполнить миграции базы данных через `npm run project -- migrate` или `npm run project -- migrate dist`.
 - Backend build должен проходить.
 - Frontend build должен проходить.
 - `sequelize.sync()` не должен запускаться при `NODE_ENV=production`.

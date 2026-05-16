@@ -38,8 +38,7 @@ export class ChatHTTPGatewayController extends BaseController {
 
     return this.chatServiceClient.request<iSharedChat.ChatRoomsListResponseDto, { userUid: string }>({
       requestId: payload.requestId,
-      method: "GET",
-      path: "/chat/rooms",
+      path: "/chat/rooms/list",
       payload: { userUid: payload.user.uid }
     })
       .then((data) => ({ data }))
@@ -51,8 +50,7 @@ export class ChatHTTPGatewayController extends BaseController {
 
     return this.chatServiceClient.request<iSharedChat.ChatMessagesListResponseDto, iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>({
       requestId: payload.requestId,
-      method: "GET",
-      path: "/chat/messages",
+      path: "/chat/messages/list",
       payload: {
         ...payload.data,
         userUid: payload.user.uid

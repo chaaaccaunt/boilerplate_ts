@@ -19,7 +19,7 @@ export class ChatRoomModel extends Model<InferAttributes<ChatRoomModel>, InferCr
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
-  declare createdByUserUid: ForeignKey<UUID>
+  declare createdByUserUid: ForeignKey<UUID> | null
 
   static associate(models: iDatabase.Models) {
     this.belongsTo(models.User, { foreignKey: "createdByUserUid", as: "creator" })
@@ -54,7 +54,7 @@ export function getChatRoomModel(sequelize: Sequelize) {
       },
       createdByUserUid: {
         type: DataTypes.UUID,
-        allowNull: false
+        allowNull: true
       },
       createdAt: DataTypes.DATE,
       updatedAt: DataTypes.DATE

@@ -2,7 +2,6 @@
 
 interface RequestOptions<TPayload> {
   requestId: string
-  method?: "GET" | "POST" | "PATCH" | "DELETE"
   path: string
   payload?: TPayload
 }
@@ -11,36 +10,21 @@ export class InternalServiceClient {
   constructor(private readonly baseUrl: string) { }
 
   request<TResult, TPayload = iContracts.iPayload>(options: RequestOptions<TPayload>): Promise<TResult> {
-    const url = this.createUrl(options.path, options.method || "POST", options.payload)
+    const url = new URL(options.path, this.baseUrl)
 
     return fetch(url, {
-      method: options.method || "POST",
+      method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "x-request-id": options.requestId
       },
-      body: options.method === "GET" ? undefined : JSON.stringify(options.payload || {})
+      body: JSON.stringify(options.payload || {})
     })
       .then((response) => response.json()
         .then((envelope: iSharedApi.ResponseEnvelope<TResult>) => {
           if (envelope.ok) return envelope.result
           throw this.toServiceError(response.status, envelope.error.message)
         }))
-  }
-
-  private createUrl<TPayload>(path: string, method: string, payload: TPayload | undefined): string {
-    const url = new URL(path, this.baseUrl)
-
-    if (method === "GET" && this.isPayload(payload)) {
-      const queryPayload = payload as iContracts.iPayload
-      Object.entries(queryPayload).forEach(([key, value]) => {
-        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-          url.searchParams.set(key, String(value))
-        }
-      })
-    }
-
-    return url.toString()
   }
 
   private toServiceError(status: number, message: string): Error {
@@ -50,9 +34,6 @@ export class InternalServiceClient {
     return new Exceptions.ServiceError.InternalError(message)
   }
 
-  private isPayload(value: unknown): value is iContracts.iPayload {
-    return typeof value === "object" && value !== null && !Array.isArray(value)
-  }
 }
 
 

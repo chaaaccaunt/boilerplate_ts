@@ -107,6 +107,7 @@ export class HTTPResponseSender {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
+        domain: this.getClearCookieDomain(name),
         maxAge: 0
       }
     }))
@@ -123,11 +124,17 @@ export class HTTPResponseSender {
 
     if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`)
     if (options.path) parts.push(`Path=${options.path}`)
+    if (options.domain) parts.push(`Domain=${options.domain}`)
     if (options.httpOnly) parts.push("HttpOnly")
     if (options.secure) parts.push("Secure")
     if (options.sameSite) parts.push(`SameSite=${this.formatSameSite(options.sameSite)}`)
 
     return parts.join("; ")
+  }
+
+  private getClearCookieDomain(cookieName: string): string | undefined {
+    if (cookieName !== this.config.public_user_cookie_name) return undefined
+    return this.config.public_user_cookie_domain
   }
 
   private formatSameSite(value: iContracts.iCookieOptions["sameSite"]): string {

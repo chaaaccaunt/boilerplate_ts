@@ -10,6 +10,7 @@ const gatewaysDirectory = join(rootDirectory, "gateways")
 const frontendWorkspaceName = getPackageName(frontendPackageDirectory)
 const serviceWorkspaceNames = getPackageWorkspaceNames(servicesDirectory)
 const gatewayWorkspaceNames = getPackageWorkspaceNames(gatewaysDirectory)
+const serviceWorkspaceOptions = getPackageWorkspaceOptions(servicesDirectory)
 
 const commands = {
   help: {
@@ -31,6 +32,14 @@ const commands = {
   typecheck: {
     description: "Проверить типы: typecheck [all|shared|frontend|service <name>|gateway <name>]",
     handler: handleTypecheck
+  },
+  migrate: {
+    description: "Выполнить миграции базы данных: migrate [dev|dist]",
+    handler: handleMigrate
+  },
+  reset: {
+    description: "Пересоздать development database: reset",
+    handler: handleReset
   },
   "start-dist": {
     description: "Запустить production bundle: start-dist [service <name>|gateway <name>]",
@@ -78,15 +87,15 @@ function handleDevelopment(args) {
 
   if (target.kind === "all") {
     return runInSeparateWindows([
-      ...getAllServiceWorkspaceNames().map((workspaceName) => createWorkspaceCommand(workspaceName, "start")),
+      ...getDevelopmentServiceWorkspaceNames().map((workspaceName) => createWorkspaceCommand(workspaceName, "start")),
       ...getAllGatewayWorkspaceNames().map((workspaceName) => createWorkspaceCommand(workspaceName, "start")),
       createWorkspaceCommand(frontendWorkspaceName, "serve")
     ])
   }
 
-  if (target.kind === "frontend") return runCommandInSeparateWindow(createWorkspaceCommand(frontendWorkspaceName, "serve"))
-  if (target.kind === "service") return runCommandInSeparateWindow(createWorkspaceCommand(getServiceWorkspaceName(target.name), "start"))
-  if (target.kind === "gateway") return runCommandInSeparateWindow(createWorkspaceCommand(getGatewayWorkspaceName(target.name), "start"))
+  if (target.kind === "frontend") return runInSeparateWindows([createWorkspaceCommand(frontendWorkspaceName, "serve")])
+  if (target.kind === "service") return runInSeparateWindows([createWorkspaceCommand(getServiceWorkspaceName(target.name), "start")])
+  if (target.kind === "gateway") return runInSeparateWindows([createWorkspaceCommand(getGatewayWorkspaceName(target.name), "start")])
 
   throw new Error(`Неподдерживаемая цель запуска: ${target.raw}`)
 }
@@ -138,6 +147,32 @@ function handleStartDist(args) {
   throw new Error("Production bundle запускается только для backend-сервиса или gateway")
 }
 
+function handleMigrate(args) {
+  const [mode = "dev"] = args
+
+  if (mode === "dev") return runWorkspaceCommand(getServiceWorkspaceName("database-migration"), "start")
+  if (mode === "dist") return runWorkspaceCommand(getServiceWorkspaceName("database-migration"), "start:dist")
+
+  throw new Error("Формат команды: migrate [dev|dist]")
+}
+
+function handleReset(args) {
+  if (args.length) throw new Error("Формат команды: reset")
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Reset базы данных запрещен в production-среде")
+  }
+
+  const migrationWorkspaceName = getServiceWorkspaceName("database-migration")
+
+  return runSequential([
+    createWorkspaceCommand(migrationWorkspaceName, "drop-database"),
+    createWorkspaceCommand(migrationWorkspaceName, "setup"),
+    createWorkspaceCommand(migrationWorkspaceName, "start"),
+    createWorkspaceCommand(migrationWorkspaceName, "grant-runtime"),
+    createWorkspaceCommand(migrationWorkspaceName, "seed-development")
+  ])
+}
+
 function handleWorkspace(args) {
   const [targetName, scriptName, ...scriptArgs] = args
 
@@ -175,6 +210,24 @@ function getPackageWorkspaceNames(packagesDirectory) {
     .filter((entry) => Boolean(entry[1])))
 }
 
+function getPackageWorkspaceOptions(packagesDirectory) {
+  if (!existsSync(packagesDirectory)) return new Map()
+
+  return new Map(readdirSync(packagesDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const packageDirectory = join(packagesDirectory, entry.name)
+      const packageJson = getPackageJson(packageDirectory)
+      return [
+        packageJson?.name,
+        {
+          runWithDevAll: packageJson?.boilerplate?.runWithDevAll !== false
+        }
+      ]
+    })
+    .filter(([workspaceName]) => Boolean(workspaceName)))
+}
+
 function getServiceWorkspaceName(serviceName) {
   const workspaceName = serviceWorkspaceNames.get(serviceName)
 
@@ -199,6 +252,11 @@ function getAllServiceWorkspaceNames() {
   return Array.from(serviceWorkspaceNames.values())
 }
 
+function getDevelopmentServiceWorkspaceNames() {
+  return getAllServiceWorkspaceNames()
+    .filter((workspaceName) => serviceWorkspaceOptions.get(workspaceName)?.runWithDevAll !== false)
+}
+
 function getAllGatewayWorkspaceNames() {
   return Array.from(gatewayWorkspaceNames.values())
 }
@@ -213,12 +271,14 @@ function resolveWorkspaceName(targetName) {
 }
 
 function getPackageName(packageDirectory) {
-  const packageJsonPath = join(packageDirectory, "package.json")
+  return getPackageJson(packageDirectory)?.name || null
+}
 
+function getPackageJson(packageDirectory) {
+  const packageJsonPath = join(packageDirectory, "package.json")
   if (!existsSync(packageJsonPath)) return null
 
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"))
-  return packageJson.name
+  return JSON.parse(readFileSync(packageJsonPath, "utf-8"))
 }
 
 function createSharedTypecheckCommand() {
@@ -231,11 +291,14 @@ function createSharedTypecheckCommand() {
 }
 
 function createWorkspaceCommand(workspaceName, scriptName, scriptArgs = []) {
+  const cwd = getWorkspaceDirectory(workspaceName)
+
   return {
     command: "npm",
     args: ["run", scriptName, ...scriptArgs],
     workspaceName,
-    cwd: getWorkspaceDirectory(workspaceName)
+    cwd,
+    env: getPackageLocalEnv(cwd, scriptName)
   }
 }
 
@@ -255,8 +318,12 @@ function runParallel(commandList) {
 }
 
 function runInSeparateWindows(commandList) {
-  commandList.forEach((command) => runCommandInSeparateWindow(command))
-  return Promise.resolve()
+  if (process.platform !== "win32") {
+    return runParallel(commandList)
+  }
+
+  const children = commandList.map((command) => runCommandInSeparateWindow(command))
+  return waitForSeparateWindowProcesses(children)
 }
 
 function runCommandInSeparateWindow(command) {
@@ -269,24 +336,107 @@ function runCommandInSeparateWindow(command) {
   const workingDirectory = resolve(command.cwd || rootDirectory)
   const commandToKeepOpen = `title ${escapeCmdTitle(windowTitle)} && ${escapedCommand}`
 
-  spawn("cmd.exe", ["/d", "/k", commandToKeepOpen], {
+  const child = spawn("cmd.exe", ["/d", "/k", commandToKeepOpen], {
     cwd: workingDirectory,
     detached: true,
+    env: command.env || process.env,
     stdio: "ignore",
     windowsHide: false
-  }).unref()
+  })
 
-  return Promise.resolve()
+  return child
+}
+
+function waitForSeparateWindowProcesses(children) {
+  if (!children.length) return Promise.resolve()
+
+  const aliveChildren = new Set(children)
+
+  console.log("Dev-процессы запущены в отдельных окнах. Нажмите Ctrl+C здесь, чтобы остановить все запущенные окна.")
+
+  return new Promise((resolvePromise, rejectPromise) => {
+    let isStopping = false
+
+    const cleanup = () => {
+      process.off("SIGINT", stop)
+      process.off("SIGTERM", stop)
+    }
+
+    const finishIfDone = () => {
+      if (aliveChildren.size > 0) return
+      cleanup()
+      resolvePromise()
+    }
+
+    const stop = () => {
+      if (isStopping) return
+      isStopping = true
+
+      console.log("Останавливаю dev-процессы...")
+
+      stopSeparateWindowProcesses(Array.from(aliveChildren))
+        .then(() => {
+          cleanup()
+          resolvePromise()
+        })
+        .catch((error) => {
+          cleanup()
+          rejectPromise(error)
+        })
+    }
+
+    children.forEach((child) => {
+      child.on("exit", () => {
+        aliveChildren.delete(child)
+        finishIfDone()
+      })
+
+      child.on("error", (error) => {
+        aliveChildren.delete(child)
+        cleanup()
+        rejectPromise(error)
+      })
+    })
+
+    process.on("SIGINT", stop)
+    process.on("SIGTERM", stop)
+    process.stdin.resume()
+  })
+}
+
+function stopSeparateWindowProcesses(children) {
+  return Promise.all(children.map((child) => stopProcessTree(child.pid)))
+    .then(() => undefined)
+}
+
+function stopProcessTree(pid) {
+  if (!pid) return Promise.resolve()
+
+  if (process.platform !== "win32") {
+    process.kill(-pid, "SIGTERM")
+    return Promise.resolve()
+  }
+
+  return new Promise((resolvePromise) => {
+    const child = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true
+    })
+
+    child.on("exit", () => resolvePromise())
+    child.on("error", () => resolvePromise())
+  })
 }
 
 function runCommand(command) {
-  return run(command.command, command.args, command.cwd)
+  return run(command.command, command.args, command.cwd, command.env)
 }
 
-function run(command, args, cwd = rootDirectory) {
+function run(command, args, cwd = rootDirectory, env = process.env) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(command, args, {
       cwd,
+      env,
       shell: true,
       stdio: "inherit"
     })
@@ -313,6 +463,48 @@ function getLocalBinaryPath(binaryName) {
   }
 
   return executablePath
+}
+
+function getPackageLocalEnv(packageDirectory, scriptName) {
+  const envFileName = getPackageLocalEnvFileName(scriptName)
+  const envFilePath = join(packageDirectory, envFileName)
+
+  if (!existsSync(envFilePath)) return process.env
+
+  return {
+    ...process.env,
+    ...parseEnvFile(readFileSync(envFilePath, "utf-8"))
+  }
+}
+
+function getPackageLocalEnvFileName(scriptName) {
+  if (
+    process.env.NODE_ENV === "production" ||
+    scriptName === "build" ||
+    scriptName === "start:dist" ||
+    scriptName.endsWith(":dist")
+  ) {
+    return ".prod.env"
+  }
+
+  return ".dev.env"
+}
+
+function parseEnvFile(data) {
+  return data
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter((row) => row && !row.startsWith("#"))
+    .reduce((env, row) => {
+      const separatorIndex = row.indexOf("=")
+      if (separatorIndex === -1) return env
+
+      const key = row.slice(0, separatorIndex).trim()
+      const value = row.slice(separatorIndex + 1).trim()
+
+      if (key) env[key] = value
+      return env
+    }, {})
 }
 
 function getWorkspaceDirectory(workspaceName) {
@@ -359,6 +551,9 @@ function showHelp() {
   console.log("  npm run project -- dev")
   console.log("  npm run project -- dev service monolith")
   console.log("  npm run project -- dev gateway monolith")
+  console.log("  npm run project -- migrate")
+  console.log("  npm run project -- migrate dist")
+  console.log("  npm run project -- reset")
   console.log("  npm run project -- build frontend")
   console.log("  npm run project -- workspace service:monolith start")
 }

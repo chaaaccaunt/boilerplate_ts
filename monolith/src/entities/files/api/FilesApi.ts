@@ -1,4 +1,4 @@
-import type { ApiClient } from "@/entities/api/ApiClient"
+﻿import type { ApiClient } from "@/application/api/ApiClient"
 import type { UploadProgressCallback } from "@/shared/api"
 
 export class FilesApi {
