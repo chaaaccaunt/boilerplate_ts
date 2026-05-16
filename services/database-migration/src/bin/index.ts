@@ -1,5 +1,5 @@
 import { Database } from "@/database"
-import { config, getRequiredDatabaseConfig, Logger } from "@/libs"
+import { getRequiredDatabaseConfig, Logger } from "@/libs"
 import { DatabaseMigrationService } from "@/services/DatabaseMigrationService"
 
 const logger = new Logger()

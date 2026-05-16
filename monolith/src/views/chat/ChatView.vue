@@ -23,7 +23,7 @@ const activeRoom = computed(() => rooms.value.find((room) => room.uid === active
 const messages = computed(() => activeRoomUid.value ? store.state.chat.messagesByRoomUid[activeRoomUid.value] || [] : [])
 
 onMounted(() => {
-  webSocketClient.on<iSharedChat.ChatMessageDto>("chat:message:created", (message) => {
+  webSocketClient.on<iSharedChat.ChatMessageSendResponseDto>("chat:message:created", ({ message }) => {
     store.commit("chat/addMessage", message)
   })
 
@@ -42,8 +42,9 @@ function loadRooms(): void {
   isLoading.value = true
   errorMessage.value = ""
 
-  apiClient.chat.listRooms()
+  webSocketClient.emit<iSharedChat.ChatRoomsListResponseDto>("chat:rooms:list")
     .then((result) => {
+      store.commit("chat/setRooms", result.rooms)
       const activeRoomUid = resolveInitialActiveRoomUid(result.rooms)
       store.commit("chat/setActiveRoomUid", activeRoomUid)
       saveLastActiveRoomUid(activeRoomUid)
@@ -64,8 +65,14 @@ function loadMessages(roomUid: string): void {
 }
 
 function selectRoom(roomUid: string): void {
-  store.commit("chat/setActiveRoomUid", roomUid)
-  saveLastActiveRoomUid(roomUid)
+  webSocketClient.emit<{ joined: true }, iSharedChat.ChatMessagesListPayloadDto>("chat:room:join", { roomUid })
+    .then(() => {
+      store.commit("chat/setActiveRoomUid", roomUid)
+      saveLastActiveRoomUid(roomUid)
+    })
+    .catch((error) => {
+      errorMessage.value = error instanceof ApiError ? error.message : "Не удалось открыть комнату"
+    })
 }
 
 function createRoom(title: string): void {
@@ -76,6 +83,7 @@ function createRoom(title: string): void {
   })
     .then(({ room }) => {
       store.commit("chat/addRoom", room)
+      store.commit("chat/setActiveRoomUid", room.uid)
       saveLastActiveRoomUid(room.uid)
     })
     .catch((error) => {
@@ -83,16 +91,18 @@ function createRoom(title: string): void {
     })
 }
 
-function sendMessage(text: string): void {
+function sendMessage(payload: { text: string, files: File[] }): void {
   if (!activeRoomUid.value) return
 
   isSending.value = true
   errorMessage.value = ""
 
-  webSocketClient.emit<iSharedChat.ChatMessageSendResponseDto, iSharedChat.ChatMessageSendPayloadDto>("chat:message:send", {
-    roomUid: activeRoomUid.value,
-    text
-  })
+  uploadMessageFiles(payload.files)
+    .then((files) => webSocketClient.emit<iSharedChat.ChatMessageSendResponseDto, iSharedChat.ChatMessageSendPayloadDto>("chat:message:send", {
+      roomUid: activeRoomUid.value as string,
+      text: payload.text || undefined,
+      files: files.map((file) => ({ fileUid: file.fileUid }))
+    }))
     .then(({ message }) => {
       store.commit("chat/addMessage", message)
     })
@@ -102,6 +112,17 @@ function sendMessage(text: string): void {
     .finally(() => {
       isSending.value = false
     })
+}
+
+function uploadMessageFiles(files: File[]): Promise<iSharedFiles.UploadedFileDto[]> {
+  if (!files.length) return Promise.resolve([])
+
+  return apiClient.files.upload(files, "")
+    .then((result) => result.files)
+}
+
+function resolveFileUrl(path: string): string {
+  return apiClient.resolvePublicUrl(path as `/${string}`)
 }
 
 function resolveInitialActiveRoomUid(rooms: iSharedChat.ChatRoomDto[]): string {
@@ -164,6 +185,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
         :messages="messages"
         :active-room-uid="activeRoomUid"
         :error-message="errorMessage"
+        :resolve-file-url="resolveFileUrl"
       />
 
       <ChatMessageComposer

@@ -76,20 +76,20 @@ export class WebSocketServer {
 
   private registerGateway(socket: Socket, user: iContracts.iUserToken, gateway: iWebSocketGateway): void {
     for (const event of gateway.getEvents()) {
-      socket.on(event.name, async (payload, callback) => {
-        await this.handleEvent(socket, user, gateway, event, payload, callback)
+      socket.on(event.name, (payload, callback) => {
+        this.handleEvent(socket, user, gateway, event, payload, callback)
       })
     }
   }
 
-  private async handleEvent(
+  private handleEvent(
     socket: Socket,
     user: iContracts.iUserToken,
     gateway: iWebSocketGateway,
     event: iWebSocketEvent,
     payload: unknown,
     callback?: (response: unknown) => void
-  ): Promise<void> {
+  ): void {
     const traceContext = new TraceContext()
     const eventContext: iWebSocketEventContext = {
       socket,
@@ -116,30 +116,30 @@ export class WebSocketServer {
       }
     }
 
-    try {
-      const result = await this.tracer.trace(
-        traceContext,
-        "gateway",
-        event.name,
-        "info",
-        async () => event.handler(eventContext, payload as iContracts.iPayload),
-        {
-          event: "WebSocket gateway завершил работу",
-          gatewayName: gateway.name,
-          gatewayEvent: event.name
-        }
-      )
-
-      this.emitSuccess(callback, result)
-    } catch (error) {
-      this.logger.error("Ошибка WebSocket gateway", {
-        userId: user.uid,
-        event: event.name,
-        error: error instanceof Error ? error : String(error),
-        trace: traceContext.getTrace()
+    this.tracer.trace(
+      traceContext,
+      "gateway",
+      event.name,
+      "info",
+      () => Promise.resolve().then(() => event.handler(eventContext, payload as iContracts.iPayload)),
+      {
+        event: "WebSocket gateway завершил работу",
+        gatewayName: gateway.name,
+        gatewayEvent: event.name
+      }
+    )
+      .then((result) => {
+        this.emitSuccess(callback, result)
       })
-      this.emitError(callback, "WEBSOCKET_EVENT_FAILED", "Не удалось обработать WebSocket событие")
-    }
+      .catch((error) => {
+        this.logger.error("Ошибка WebSocket gateway", {
+          userId: user.uid,
+          event: event.name,
+          error: error instanceof Error ? error : String(error),
+          trace: traceContext.getTrace()
+        })
+        this.emitError(callback, "WEBSOCKET_EVENT_FAILED", "Не удалось обработать WebSocket событие")
+      })
   }
 
   private emitSuccess(callback: ((response: unknown) => void) | undefined, result: unknown): void {

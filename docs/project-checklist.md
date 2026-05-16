@@ -15,10 +15,13 @@
   - `VAR_HTTP_PORT`;
   - `VAR_HTTP_ORIGIN`;
   - `VAR_HTTP_COOKIE_NAME`;
-  - `VAR_HTTP_PUBLIC_USER_COOKIE_NAME` для authorization gateway;
-  - `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` для authorization gateway, если frontend и API находятся на разных subdomain;
+  - `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`;
+  - `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN`;
   - `VAR_HTTP_JWT_SECRET`.
+  - `VAR_HTTP_JWT_AUDIENCE`;
+  - `VAR_HTTP_JWT_ISSUER`.
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
+- Проверить, что `VAR_HTTP_ORIGIN` содержит hostname, из которого runtime может вычислить cookie domain второго уровня с ведущей точкой, например `.gtrktuva.local`.
 - Проверить matrix прав database users для каждого backend-сервиса и gateway, который ходит в БД:
   - `package -> table -> allowed operations`;
   - runtime-пользователь не имеет прав на таблицы, которые package не использует;
@@ -41,10 +44,10 @@
 
 ## Режим работы БД
 
-- При `NODE_ENV=production` backend выполняет только `authenticate()`.
-- При любом другом `NODE_ENV` backend выполняет `sync()` и seed.
-- Production schema должна быть подготовлена до запуска backend.
-- Runtime backend не должен менять production schema.
+- Runtime backend при любом `NODE_ENV` выполняет только `authenticate()`.
+- Runtime backend не выполняет `sync()` и seed.
+- Schema и начальные данные должны быть подготовлены до запуска backend через `services/database-migration`.
+- Runtime backend не должен менять schema.
 
 ## Перед запуском frontend
 
@@ -78,8 +81,8 @@
 - Выполнить миграции базы данных через `npm run project -- migrate` или `npm run project -- migrate dist`.
 - Backend build должен проходить.
 - Frontend build должен проходить.
-- `sequelize.sync()` не должен запускаться при `NODE_ENV=production`.
-- Seed не должен запускаться при `NODE_ENV=production`.
+- `sequelize.sync()` не должен запускаться runtime backend-сервисами и gateway.
+- Seed не должен запускаться runtime backend-сервисами и gateway.
 - Cookie/CORS policy приложения должна быть явно настроена.
 - CSRF/Origin policy должна быть явно настроена на уровне nginx.
 - Не должно быть фиксированных production-паролей или тестовых учетных данных.

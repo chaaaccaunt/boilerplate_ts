@@ -5,8 +5,8 @@ export interface iWebSocketConfig {
   origin: string
   cookie_name: string
   jwt_secret: string
-  jwt_issuer?: string
-  jwt_audience?: string
+  jwt_issuer: string
+  jwt_audience: string
 }
 
 export interface iWebSocketConnectionContext {

@@ -15,20 +15,16 @@
 
 ## Режим работы базы данных
 
-Backend использует только один переключатель режима работы с БД: `NODE_ENV`.
+Runtime backend-сервисы и gateway не управляют schema и начальными данными базы данных.
 
-При `NODE_ENV=production` приложение должно:
+При любом значении `NODE_ENV` runtime приложение должно:
 
 - выполнять только `database.sequelize.authenticate()`;
 - не вызывать `database.sequelize.sync()`;
 - не запускать seed;
-- падать с ошибкой, если production schema не подготовлена заранее.
+- падать с ошибкой, если schema не подготовлена заранее.
 
-При любом другом значении `NODE_ENV` приложение должно:
-
-- выполнять `database.sequelize.authenticate()`;
-- затем обязательно выполнять `database.sequelize.sync()`;
-- затем обязательно запускать dev seed.
+Schema, системные роли, development seed и другие начальные данные должны подготавливаться отдельным package `services/database-migration` через setup, migrations, runtime grants и seed scripts.
 
 Отдельный env-флаг для включения или отключения `sync()` не используется.
 
@@ -51,14 +47,31 @@ Preflight headers `Access-Control-Allow-Methods` и `Access-Control-Allow-Header
 
 Cookie policy должна быть явно описана и не должна подбираться fallback-значениями.
 
+HTTP config contract должен быть строгим: все поля `iHTTPConfig` обязательны во всех backend packages, включая gateways, services, migration utility process и realtime gateway.
+Package-local env-файлы должны явно задавать:
+
+- `VAR_HTTP_PORT`;
+- `VAR_HTTP_ORIGIN`;
+- `VAR_HTTP_COOKIE_NAME`;
+- `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`;
+- `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN`;
+- `VAR_HTTP_JWT_SECRET`;
+- `VAR_HTTP_JWT_AUDIENCE`;
+- `VAR_HTTP_JWT_ISSUER`.
+
+Все authorization cookies должны выставляться с атрибутом `Domain`, равным домену второго уровня с ведущей точкой.
+Например, для `testapi.gtrktuva.local` и `test.gtrktuva.local` cookie domain должен быть `.gtrktuva.local`.
+Host-only cookies для authorization flow запрещены, потому что они ломают восстановление frontend-сессии и ролей между subdomain.
+Runtime должен вычислять cookie domain из `VAR_HTTP_ORIGIN`; `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` остается частью env contract для совместимости, но не должен использоваться как sentinel `none` для отключения `Domain`.
+Пустые значения для HTTP config запрещены.
+
 Authorization gateway должен выставлять две разные cookie:
 
 - защищенную authorization cookie с JWT, имя которой задается обязательной переменной `VAR_HTTP_COOKIE_NAME`;
 - публичную информативную user cookie, имя которой задается обязательной для authorization gateway переменной `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`.
 
-Если frontend и authorization gateway доступны на разных subdomain одного site, domain публичной user cookie должен задаваться явно через `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN`, например `.example.com`.
-Эта настройка применяется только к публичной user cookie, которую frontend читает через `document.cookie`.
-Authorization cookie с JWT не должна автоматически получать общий domain только ради frontend state restoration.
+Authorization cookie с JWT и публичная user cookie должны получать одинаковый cookie domain второго уровня с ведущей точкой.
+Эта настройка нужна не только для публичной user cookie, но и для защищенной authorization cookie, чтобы `/authorization/state`, WebSocket connection и frontend state restoration работали одинаково на subdomain одного site.
 
 Публичная user cookie используется только frontend для восстановления отображаемого authorization state после обновления страницы.
 Она должна содержать только JSON-safe публичные данные пользователя из shared contract, включая публичные роли, и не должна содержать password, password hash, authorization token, JWT claims, server-only metadata или ORM/runtime данные.

@@ -1,0 +1,16 @@
+{
+  "grants": [
+    {
+      "table": "users",
+      "operations": ["SELECT", "INSERT"]
+    },
+    {
+      "table": "roles",
+      "operations": ["SELECT"]
+    },
+    {
+      "table": "user_roles",
+      "operations": ["SELECT", "INSERT"]
+    }
+  ]
+}

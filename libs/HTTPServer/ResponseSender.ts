@@ -107,7 +107,6 @@ export class HTTPResponseSender {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        domain: this.getClearCookieDomain(name),
         maxAge: 0
       }
     }))
@@ -120,11 +119,12 @@ export class HTTPResponseSender {
 
   private serializeCookie(cookie: iContracts.iSetCookie): string {
     const options = cookie.options || {}
+    const domain = this.getCookieDomain()
     const parts = [`${cookie.name}=${encodeURIComponent(cookie.value)}`]
 
     if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`)
     if (options.path) parts.push(`Path=${options.path}`)
-    if (options.domain) parts.push(`Domain=${options.domain}`)
+    parts.push(`Domain=${domain}`)
     if (options.httpOnly) parts.push("HttpOnly")
     if (options.secure) parts.push("Secure")
     if (options.sameSite) parts.push(`SameSite=${this.formatSameSite(options.sameSite)}`)
@@ -132,9 +132,15 @@ export class HTTPResponseSender {
     return parts.join("; ")
   }
 
-  private getClearCookieDomain(cookieName: string): string | undefined {
-    if (cookieName !== this.config.public_user_cookie_name) return undefined
-    return this.config.public_user_cookie_domain
+  private getCookieDomain(): string {
+    const hostname = new URL(this.config.origin).hostname
+    const parts = hostname.split(".").filter(Boolean)
+
+    if (parts.length < 2) {
+      throw new Error("VAR_HTTP_ORIGIN должен содержать hostname, из которого можно вычислить cookie domain второго уровня")
+    }
+
+    return `.${parts.slice(-2).join(".")}`
   }
 
   private formatSameSite(value: iContracts.iCookieOptions["sameSite"]): string {

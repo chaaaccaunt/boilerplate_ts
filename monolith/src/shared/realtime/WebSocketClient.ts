@@ -10,7 +10,6 @@ type WebSocketEvent =
 
 type WebSocketServerEvent =
   | "chat:message:created"
-  | "users:created"
 
 export class WebSocketClient {
   private readonly socket: Socket

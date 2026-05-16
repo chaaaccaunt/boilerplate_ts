@@ -20,8 +20,18 @@ export class InternalServiceClient {
       },
       body: JSON.stringify(options.payload || {})
     })
+      .catch((error) => {
+        throw new Exceptions.ServiceError.InternalError("Внутренний сервис недоступен", { cause: error })
+      })
       .then((response) => response.json()
-        .then((envelope: iSharedApi.ResponseEnvelope<TResult>) => {
+        .catch((error) => {
+          throw new Exceptions.ServiceError.InternalError("Внутренний сервис вернул некорректный JSON", { cause: error })
+        })
+        .then((envelope: unknown) => {
+          if (!this.isEnvelope<TResult>(envelope)) {
+            throw new Exceptions.ServiceError.InternalError("Внутренний сервис вернул некорректный формат ответа")
+          }
+
           if (envelope.ok) return envelope.result
           throw this.toServiceError(response.status, envelope.error.message)
         }))
@@ -32,6 +42,24 @@ export class InternalServiceClient {
     if (status === 404) return new Exceptions.ServiceError.NotFoundError(message)
     if (status === 409) return new Exceptions.ServiceError.ConflictError(message)
     return new Exceptions.ServiceError.InternalError(message)
+  }
+
+  private isEnvelope<TResult>(value: unknown): value is iSharedApi.ResponseEnvelope<TResult> {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false
+    if (!("ok" in value) || typeof value.ok !== "boolean") return false
+
+    if (value.ok) return "result" in value && "error" in value && value.error === null
+
+    return (
+      "result" in value &&
+      value.result === null &&
+      "error" in value &&
+      typeof value.error === "object" &&
+      value.error !== null &&
+      !Array.isArray(value.error) &&
+      "message" in value.error &&
+      typeof value.error.message === "string"
+    )
   }
 
 }

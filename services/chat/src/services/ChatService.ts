@@ -2,30 +2,11 @@ import type { UUID } from "crypto"
 import { Exceptions } from "@/libs"
 import { FileStorageService } from "./FileStorageService"
 
-const publicChatRoom = {
-  uid: "00000000-0000-4000-8000-000000000001" as UUID,
-  type: "public" as const,
-  title: "Общий чат"
-}
-
 export class ChatService {
   private readonly fileStorage: FileStorageService
 
   constructor(private readonly models: iDatabase.Models) {
     this.fileStorage = new FileStorageService(models.StoredFile)
-  }
-
-  ensurePublicRoomExists(): Promise<void> {
-    return this.models.ChatRoom.findOrCreate({
-      where: { uid: publicChatRoom.uid },
-      defaults: {
-        uid: publicChatRoom.uid,
-        type: publicChatRoom.type,
-        title: publicChatRoom.title,
-        createdByUserUid: null
-      }
-    })
-      .then(() => undefined)
   }
 
   listRooms(userUid: UUID): Promise<iSharedChat.ChatRoomsListResponseDto> {

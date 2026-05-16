@@ -1,5 +1,6 @@
 import { compareSync } from "bcryptjs"
 import { sign } from "jsonwebtoken"
+import type { SignOptions } from "jsonwebtoken"
 import { Exceptions } from "@/libs"
 
 export class AuthorizationService {
@@ -26,7 +27,9 @@ export class AuthorizationService {
   }
 
   private createLoginResult(user: iDatabase.Models["User"]["prototype"]): iAuthorization.iLoginResult {
-    const signOptions: { audience?: string, issuer?: string } = {}
+    const signOptions: SignOptions = {
+      expiresIn: "12h"
+    }
 
     if (this.httpConfig.jwt_audience) signOptions.audience = this.httpConfig.jwt_audience
     if (this.httpConfig.jwt_issuer) signOptions.issuer = this.httpConfig.jwt_issuer

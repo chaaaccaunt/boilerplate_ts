@@ -258,6 +258,7 @@ Domain API clients должны использовать shared DTO contracts д
 
 Frontend должен восстанавливать локальный authorization state после обновления страницы из публичной информативной user cookie.
 Имя этой cookie задается обязательной переменной `VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME` и должно совпадать с backend `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`.
+`VUE_APP_BASE_URL` должен соответствовать публичному API/nginx hostname, а backend `VAR_HTTP_ORIGIN` и nginx allowed origin должны соответствовать frontend hostname.
 Парсинг публичной user cookie выполняется при инициализации приложения до регистрации router guards, чтобы роли пользователя были доступны layout/navigation сразу после refresh.
 Публичная user cookie используется только для UI state и отображения ролей; решения о доступе должны зависеть от `/authorization/state` и backend-проверок.
 Если публичная cookie отсутствует или имеет некорректный формат, frontend должен очистить локальный authorization state без подстановки fallback-пользователя.

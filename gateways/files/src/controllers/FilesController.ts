@@ -15,9 +15,9 @@ interface iDownloadPayload {
 export class FilesController extends BaseController {
   private readonly service: FileStorageService
 
-  constructor(storedFileModel: iDatabase.Models["StoredFile"]) {
+  constructor(models: iDatabase.Models) {
     super()
-    this.service = new FileStorageService(storedFileModel)
+    this.service = new FileStorageService(models)
 
     const uploadRoute: iContracts.iRoute<iContracts.iMultipartPayload, iContracts.iControllerResult<iSharedFiles.UploadResponseDto>> = {
       url: /^\/files\/upload\/?$/,
@@ -61,7 +61,7 @@ export class FilesController extends BaseController {
       throw new Exceptions.ControllerError.NotFoundError("Файл не найден")
     }
 
-    return this.service.find(fileUid)
+    return this.service.findAccessible(fileUid, payload.user.uid)
       .then((storedFile) => this.toFileResult(storedFile))
       .catch((error) => {
         throw new Exceptions.ControllerError.NotFoundError("Файл не найден", { cause: error })

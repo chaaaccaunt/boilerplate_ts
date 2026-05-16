@@ -1,0 +1,28 @@
+{
+  "grants": [
+    {
+      "table": "users",
+      "operations": ["SELECT"]
+    },
+    {
+      "table": "chat_rooms",
+      "operations": ["SELECT", "INSERT"]
+    },
+    {
+      "table": "chat_room_members",
+      "operations": ["SELECT", "INSERT"]
+    },
+    {
+      "table": "chat_messages",
+      "operations": ["SELECT", "INSERT"]
+    },
+    {
+      "table": "chat_message_files",
+      "operations": ["SELECT", "INSERT"]
+    },
+    {
+      "table": "stored_files",
+      "operations": ["SELECT"]
+    }
+  ]
+}

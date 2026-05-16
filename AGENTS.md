@@ -27,4 +27,5 @@
 2. Проектные правила
 
 - Подробные backend, frontend, shared-contract, type declaration и checklist conventions описаны внутри `./docs`.
-
+- При добавлении или изменении npm scripts, package-local scripts, root orchestration commands, режимов запуска, сборки или проверки агент обязан проверить корневой `index.js` и при необходимости обновить его в той же задаче.
+- При создании backend-сервиса или gateway агент обязан создать package-local `database-grants.json` с runtime database grants; root runner использует этот файл для генерации development database user и `.dev.env`.

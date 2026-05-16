@@ -7,7 +7,7 @@ export class Controllers {
 
   constructor(httpServer: HTTPServer, models: iDatabase.Models) {
     this.controllers = [
-      new FilesController(models.StoredFile)
+      new FilesController(models)
     ]
 
     this.controllers.forEach((controller) => {

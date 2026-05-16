@@ -165,6 +165,15 @@ export class MicroServiceHTTPServer {
       }
     }
 
+    if (error instanceof Exceptions.ServiceError.AuthenticationError) {
+      return {
+        status: 401,
+        code: "AUTHENTICATION_FAILED",
+        message: error.message,
+        error
+      }
+    }
+
     if (error instanceof Error) {
       return {
         status: 500,

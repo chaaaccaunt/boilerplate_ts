@@ -26,10 +26,6 @@ export class AppConfiguration {
     "VAR_DB_NAME",
     "VAR_DB_PASSWORD",
     "VAR_DB_USER",
-    "VAR_HTTP_PUBLIC_USER_COOKIE_NAME",
-    "VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN",
-    "VAR_HTTP_JWT_AUDIENCE",
-    "VAR_HTTP_JWT_ISSUER",
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
   ] as const
@@ -48,10 +44,10 @@ export class AppConfiguration {
         port: this.getRequiredEnv("VAR_HTTP_PORT"),
         origin: this.getRequiredEnv("VAR_HTTP_ORIGIN"),
         cookie_name: this.getRequiredEnv("VAR_HTTP_COOKIE_NAME"),
-        public_user_cookie_name: this.requiredEnvKeys.VAR_HTTP_PUBLIC_USER_COOKIE_NAME,
-        public_user_cookie_domain: this.requiredEnvKeys.VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN,
-        jwt_audience: this.requiredEnvKeys.VAR_HTTP_JWT_AUDIENCE,
-        jwt_issuer: this.requiredEnvKeys.VAR_HTTP_JWT_ISSUER,
+        public_user_cookie_name: this.getRequiredEnv("VAR_HTTP_PUBLIC_USER_COOKIE_NAME"),
+        public_user_cookie_domain: this.getRequiredEnv("VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN"),
+        jwt_audience: this.getRequiredEnv("VAR_HTTP_JWT_AUDIENCE"),
+        jwt_issuer: this.getRequiredEnv("VAR_HTTP_JWT_ISSUER"),
         jwt_secret: this.getRequiredEnv("VAR_HTTP_JWT_SECRET"),
       },
       db: this.getDatabaseConfig(),
@@ -91,7 +87,7 @@ export class AppConfiguration {
     }
     if (missingKeys.length > 0) {
       const existValues = Envs.getEnvFileData()
-      if (existValues) writeFileSync(existValues.path, `${existValues.data}\n${missingKeys.map(k => `${k}=УкажитеЗначение`).join("\n")}`)
+      if (existValues) writeFileSync(existValues.path, `${existValues.data}\n${missingKeys.map(k => `${k}=`).join("\n")}`)
       throw new Error(`Отсутствуют обязательные переменные окружения: ${missingKeys.join(", ")}`)
     }
 

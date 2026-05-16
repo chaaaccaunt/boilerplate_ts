@@ -64,8 +64,7 @@ export class AuthorizationGatewayController extends BaseController {
             options: {
               secure: process.env.NODE_ENV === "production",
               sameSite: "strict",
-              path: "/",
-              domain: this.httpConfig.public_user_cookie_domain
+              path: "/"
             }
           }
         ]

@@ -1,4 +1,4 @@
-const { existsSync, readdirSync, readFileSync } = require("fs")
+const { existsSync, readdirSync, readFileSync, writeFileSync } = require("fs")
 const { join, resolve } = require("path")
 const { spawn } = require("child_process")
 
@@ -6,6 +6,32 @@ const rootDirectory = __dirname
 const frontendPackageDirectory = join(rootDirectory, "monolith")
 const servicesDirectory = join(rootDirectory, "services")
 const gatewaysDirectory = join(rootDirectory, "gateways")
+const databaseGrantConfigFileName = "database-grants.json"
+const localhostDatabaseName = "boilerplate_dev"
+const localhostHttpOrigin = "http://localhost:8080"
+const localhostCookieName = "authorization"
+const localhostPublicUserCookieName = "authorization_user"
+const localhostPublicUserCookieDomain = "none"
+const localhostJwtSecret = "localhost-development-jwt-secret"
+const localhostJwtAudience = "boilerplate-ts-localhost"
+const localhostJwtIssuer = "boilerplate-ts-localhost"
+const localhostMigrationUser = {
+  userName: "migration_service",
+  password: "migration_service"
+}
+const localhostDefaultPackagePorts = {
+  service: {
+    users: "4102",
+    chat: "4103"
+  },
+  gateway: {
+    public: "4200",
+    authorization: "4201",
+    files: "4202",
+    "chat-realtime": "4203"
+  }
+}
+const allowedRuntimeGrantOperations = new Set(["SELECT", "INSERT", "UPDATE", "DELETE", "INDEX", "REFERENCES"])
 
 const frontendWorkspaceName = getPackageName(frontendPackageDirectory)
 const serviceWorkspaceNames = getPackageWorkspaceNames(servicesDirectory)
@@ -40,6 +66,10 @@ const commands = {
   reset: {
     description: "Пересоздать development database: reset",
     handler: handleReset
+  },
+  localhost: {
+    description: "Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost: localhost [db-root-user db-root-password]",
+    handler: handleLocalhost
   },
   "start-dist": {
     description: "Запустить production bundle: start-dist [service <name>|gateway <name>]",
@@ -163,6 +193,9 @@ function handleReset(args) {
   }
 
   const migrationWorkspaceName = getServiceWorkspaceName("database-migration")
+  const migrationWorkspaceDirectory = getWorkspaceDirectory(migrationWorkspaceName)
+
+  updateRuntimeDevelopmentEnvFiles(migrationWorkspaceDirectory)
 
   return runSequential([
     createWorkspaceCommand(migrationWorkspaceName, "drop-database"),
@@ -171,6 +204,23 @@ function handleReset(args) {
     createWorkspaceCommand(migrationWorkspaceName, "grant-runtime"),
     createWorkspaceCommand(migrationWorkspaceName, "seed-development")
   ])
+}
+
+function handleLocalhost(args) {
+  if (args.length !== 0 && args.length !== 2) {
+    throw new Error("Формат команды: localhost [db-root-user db-root-password]")
+  }
+
+  const migrationWorkspaceName = getServiceWorkspaceName("database-migration")
+  const migrationWorkspaceDirectory = getWorkspaceDirectory(migrationWorkspaceName)
+  const adminCredentials = getLocalhostDatabaseAdminCredentials(args, migrationWorkspaceDirectory)
+
+  return Promise.resolve()
+    .then(() => {
+      writeLocalhostDevelopmentEnvFiles(adminCredentials.userName, adminCredentials.password)
+    })
+    .then(() => handleReset([]))
+    .then(() => handleDevelopment(["all"]))
 }
 
 function handleWorkspace(args) {
@@ -507,6 +557,446 @@ function parseEnvFile(data) {
     }, {})
 }
 
+function updateRuntimeDevelopmentEnvFiles(migrationWorkspaceDirectory) {
+  const migrationEnv = getPackageLocalEnv(migrationWorkspaceDirectory, "start")
+  const runtimeUsers = parseRuntimeUsers(migrationEnv.VAR_DB_RUNTIME_GRANTS)
+
+  runtimeUsers.forEach((runtimeUser) => {
+    const packageDirectory = resolveRuntimeUserPackageDirectory(runtimeUser.userName)
+    if (!packageDirectory) return
+
+    const envFilePath = join(packageDirectory, ".dev.env")
+    if (!existsSync(envFilePath)) return
+
+    const nextValues = {
+      VAR_DB_HOST: migrationEnv.VAR_DB_HOST,
+      VAR_DB_NAME: migrationEnv.VAR_DB_NAME,
+      VAR_DB_USER: runtimeUser.userName,
+      VAR_DB_PASSWORD: runtimeUser.password
+    }
+
+    writeFileSync(envFilePath, updateEnvFile(readFileSync(envFilePath, "utf-8"), nextValues), "utf-8")
+    console.log(`Обновлен development env: ${envFilePath}`)
+  })
+}
+
+function getLocalhostDatabaseAdminCredentials(args, migrationWorkspaceDirectory) {
+  if (args.length === 2) {
+    return {
+      userName: args[0],
+      password: args[1]
+    }
+  }
+
+  const envFilePath = join(migrationWorkspaceDirectory, ".dev.env")
+  const migrationEnv = existsSync(envFilePath)
+    ? parseEnvFile(readFileSync(envFilePath, "utf-8"))
+    : {}
+
+  const userName = migrationEnv.VAR_DB_ADMIN_USER || process.env.VAR_DB_ADMIN_USER
+  const password = migrationEnv.VAR_DB_ADMIN_PASSWORD || process.env.VAR_DB_ADMIN_PASSWORD
+
+  if (!userName || !password || userName === "УкажитеЗначение" || password === "УкажитеЗначение") {
+    throw new Error("Укажите root-доступ к MySQL: npm run project -- localhost <db-root-user> <db-root-password>")
+  }
+
+  return { userName, password }
+}
+
+function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminPassword, runtimeUsers = getDatabaseRuntimeUserConfigItems()) {
+  const localhostPackagePorts = getLocalhostPackagePorts()
+  const runtimeGrants = runtimeUsers.map((runtimeUser) => ({
+    userName: runtimeUser.userName,
+    password: runtimeUser.password,
+    host: "localhost",
+    grants: runtimeUser.grants
+  }))
+
+  writeDevelopmentEnvFile(join(servicesDirectory, "database-migration"), {
+    VAR_APP_LOG_LEVEL: "debug",
+    VAR_HTTP_PORT: "8094",
+    VAR_HTTP_ORIGIN: localhostHttpOrigin,
+    VAR_HTTP_COOKIE_NAME: localhostCookieName,
+    VAR_HTTP_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
+    VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: localhostPublicUserCookieDomain,
+    VAR_HTTP_JWT_SECRET: localhostJwtSecret,
+    VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
+    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer,
+    VAR_DB_HOST: "localhost",
+    VAR_DB_NAME: localhostDatabaseName,
+    VAR_DB_USER: localhostMigrationUser.userName,
+    VAR_DB_PASSWORD: localhostMigrationUser.password,
+    VAR_DB_ADMIN_USER: databaseAdminUserName,
+    VAR_DB_ADMIN_PASSWORD: databaseAdminPassword,
+    VAR_DB_SERVICE_HOST: "localhost",
+    VAR_DB_SERVICE_GRANTS: "SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,DROP,INDEX,REFERENCES",
+    VAR_DB_RUNTIME_GRANTS: JSON.stringify(runtimeGrants)
+  })
+
+  writeLocalhostServiceDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts)
+  writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts)
+
+  writeDevelopmentEnvFile(frontendPackageDirectory, {
+    VUE_APP_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "authorization")}`,
+    VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName
+  })
+}
+
+function writeLocalhostServiceDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts) {
+  getPackageDirectoryNames(servicesDirectory)
+    .filter((packageName) => packageName !== "database-migration")
+    .forEach((packageName) => {
+      writeLocalhostBackendPackageDevelopmentEnvFile({
+        packageKind: "service",
+        packageName,
+        packageDirectory: join(servicesDirectory, packageName),
+        port: getLocalhostPackagePort(localhostPackagePorts, "service", packageName),
+        localhostPackagePorts,
+        runtimeUsers
+      })
+    })
+}
+
+function writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts) {
+  getPackageDirectoryNames(gatewaysDirectory)
+    .forEach((packageName) => {
+      writeLocalhostBackendPackageDevelopmentEnvFile({
+        packageKind: "gateway",
+        packageName,
+        packageDirectory: join(gatewaysDirectory, packageName),
+        port: getLocalhostPackagePort(localhostPackagePorts, "gateway", packageName),
+        localhostPackagePorts,
+        runtimeUsers
+      })
+    })
+}
+
+function writeLocalhostBackendPackageDevelopmentEnvFile(options) {
+  const runtimeUser = options.runtimeUsers.find((item) => item.packageKind === options.packageKind && item.packageName === options.packageName)
+
+  writeDevelopmentEnvFile(options.packageDirectory, {
+    ...createHttpDevelopmentEnv(options.port),
+    ...createBackendDatabaseDevelopmentEnv(runtimeUser),
+    ...getLocalhostPackageSpecificDevelopmentEnv(options.packageKind, options.packageName, options.localhostPackagePorts)
+  })
+}
+
+function createBackendDatabaseDevelopmentEnv(runtimeUser) {
+  if (!runtimeUser) return {}
+
+  return {
+    VAR_DB_HOST: "localhost",
+    VAR_DB_NAME: localhostDatabaseName,
+    VAR_DB_USER: runtimeUser.userName,
+    VAR_DB_PASSWORD: runtimeUser.password
+  }
+}
+
+function getLocalhostPackageSpecificDevelopmentEnv(packageKind, packageName, localhostPackagePorts) {
+  if (packageKind === "gateway" && packageName === "authorization") {
+    return {}
+  }
+
+  if (packageKind === "gateway" && packageName === "public") {
+    return {
+      VAR_USERS_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "users")}`,
+      VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`
+    }
+  }
+
+  if (packageKind === "gateway" && packageName === "chat-realtime") {
+    return {
+      VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`
+    }
+  }
+
+  return {}
+}
+
+function getLocalhostPackagePorts() {
+  const usedPorts = new Set()
+
+  return {
+    service: getLocalhostPackageKindPorts("service", getPackageDirectoryNames(servicesDirectory)
+      .filter((packageName) => packageName !== "database-migration"), usedPorts),
+    gateway: getLocalhostPackageKindPorts("gateway", getPackageDirectoryNames(gatewaysDirectory), usedPorts)
+  }
+}
+
+function getLocalhostPackageKindPorts(packageKind, packageNames, usedPorts) {
+  const startPort = packageKind === "gateway" ? 4200 : 4101
+  let nextPort = startPort
+
+  return packageNames.reduce((ports, packageName) => {
+    const defaultPort = localhostDefaultPackagePorts[packageKind]?.[packageName]
+    const port = defaultPort && !usedPorts.has(defaultPort)
+      ? defaultPort
+      : getNextAvailableLocalhostPort(usedPorts, nextPort)
+
+    usedPorts.add(port)
+    nextPort = Number(port) + 1
+
+    return {
+      ...ports,
+      [packageName]: port
+    }
+  }, {})
+}
+
+function getNextAvailableLocalhostPort(usedPorts, startPort) {
+  let port = startPort
+
+  while (usedPorts.has(String(port))) {
+    port += 1
+  }
+
+  return String(port)
+}
+
+function getLocalhostPackagePort(localhostPackagePorts, packageKind, packageName) {
+  const port = localhostPackagePorts[packageKind]?.[packageName]
+  if (!port) throw new Error(`Не найден localhost port для ${packageKind}/${packageName}`)
+
+  return port
+}
+
+function getDatabaseRuntimeUserConfigItems() {
+  return getLocalhostRuntimePackageItems()
+    .map((packageItem) => {
+      const grants = readDatabaseGrantConfig(packageItem)
+      if (!grants.length) return null
+
+      return {
+        packageKind: packageItem.packageKind,
+        packageName: packageItem.packageName,
+        userName: createRuntimeUserName(packageItem.packageKind, packageItem.packageName),
+        password: createRuntimeUserPassword(packageItem.packageName),
+        grants
+      }
+    })
+    .filter(Boolean)
+}
+
+function getLocalhostRuntimePackageItems() {
+  return [
+    ...getPackageDirectoryNames(servicesDirectory)
+      .filter((packageName) => packageName !== "database-migration")
+      .map((packageName) => ({
+        packageKind: "service",
+        packageName,
+        packageDirectory: join(servicesDirectory, packageName)
+      })),
+    ...getPackageDirectoryNames(gatewaysDirectory)
+      .map((packageName) => ({
+        packageKind: "gateway",
+        packageName,
+        packageDirectory: join(gatewaysDirectory, packageName)
+      }))
+  ]
+}
+
+function readDatabaseGrantConfig(packageItem) {
+  const configPath = join(packageItem.packageDirectory, databaseGrantConfigFileName)
+  if (!existsSync(configPath)) {
+    throw new Error(`Не найден package-local database grants config: ${configPath}`)
+  }
+
+  let config
+
+  try {
+    config = JSON.parse(readFileSync(configPath, "utf-8"))
+  } catch (error) {
+    throw new Error(`Некорректный JSON в ${configPath}`)
+  }
+
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    throw new Error(`Database grants config должен быть object: ${configPath}`)
+  }
+
+  if (!Array.isArray(config.grants)) {
+    throw new Error(`Database grants config должен содержать grants array: ${configPath}`)
+  }
+
+  return config.grants.map((grant) => normalizeDatabaseGrant(grant, configPath))
+}
+
+function normalizeDatabaseGrant(grant, configPath) {
+  if (!grant || typeof grant !== "object" || Array.isArray(grant)) {
+    throw new Error(`Database grant должен быть object: ${configPath}`)
+  }
+
+  if (typeof grant.table !== "string" || !/^[A-Za-z0-9_]+$/.test(grant.table)) {
+    throw new Error(`Некорректное имя таблицы в ${configPath}: ${grant.table}`)
+  }
+
+  if (!Array.isArray(grant.operations) || !grant.operations.length) {
+    throw new Error(`Database grant должен содержать operations array: ${configPath}.${grant.table}`)
+  }
+
+  const operations = grant.operations.map((operation) => {
+    if (typeof operation !== "string") {
+      throw new Error(`Database grant operation должен быть string: ${configPath}.${grant.table}`)
+    }
+
+    return operation.trim().toUpperCase()
+  })
+    .filter(Boolean)
+
+  operations.forEach((operation) => {
+    if (!allowedRuntimeGrantOperations.has(operation)) {
+      throw new Error(`Недопустимая runtime operation в ${configPath}: ${operation}`)
+    }
+  })
+
+  return {
+    table: grant.table,
+    operations
+  }
+}
+
+function getPackageDirectoryNames(packagesDirectory) {
+  if (!existsSync(packagesDirectory)) return []
+
+  return readdirSync(packagesDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((packageName) => existsSync(join(packagesDirectory, packageName, "package.json")))
+    .sort((left, right) => left.localeCompare(right))
+}
+
+function createRuntimeUserName(packageKind, packageName) {
+  const suffix = packageKind === "gateway" ? "gw" : "svc"
+  const normalizedPackageName = normalizePackageNameForDatabaseUser(packageName)
+  const maxPackageNameLength = 32 - suffix.length - 1
+  const shortenedPackageName = normalizedPackageName.slice(0, maxPackageNameLength).replace(/_+$/g, "")
+
+  return `${shortenedPackageName}_${suffix}`
+}
+
+function createRuntimeUserPassword(packageName) {
+  return `${normalizePackageNameForDatabaseUser(packageName)}_password`
+}
+
+function normalizePackageNameForDatabaseUser(packageName) {
+  return packageName.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
+}
+
+function createHttpDevelopmentEnv(port) {
+  return {
+    VAR_APP_LOG_LEVEL: "debug",
+    VAR_HTTP_PORT: port,
+    VAR_HTTP_ORIGIN: localhostHttpOrigin,
+    VAR_HTTP_COOKIE_NAME: localhostCookieName,
+    VAR_HTTP_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
+    VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: localhostPublicUserCookieDomain,
+    VAR_HTTP_JWT_SECRET: localhostJwtSecret,
+    VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
+    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer
+  }
+}
+
+function writeDevelopmentEnvFile(packageDirectory, values) {
+  const envFilePath = join(packageDirectory, ".dev.env")
+  const data = Object.entries(values)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n")
+
+  writeFileSync(envFilePath, `${data}\n`, "utf-8")
+  console.log(`Обновлен localhost env: ${envFilePath}`)
+}
+
+function parseRuntimeUsers(rawValue) {
+  if (!rawValue || rawValue === "УкажитеЗначение") return []
+
+  const parsedValue = JSON.parse(rawValue)
+  if (!Array.isArray(parsedValue)) throw new Error("VAR_DB_RUNTIME_GRANTS должен быть JSON array")
+
+  return parsedValue.map((runtimeUser) => {
+    if (!runtimeUser || typeof runtimeUser !== "object" || Array.isArray(runtimeUser)) {
+      throw new Error("Runtime user grant должен быть object")
+    }
+
+    if (typeof runtimeUser.userName !== "string" || !runtimeUser.userName.trim()) {
+      throw new Error("Не задано поле userName в VAR_DB_RUNTIME_GRANTS")
+    }
+
+    if (typeof runtimeUser.password !== "string" || !runtimeUser.password.trim()) {
+      throw new Error("Не задано поле password в VAR_DB_RUNTIME_GRANTS")
+    }
+
+    return {
+      userName: runtimeUser.userName.trim(),
+      password: runtimeUser.password.trim(),
+      grants: Array.isArray(runtimeUser.grants) ? runtimeUser.grants : []
+    }
+  })
+}
+
+function resolveRuntimeUserPackageDirectory(userName) {
+  const packageKind = getRuntimeUserPackageKind(userName)
+  const packageName = getRuntimeUserPackageName(userName)
+
+  if (packageKind === "service") {
+    return resolvePackageDirectoryByName(servicesDirectory, packageName)
+  }
+
+  if (packageKind === "gateway") {
+    return resolvePackageDirectoryByName(gatewaysDirectory, packageName)
+  }
+
+  return null
+}
+
+function getRuntimeUserPackageKind(userName) {
+  const normalizedUserName = userName.replace(/^boilerplate_/, "")
+
+  if (normalizedUserName.endsWith("_svc") || normalizedUserName.endsWith("_service")) return "service"
+  if (normalizedUserName.endsWith("_gw") || normalizedUserName.endsWith("_gateway")) return "gateway"
+
+  return null
+}
+
+function getRuntimeUserPackageName(userName) {
+  const normalizedUserName = userName.replace(/^boilerplate_/, "")
+
+  if (normalizedUserName.endsWith("_svc")) return normalizedUserName.slice(0, -"_svc".length).replace(/_/g, "-")
+  if (normalizedUserName.endsWith("_service")) return normalizedUserName.slice(0, -"_service".length).replace(/_/g, "-")
+  if (normalizedUserName.endsWith("_gw")) return normalizedUserName.slice(0, -"_gw".length).replace(/_/g, "-")
+  if (normalizedUserName.endsWith("_gateway")) return normalizedUserName.slice(0, -"_gateway".length).replace(/_/g, "-")
+
+  return null
+}
+
+function resolvePackageDirectoryByName(packagesDirectory, rawPackageName) {
+  const packageName = rawPackageName.replace(/_/g, "-")
+  const packageDirectory = join(packagesDirectory, packageName)
+
+  if (!existsSync(packageDirectory)) return null
+
+  return packageDirectory
+}
+
+function updateEnvFile(data, nextValues) {
+  const pendingKeys = new Set(Object.keys(nextValues))
+  const lines = data.split(/\r?\n/)
+  const updatedLines = lines.map((line) => {
+    const separatorIndex = line.indexOf("=")
+    if (separatorIndex === -1) return line
+
+    const key = line.slice(0, separatorIndex).trim()
+    if (!pendingKeys.has(key) || typeof nextValues[key] !== "string") return line
+
+    pendingKeys.delete(key)
+    return `${key}=${nextValues[key]}`
+  })
+
+  pendingKeys.forEach((key) => {
+    if (typeof nextValues[key] === "string") updatedLines.push(`${key}=${nextValues[key]}`)
+  })
+
+  return updatedLines.join("\n")
+}
+
 function getWorkspaceDirectory(workspaceName) {
   if (workspaceName === frontendWorkspaceName) return frontendPackageDirectory
 
@@ -554,6 +1044,7 @@ function showHelp() {
   console.log("  npm run project -- migrate")
   console.log("  npm run project -- migrate dist")
   console.log("  npm run project -- reset")
+  console.log("  npm run project -- localhost root password")
   console.log("  npm run project -- build frontend")
   console.log("  npm run project -- workspace service:monolith start")
 }

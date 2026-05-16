@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { useApiClient } from "@/application/api"
 import { useWebSocketClient } from "@/application/realtime"
@@ -19,13 +19,6 @@ const isAdministrator = computed(() => Boolean(store.state.authorization.user?.r
 
 onMounted(() => {
   webSocketClient.connect()
-  webSocketClient.on<iSharedUser.UserCreatedEventDto>("users:created", ({ user }) => {
-    store.commit("users/addUser", user)
-  })
-})
-
-onBeforeUnmount(() => {
-  webSocketClient.off("users:created")
 })
 
 function openLogoutModal(): void {
@@ -34,7 +27,6 @@ function openLogoutModal(): void {
 
 function logout(): void {
   isLogoutModalOpen.value = false
-  webSocketClient.off("users:created")
   apiClient.authorization.logout()
     .then(() => {
       webSocketClient.disconnect()
