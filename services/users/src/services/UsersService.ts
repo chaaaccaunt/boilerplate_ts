@@ -1,7 +1,6 @@
 import { hashSync } from "bcryptjs"
 import type { UUID } from "crypto"
 import { Exceptions } from "@/libs"
-import { Op } from "sequelize"
 
 export class UsersService {
   constructor(
@@ -12,11 +11,6 @@ export class UsersService {
 
   list(): Promise<iSharedUser.PublicUserDto[]> {
     return this.userModel.findAll({
-      where: {
-        login: {
-          [Op.ne]: "system@example.com"
-        }
-      },
       order: [["createdAt", "DESC"]],
       include: [{
         association: this.userModel.associations.roles,

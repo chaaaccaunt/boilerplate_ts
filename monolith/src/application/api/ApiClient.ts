@@ -3,6 +3,7 @@ import { ApiError, HttpClient, UploadProgressCallback } from "@/shared/api"
 import { AuthorizationApi } from "@/entities/authorization/api/AuthorizationApi"
 import { ChatApi } from "@/entities/chat/api/ChatApi"
 import { FilesApi } from "@/entities/files/api/FilesApi"
+import { LogsApi } from "@/entities/logs/api/LogsApi"
 import { UsersApi } from "@/entities/users/api/UsersApi"
 
 type ApiPath = `/${string}`
@@ -19,6 +20,7 @@ export class ApiClient {
   readonly authorization: AuthorizationApi
   readonly chat: ChatApi
   readonly files: FilesApi
+  readonly logs: LogsApi
   readonly users: UsersApi
 
   constructor(
@@ -28,6 +30,7 @@ export class ApiClient {
     this.authorization = new AuthorizationApi(this)
     this.chat = new ChatApi(this)
     this.files = new FilesApi(this)
+    this.logs = new LogsApi(this)
     this.users = new UsersApi(this)
   }
 

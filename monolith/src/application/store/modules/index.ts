@@ -1,5 +1,6 @@
 export { authorization } from "@/entities/authorization/store"
 export { chat } from "@/entities/chat/store"
 export { files } from "@/entities/files/store"
+export { logs } from "@/entities/logs/store"
 export { errors } from "./errors"
 export { users } from "@/entities/users/store"

@@ -17,6 +17,10 @@ Development-конфиги лежат в корне директории `nginx`
 - `gateways/files`: `4202`;
 - `gateways/chat-realtime`: `4203`.
 
+`development.api.conf` задает upload limit через `client_max_body_size`.
+Если upload request превышает лимит, nginx должен вернуть `413` с JSON response envelope и CORS headers для разрешенного frontend origin.
+Frontend не должен дублировать этот лимит в коде.
+
 Для локального fallback frontend server также принимает дефолтные имена:
 
 ```nginx

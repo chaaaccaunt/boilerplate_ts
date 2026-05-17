@@ -26,6 +26,10 @@
       files: iSharedFiles.UploadedFileDto[]
     }
 
+    interface LogsState {
+      logs: iSharedLogs.LogRecordDto[]
+    }
+
     interface ChatState {
       rooms: iSharedChat.ChatRoomDto[]
       activeRoomUid: string | null
@@ -37,6 +41,7 @@
       users: UsersState
       chat: ChatState
       files: FilesState
+      logs: LogsState
       errors: ErrorsState
     }
   }

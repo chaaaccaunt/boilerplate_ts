@@ -15,6 +15,7 @@ export interface iAppConfig {
     token?: string
     usersUrl?: string
     chatUrl?: string
+    logCollectorUrl?: string
   }
 }
 
@@ -29,6 +30,7 @@ export class AppConfiguration {
     "VAR_DB_USER",
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
+    "VAR_LOG_COLLECTOR_SERVICE_URL"
   ] as const
 
   readonly config: iAppConfig
@@ -55,7 +57,8 @@ export class AppConfiguration {
       internalServices: {
         token: this.requiredEnvKeys.VAR_INTERNAL_SERVICE_TOKEN,
         usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
-        chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL
+        chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL,
+        logCollectorUrl: this.requiredEnvKeys.VAR_LOG_COLLECTOR_SERVICE_URL
       }
     }
   }
@@ -77,7 +80,8 @@ export class AppConfiguration {
       VAR_INTERNAL_SERVICE_TOKEN: process.env.VAR_INTERNAL_SERVICE_TOKEN,
       VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL,
       VAR_USERS_SERVICE_URL: process.env.VAR_USERS_SERVICE_URL,
-      VAR_CHAT_SERVICE_URL: process.env.VAR_CHAT_SERVICE_URL
+      VAR_CHAT_SERVICE_URL: process.env.VAR_CHAT_SERVICE_URL,
+      VAR_LOG_COLLECTOR_SERVICE_URL: process.env.VAR_LOG_COLLECTOR_SERVICE_URL
     }
   }
 

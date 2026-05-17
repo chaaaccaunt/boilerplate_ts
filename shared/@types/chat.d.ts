@@ -49,28 +49,12 @@ declare global {
       rooms: ChatRoomDto[]
     }
 
-    interface ChatClosedRoomsListResponseDto {
-      rooms: ChatRoomDto[]
-    }
-
     interface ChatMessagesListPayloadDto {
       roomUid: string
     }
 
     interface ChatMessagesListResponseDto {
       messages: ChatMessageDto[]
-    }
-
-    interface ChatAdminMessagesListPayloadDto {
-      roomUid: string
-    }
-
-    interface ChatAdminHardDeleteRoomPayloadDto {
-      roomUid: string
-    }
-
-    interface ChatAdminHardDeleteRoomResponseDto {
-      roomUid: string
     }
 
     interface ChatAvailableMembersListResponseDto {

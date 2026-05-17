@@ -1,0 +1,8 @@
+{
+  "grants": [
+    {
+      "table": "log_records",
+      "operations": ["SELECT", "INSERT"]
+    }
+  ]
+}

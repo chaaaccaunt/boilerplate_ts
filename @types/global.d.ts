@@ -1,4 +1,5 @@
 import { UUID } from "crypto"
+import type { IncomingHttpHeaders } from "http"
 
 declare global {
   namespace iContracts {
@@ -54,6 +55,7 @@ declare global {
         originalName: string
         mimeType: string
         disposition?: "attachment" | "inline"
+        range?: string
       }
     }
 
@@ -63,6 +65,7 @@ declare global {
     interface iRequestContextPayload<TData = iContracts.iPayload> {
       requestId: string
       user?: iContracts.iUserToken
+      headers: IncomingHttpHeaders
       data?: TData
     }
 

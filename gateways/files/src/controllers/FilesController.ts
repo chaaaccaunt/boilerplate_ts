@@ -2,15 +2,9 @@ import { Exceptions } from "@/libs"
 import { FileStorageService } from "@/services/FileStorageService"
 import { BaseController } from "./BaseController"
 
-interface iUploadPayload {
-  user?: iContracts.iUserToken
-  data?: iContracts.iMultipartPayload
-}
+interface iUploadPayload extends iContracts.iRequestContextPayload<iContracts.iMultipartPayload> {}
 
-interface iDownloadPayload {
-  user?: iContracts.iUserToken
-  data?: iContracts.iPayload
-}
+interface iDownloadPayload extends iContracts.iRequestContextPayload<iContracts.iPayload> {}
 
 export class FilesController extends BaseController {
   private readonly service: FileStorageService
@@ -151,7 +145,7 @@ export class FilesController extends BaseController {
           throw new Exceptions.ControllerError.NotFoundError("Файл не поддерживает просмотр")
         }
 
-        return this.toFileResult(storedFile, "inline")
+        return this.toFileResult(storedFile, "inline", this.getRangeHeader(payload))
       })
       .catch((error) => {
         if (error instanceof Exceptions.ControllerError.NotFoundError) throw error
@@ -178,7 +172,8 @@ export class FilesController extends BaseController {
 
   private toFileResult(
     storedFile: iDatabase.Models["StoredFile"]["prototype"],
-    disposition: iContracts.iFileControllerResult["file"]["disposition"] = "attachment"
+    disposition: iContracts.iFileControllerResult["file"]["disposition"] = "attachment",
+    range?: string
   ): iContracts.iFileControllerResult {
     const metadata = this.service.toUploadedFileDto(storedFile)
 
@@ -187,9 +182,16 @@ export class FilesController extends BaseController {
         path: this.service.getContentPath(storedFile),
         originalName: metadata.originalName,
         mimeType: metadata.mimeType,
-        disposition
+        disposition,
+        range
       }
     }
+  }
+
+  private getRangeHeader(payload: iDownloadPayload): string | undefined {
+    const range = payload.headers.range
+    if (Array.isArray(range)) return range[0]
+    return range
   }
 
   private toPreviewResult(storedFile: iDatabase.Models["StoredFile"]["prototype"]): iContracts.iFileControllerResult {

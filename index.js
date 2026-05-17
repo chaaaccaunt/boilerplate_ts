@@ -17,6 +17,8 @@ const localhostJwtSecret = "localhost-development-jwt-secret"
 const localhostJwtAudience = "boilerplate-ts-localhost"
 const localhostJwtIssuer = "boilerplate-ts-localhost"
 const localhostInternalServiceToken = "localhost-development-internal-service-token"
+const localhostLogCollectorSocketHost = "localhost"
+const localhostLogCollectorSocketPort = "4304"
 const localhostMigrationUser = {
   userName: "migration_service",
   password: "migration_service"
@@ -24,7 +26,8 @@ const localhostMigrationUser = {
 const localhostDefaultPackagePorts = {
   service: {
     users: "4102",
-    chat: "4103"
+    chat: "4103",
+    "log-collector": "4104"
   },
   gateway: {
     public: "4200",
@@ -334,21 +337,20 @@ function getPackageJson(packageDirectory) {
 }
 
 function createSharedTypecheckCommand() {
-  const executable = getLocalNodePackageBinCommand("typescript", "tsc")
+  const executable = getLocalBinaryPath("tsc")
 
   return {
-    command: executable.command,
-    args: [...executable.args, "-p", "shared/tsconfig.json", "--noEmit"]
+    command: executable,
+    args: ["-p", "shared/tsconfig.json", "--noEmit"]
   }
 }
 
 function createWorkspaceCommand(workspaceName, scriptName, scriptArgs = []) {
   const cwd = getWorkspaceDirectory(workspaceName)
-  const npmCommand = getNpmCommand()
 
   return {
-    command: npmCommand.command,
-    args: [...npmCommand.args, "run", scriptName, ...scriptArgs],
+    command: "npm",
+    args: ["run", scriptName, ...scriptArgs],
     workspaceName,
     cwd,
     env: getPackageLocalEnv(cwd, scriptName)
@@ -490,6 +492,7 @@ function run(command, args, cwd = rootDirectory, env = process.env) {
     const child = spawn(command, args, {
       cwd,
       env,
+      shell: true,
       stdio: "inherit"
     })
 
@@ -515,30 +518,6 @@ function getLocalBinaryPath(binaryName) {
   }
 
   return executablePath
-}
-
-function getNpmCommand() {
-  if (process.platform !== "win32") {
-    return { command: "npm", args: [] }
-  }
-
-  return {
-    command: process.execPath,
-    args: [resolve(process.execPath, "..", "node_modules", "npm", "bin", "npm-cli.js")]
-  }
-}
-
-function getLocalNodePackageBinCommand(packageName, binaryName) {
-  if (process.platform !== "win32") {
-    return { command: getLocalBinaryPath(binaryName), args: [] }
-  }
-
-  const executablePath = resolve(rootDirectory, "node_modules", packageName, "bin", binaryName)
-  if (!existsSync(executablePath)) {
-    throw new Error(`РќРµ РЅР°Р№РґРµРЅ ${binaryName}. РЎРЅР°С‡Р°Р»Р° СѓСЃС‚Р°РЅРѕРІРёС‚Рµ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РєРѕРјР°РЅРґРѕР№: npm run project -- install`)
-  }
-
-  return { command: process.execPath, args: [executablePath] }
 }
 
 function getPackageLocalEnv(packageDirectory, scriptName) {
@@ -705,6 +684,7 @@ function writeLocalhostBackendPackageDevelopmentEnvFile(options) {
   writeDevelopmentEnvFile(options.packageDirectory, {
     ...createHttpDevelopmentEnv(options.port),
     ...createBackendDatabaseDevelopmentEnv(runtimeUser),
+    ...createBackendCommonDevelopmentEnv(options.packageKind, options.packageName),
     ...getLocalhostPackageSpecificDevelopmentEnv(options.packageKind, options.packageName, options.localhostPackagePorts)
   })
 }
@@ -721,6 +701,12 @@ function createBackendDatabaseDevelopmentEnv(runtimeUser) {
 }
 
 function getLocalhostPackageSpecificDevelopmentEnv(packageKind, packageName, localhostPackagePorts) {
+  if (packageKind === "service" && packageName === "log-collector") {
+    return {
+      VAR_LOG_COLLECTOR_SOCKET_PORT: localhostLogCollectorSocketPort
+    }
+  }
+
   if (packageKind === "gateway" && packageName === "authorization") {
     return {}
   }
@@ -728,7 +714,8 @@ function getLocalhostPackageSpecificDevelopmentEnv(packageKind, packageName, loc
   if (packageKind === "gateway" && packageName === "public") {
     return {
       VAR_USERS_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "users")}`,
-      VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`
+      VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`,
+      VAR_LOG_COLLECTOR_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "log-collector")}`
     }
   }
 
@@ -919,8 +906,16 @@ function createHttpDevelopmentEnv(port) {
     VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: localhostPublicUserCookieDomain,
     VAR_HTTP_JWT_SECRET: localhostJwtSecret,
     VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
-    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer,
-    VAR_INTERNAL_SERVICE_TOKEN: localhostInternalServiceToken
+    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer
+  }
+}
+
+function createBackendCommonDevelopmentEnv(packageKind, packageName) {
+  return {
+    VAR_INTERNAL_SERVICE_TOKEN: localhostInternalServiceToken,
+    VAR_LOG_COLLECTOR_SOCKET_HOST: localhostLogCollectorSocketHost,
+    VAR_LOG_COLLECTOR_SOCKET_PORT: localhostLogCollectorSocketPort,
+    VAR_LOG_SOURCE: `${packageName}-${packageKind}`
   }
 }
 

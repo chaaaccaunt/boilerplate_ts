@@ -1,4 +1,5 @@
 export * from "./authorization"
 export * from "./chat"
 export * from "./files"
+export * from "./logs"
 export * from "./users"

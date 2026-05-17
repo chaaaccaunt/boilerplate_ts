@@ -16,6 +16,8 @@
 - Для каждого backend-сервиса и gateway должен существовать package-local `database-grants.json`.
 - Для каждого backend-сервиса и gateway должны существовать package-local env-файлы `.dev.env`, `.prod.env` и `.env.example`.
 - nginx используется как edge boundary для static, CORS preflight, method restrictions и CSRF/Origin checks.
+- Лимит размера upload request должен задаваться на nginx/deployment boundary через `client_max_body_size`; frontend не должен хардкодить этот лимит.
+- Nginx response для превышения upload limit должен возвращать HTTP `413` с CORS headers для разрешенного frontend origin, чтобы браузер мог передать frontend корректный статус ошибки.
 
 ## FFmpeg LGPL
 

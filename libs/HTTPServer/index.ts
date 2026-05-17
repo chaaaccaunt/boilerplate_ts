@@ -196,7 +196,7 @@ export class HTTPServer {
       "controller",
       controllerMethod,
       "info",
-      () => route.callback({ requestId, user: request.user, data: request.body }),
+      () => route.callback({ requestId, user: request.user, headers: request.headers, data: request.body }),
       {
         method: request.method,
         path: request.url,

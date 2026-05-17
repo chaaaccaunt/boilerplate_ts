@@ -90,9 +90,7 @@
 - пользовательское удаление group room владельцем с переводом в `archived_by_owner`;
 - выход участника из group/private room без hard delete;
 - перевод private room в `orphaned`, если ее покинули все участники;
-- admin dashboard для просмотра `archived_by_owner` и `orphaned` rooms;
-- просмотр истории закрытой комнаты администратором;
-- hard delete закрытой комнаты администратором без удаления `stored_files`;
+- soft-archive закрытых комнат без административной очереди;
 - подключение к комнате;
 - загрузка сообщений активной комнаты;
 - отправка текстового сообщения;
@@ -111,7 +109,6 @@
 - `docs/chat-room-lifecycle-policy.md`;
 - `gateways/public/src/controllers/ChatHTTPGatewayController.ts`;
 - `monolith/src/entities/chat`;
-- `monolith/src/views/chat-admin`;
 - `monolith/src/features/media-viewer`;
 - `monolith/src/views/chat`.
 
@@ -168,27 +165,24 @@
 - `monolith/src/entities/chat`;
 - `monolith/src/views/chat`.
 
-## Управление файлами
+## Файловый backend boundary
 
-Статус: реализовано.
+Статус: реализовано как backend/API foundation без отдельного пользовательского экрана управления файлами.
 
 Покрытый сценарий:
 
 - загрузка файла;
-- просмотр списка собственных загруженных файлов;
-- обновление описания файла;
 - скачивание файла;
 - inline-просмотр изображений и видео;
 - получение preview proxy для изображений и видео;
-- soft delete собственного файла, если он не прикреплен к сообщению;
-- физический файл при пользовательском удалении не удаляется автоматически.
+- передача загруженных файлов в пользовательские сценарии, например вложения сообщений чата;
+- физический файл при удалении связанных пользовательских сущностей не удаляется автоматически.
 
 Основные зоны реализации:
 
 - `shared/@types/files.d.ts`;
 - `gateways/files`;
 - `monolith/src/entities/files`;
-- `monolith/src/views/files`;
 - `monolith/src/features/file-upload`;
 - `libs/FilePreviewProxy`.
 

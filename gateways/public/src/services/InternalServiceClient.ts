@@ -7,18 +7,14 @@ interface RequestOptions<TPayload> {
 }
 
 export class InternalServiceClient {
-  constructor(private readonly baseUrl: string, private readonly internalServiceToken: string) { }
+  constructor(private readonly baseUrl: string, private readonly internalServiceToken?: string) { }
 
   request<TResult, TPayload = iContracts.iPayload>(options: RequestOptions<TPayload>): Promise<TResult> {
     const url = new URL(options.path, this.baseUrl)
 
     return fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "x-request-id": options.requestId,
-        "x-internal-service-token": this.internalServiceToken
-      },
+      headers: this.getHeaders(options.requestId),
       body: JSON.stringify(options.payload || {})
     })
       .catch((error) => {
@@ -36,6 +32,19 @@ export class InternalServiceClient {
           if (envelope.ok) return envelope.result
           throw this.toServiceError(response.status, envelope.error.message)
         }))
+  }
+
+  private getHeaders(requestId: string): HeadersInit {
+    const headers: HeadersInit = {
+      "Content-Type": "application/json; charset=utf-8",
+      "x-request-id": requestId
+    }
+
+    if (this.internalServiceToken) {
+      headers["x-internal-service-token"] = this.internalServiceToken
+    }
+
+    return headers
   }
 
   private toServiceError(status: number, message: string): Error {

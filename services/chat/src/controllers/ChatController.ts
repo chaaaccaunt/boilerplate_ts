@@ -18,24 +18,6 @@ export class ChatController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "listAvailableMembers", this.listAvailableMembers.bind(this))
     }
 
-    const listClosedRoomsRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedChat.ChatClosedRoomsListResponseDto> = {
-      url: /^POST:\/chat\/admin\/rooms\/closed\/list\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "listClosedRooms", this.listClosedRooms.bind(this))
-    }
-
-    const listAdminRoomMessagesRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatAdminMessagesListPayloadDto, iSharedChat.ChatMessagesListResponseDto> = {
-      url: /^POST:\/chat\/admin\/messages\/list\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "listRoomMessagesAsAdministrator", this.listRoomMessagesAsAdministrator.bind(this))
-    }
-
-    const hardDeleteRoomRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatAdminHardDeleteRoomPayloadDto, iSharedChat.ChatAdminHardDeleteRoomResponseDto> = {
-      url: /^POST:\/chat\/admin\/rooms\/hard-delete\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "hardDeleteRoomAsAdministrator", this.hardDeleteRoomAsAdministrator.bind(this))
-    }
-
     const listMessagesRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }, iSharedChat.ChatMessagesListResponseDto> = {
       url: /^POST:\/chat\/messages\/list\/?$/,
       method: "POST",
@@ -99,9 +81,6 @@ export class ChatController extends MicroServiceController {
     this.addRoutes([
       listRoomsRoute,
       listAvailableMembersRoute,
-      listClosedRoomsRoute,
-      listAdminRoomMessagesRoute,
-      hardDeleteRoomRoute,
       listMessagesRoute,
       createRoomRoute,
       updateRoomRoute,
@@ -122,20 +101,6 @@ export class ChatController extends MicroServiceController {
 
   private listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
     return this.service.listAvailableMembers()
-  }
-
-  private listClosedRooms(): Promise<iSharedChat.ChatClosedRoomsListResponseDto> {
-    return this.service.listClosedRooms()
-  }
-
-  private listRoomMessagesAsAdministrator(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatAdminMessagesListPayloadDto>): Promise<iSharedChat.ChatMessagesListResponseDto> {
-    if (!payload.data?.roomUid) return Promise.reject(new Error("Отсутствует roomUid для ChatService.listRoomMessagesAsAdministrator"))
-    return this.service.listRoomMessagesAsAdministrator(payload.data)
-  }
-
-  private hardDeleteRoomAsAdministrator(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatAdminHardDeleteRoomPayloadDto>): Promise<iSharedChat.ChatAdminHardDeleteRoomResponseDto> {
-    if (!payload.data?.roomUid) return Promise.reject(new Error("Отсутствует roomUid для ChatService.hardDeleteRoomAsAdministrator"))
-    return this.service.hardDeleteRoomAsAdministrator(payload.data)
   }
 
   private listMessages(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessagesListResponseDto> {

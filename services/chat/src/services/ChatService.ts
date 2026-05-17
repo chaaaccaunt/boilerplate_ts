@@ -35,19 +35,6 @@ export class ChatService {
       }))
   }
 
-  listClosedRooms(): Promise<iSharedChat.ChatClosedRoomsListResponseDto> {
-    return this.models.ChatRoom.findAll({
-      where: {
-        status: ["archived_by_owner", "orphaned"]
-      },
-      include: [this.getRoomMembersInclude()],
-      order: [["updatedAt", "DESC"]]
-    })
-      .then((rooms) => ({
-        rooms: rooms.map((room) => this.toRoomDto(room, null))
-      }))
-  }
-
   listMessages(userUid: UUID, payload: iSharedChat.ChatMessagesListPayloadDto): Promise<iSharedChat.ChatMessagesListResponseDto> {
     return this.assertRoomAccess(userUid, payload.roomUid)
       .then(() => this.models.ChatMessage.findAll({
@@ -98,70 +85,6 @@ export class ChatService {
       })
       .then((room) => ({
         room: this.toRoomDto(room, userUid)
-      }))
-  }
-
-  listRoomMessagesAsAdministrator(payload: iSharedChat.ChatAdminMessagesListPayloadDto): Promise<iSharedChat.ChatMessagesListResponseDto> {
-    return this.models.ChatRoom.findByPk(payload.roomUid)
-      .then((room) => {
-        if (!room) throw new Exceptions.ServiceError.NotFoundError("Чат не найден")
-
-        return this.models.ChatMessage.findAll({
-          where: { roomUid: payload.roomUid },
-          include: [
-            { association: this.models.ChatMessage.associations.sender },
-            {
-              association: this.models.ChatMessage.associations.files,
-              include: [{ association: this.models.ChatMessageFile.associations.storedFile }]
-            }
-          ],
-          order: [["createdAt", "ASC"]],
-          limit: 500
-        })
-      })
-      .then((messages) => ({
-        messages: messages.map((message) => this.toMessageDto(message, null))
-      }))
-  }
-
-  hardDeleteRoomAsAdministrator(payload: iSharedChat.ChatAdminHardDeleteRoomPayloadDto): Promise<iSharedChat.ChatAdminHardDeleteRoomResponseDto> {
-    return this.models.ChatRoom.findByPk(payload.roomUid, { paranoid: false })
-      .then((room) => {
-        if (!room) throw new Exceptions.ServiceError.NotFoundError("Чат не найден")
-        if (room.type === "public") {
-          throw new Exceptions.ServiceError.ConflictError("Публичный чат нельзя удалить")
-        }
-        if (room.status === "active") {
-          throw new Exceptions.ServiceError.ConflictError("Удалять навсегда можно только закрытые комнаты")
-        }
-
-        return this.models.ChatMessage.findAll({
-          where: { roomUid: payload.roomUid },
-          paranoid: false
-        })
-          .then((messages) => {
-            const messageUids = messages.map((message) => message.uid)
-
-            return this.models.ChatMessageFile.destroy({
-              where: { messageUid: messageUids },
-              force: true
-            })
-              .then(() => this.models.ChatMessage.destroy({
-                where: { roomUid: payload.roomUid },
-                force: true
-              }))
-              .then(() => this.models.ChatRoomMember.destroy({
-                where: { roomUid: payload.roomUid },
-                force: true
-              }))
-              .then(() => this.models.ChatRoom.destroy({
-                where: { uid: payload.roomUid },
-                force: true
-              }))
-          })
-      })
-      .then(() => ({
-        roomUid: payload.roomUid
       }))
   }
 

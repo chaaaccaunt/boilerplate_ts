@@ -173,6 +173,10 @@ export class HttpClient {
   private assertJsonResponse(response: Response): void {
     const contentType = response.headers.get("Content-Type") || ""
 
+    if (response.status === 413) {
+      throw new ApiError("API_PAYLOAD_TOO_LARGE", "Файл слишком большой для загрузки", response.status)
+    }
+
     if (!contentType.includes(JSON_CONTENT_TYPE)) {
       throw new ApiError("API_INVALID_RESPONSE", "Ответ API не является JSON", response.status)
     }

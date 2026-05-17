@@ -376,6 +376,29 @@ Service не должен знать про socket.io, WebSocket server instance
 - вызывают service для бизнес-логики;
 - не раскрывают frontend внутренние ошибки service/database.
 
+## Межсервисные realtime-события
+
+Если CRUD operation выполняется внутри backend-сервиса, который не владеет WebSocket boundary, сервис не должен обращаться к socket.io, `WebSocketServer` или конкретному realtime gateway напрямую.
+
+Для таких сценариев проекту необходимо реализовать отдельный процесс доставки domain events:
+
+```text
+backend service
+  выполняет CRUD
+  публикует domain event
+
+event delivery layer
+  outbox / message broker / другой явно выбранный механизм
+
+realtime gateway
+  читает domain event
+  проверяет аудиторию
+  отправляет WebSocket event онлайн-клиентам
+```
+
+В boilerplate этот процесс не реализован намеренно, чтобы не добавлять обязательную инфраструктуру уровня outbox или message broker.
+Если проекту нужны realtime notifications о CRUD операциях внутренних сервисов, нужно сначала выбрать и описать механизм доставки событий, формат domain event, retry/ack policy и границы ответственности realtime gateway.
+
 ## Семантика логирования
 
 nginx не включается в logging map.

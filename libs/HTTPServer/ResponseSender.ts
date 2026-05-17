@@ -1,6 +1,12 @@
 import { ServerResponse } from "http"
-import { createReadStream } from "fs"
+import { createReadStream, statSync } from "fs"
 import type { iHTTPConfig } from "."
+
+interface FileRange {
+  start: number
+  end: number
+  size: number
+}
 
 export class HTTPResponseSender {
   constructor(private readonly config: iHTTPConfig) { }
@@ -26,12 +32,26 @@ export class HTTPResponseSender {
 
   sendFile(response: ServerResponse, result: iContracts.iFileControllerResult): void {
     this.setCorsHeaders(response)
-    response.statusCode = 200
+    const range = this.getFileRange(result.file.path, result.file.range)
+    if (range === null) {
+      this.sendRangeNotSatisfiable(response, result.file.path)
+      return
+    }
+
+    response.statusCode = range ? 206 : 200
     response.setHeader("Content-Type", result.file.mimeType)
     response.setHeader("X-Content-Type-Options", "nosniff")
+    response.setHeader("Accept-Ranges", "bytes")
     response.setHeader("Content-Disposition", this.getContentDisposition(result.file.originalName, result.file.disposition || "attachment"))
 
-    createReadStream(result.file.path)
+    if (range) {
+      response.setHeader("Content-Length", range.end - range.start + 1)
+      response.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${range.size}`)
+    } else {
+      response.setHeader("Content-Length", statSync(result.file.path).size)
+    }
+
+    createReadStream(result.file.path, range ? { start: range.start, end: range.end } : undefined)
       .on("error", () => {
         if (!response.headersSent) {
           this.sendError(response, 404, "NOT_FOUND", "Файл не найден")
@@ -99,6 +119,54 @@ export class HTTPResponseSender {
   private getContentDisposition(fileName: string, disposition: "attachment" | "inline"): string {
     const asciiFileName = fileName.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_")
     return `${disposition}; filename="${asciiFileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+  }
+
+  private getFileRange(path: string, rangeHeader?: string): FileRange | undefined | null {
+    if (!rangeHeader) return undefined
+
+    const size = statSync(path).size
+    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader)
+    if (!match) return null
+
+    const [, startValue, endValue] = match
+    if (!startValue && !endValue) return null
+
+    const requestedStart = startValue ? Number(startValue) : null
+    const requestedEnd = endValue ? Number(endValue) : null
+
+    if ((requestedStart !== null && !Number.isSafeInteger(requestedStart)) || (requestedEnd !== null && !Number.isSafeInteger(requestedEnd))) {
+      return null
+    }
+
+    if (requestedStart === null) {
+      const suffixLength = requestedEnd || 0
+      if (suffixLength <= 0) return null
+
+      return {
+        start: Math.max(size - suffixLength, 0),
+        end: size - 1,
+        size
+      }
+    }
+
+    const start = requestedStart
+    const end = requestedEnd === null ? size - 1 : requestedEnd
+    if (start < 0 || end < start || start >= size) return null
+
+    return {
+      start,
+      end: Math.min(end, size - 1),
+      size
+    }
+  }
+
+  private sendRangeNotSatisfiable(response: ServerResponse, path: string): void {
+    const size = statSync(path).size
+    response.statusCode = 416
+    this.setCorsHeaders(response)
+    response.setHeader("Content-Range", `bytes */${size}`)
+    response.setHeader("Accept-Ranges", "bytes")
+    response.end()
   }
 
   private getClearCookieHeaders(cookieNames: string[]): string[] {
