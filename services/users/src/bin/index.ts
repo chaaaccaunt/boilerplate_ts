@@ -5,7 +5,10 @@ import { UsersService } from "@/services/UsersService"
 
 const logger = new Logger()
 const database = new Database(getRequiredDatabaseConfig())
-const httpServer = new MicroServiceHTTPServer({ port: config.http.port })
+if (!config.internalServices.token) {
+  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for users service")
+}
+const httpServer = new MicroServiceHTTPServer({ port: config.http.port, internalServiceToken: config.internalServices.token })
 const service = new UsersService(database.models.User, database.models.Role, database.models.UserRole)
 
 httpServer.use([...new UsersController(service).getRoutes()])

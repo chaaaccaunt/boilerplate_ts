@@ -8,7 +8,11 @@ export class HTTPMiddlewares {
   constructor(private env: iHTTPConfig, private exceptions: typeof Exceptions.HttpServerError) { }
 
   private getCookieNameRegExp() {
-    return new RegExp(`^${this.env.cookie_name}=`)
+    return new RegExp(`^${this.escapeRegExp(this.env.cookie_name)}=`)
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   }
 
   private verifyToken(headers: IncomingHttpHeaders): iContracts.iUserToken {

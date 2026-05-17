@@ -38,6 +38,12 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import(/* webpackChunkName: "users" */ '@/views/users/UsersView.vue')
   },
   {
+    path: '/files',
+    name: 'files',
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "files" */ '@/views/files/FilesView.vue')
+  },
+  {
     path: '/settings',
     name: 'settings',
     meta: { requiresAuthorization: true },

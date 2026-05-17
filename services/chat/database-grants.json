@@ -5,6 +5,14 @@
       "operations": ["SELECT"]
     },
     {
+      "table": "user_roles",
+      "operations": ["SELECT"]
+    },
+    {
+      "table": "roles",
+      "operations": ["SELECT"]
+    },
+    {
       "table": "chat_rooms",
       "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
@@ -14,7 +22,7 @@
     },
     {
       "table": "chat_messages",
-      "operations": ["SELECT", "INSERT", "DELETE"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
     {
       "table": "chat_message_files",

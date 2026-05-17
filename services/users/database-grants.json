@@ -6,7 +6,7 @@
     },
     {
       "table": "roles",
-      "operations": ["SELECT"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
     {
       "table": "user_roles",

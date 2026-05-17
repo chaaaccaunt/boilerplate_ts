@@ -14,13 +14,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: "refresh"): void
   (event: "select", roomUid: string): void
-  (event: "create", title: string): void
+  (event: "create", memberUserUids: string[]): void
   (event: "update", payload: iSharedChat.ChatRoomUpdatePayloadDto): void
   (event: "delete", payload: iSharedChat.ChatRoomDeletePayloadDto): void
   (event: "leave", payload: iSharedChat.ChatRoomLeavePayloadDto): void
 }>()
 
-const newRoomTitle = ref("")
+const newRoomMemberUserUids = ref<string[]>([])
 const editingRoom = ref<iSharedChat.ChatRoomDto | null>(null)
 const deletingRoom = ref<iSharedChat.ChatRoomDto | null>(null)
 const leavingRoom = ref<iSharedChat.ChatRoomDto | null>(null)
@@ -29,11 +29,10 @@ const editedRoomMemberUserUids = ref<string[]>([])
 const isCreateModalOpen = ref(false)
 
 function createRoom(): void {
-  const title = newRoomTitle.value.trim()
-  if (!title) return
+  if (!newRoomMemberUserUids.value.length) return
 
-  emit("create", title)
-  newRoomTitle.value = ""
+  emit("create", newRoomMemberUserUids.value)
+  newRoomMemberUserUids.value = []
   isCreateModalOpen.value = false
 }
 
@@ -166,7 +165,7 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
       <template #default="{ close }">
         <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 id="chat-room-create-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50">
-            Новая комната
+            Новый чат
           </h2>
           <button
             class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-50"
@@ -180,20 +179,31 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
 
         <form class="px-5 py-4" @submit.prevent="createRoom">
           <div class="mb-5">
-            <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="chat-room-title">Название комнаты</label>
-            <input
-              id="chat-room-title"
-              v-model="newRoomTitle"
-              class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950"
-              type="text"
-              required
-            >
+            <div class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">Участники</div>
+            <div class="max-h-64 overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+              <label
+                v-for="user in availableMembers.filter((item) => item.uid !== currentUserUid)"
+                :key="user.uid"
+                class="flex min-h-10 items-center gap-2 border-b border-slate-100 px-3 text-sm last:border-b-0 dark:border-slate-800"
+              >
+                <input
+                  v-model="newRoomMemberUserUids"
+                  class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  type="checkbox"
+                  :value="user.uid"
+                >
+                <span class="min-w-0 truncate text-slate-700 dark:text-slate-200">{{ user.fullName }}</span>
+              </label>
+              <div v-if="availableMembers.length <= 1" class="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
+                Нет доступных пользователей
+              </div>
+            </div>
           </div>
 
           <button
             class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
-            :disabled="!newRoomTitle.trim()"
+            :disabled="!newRoomMemberUserUids.length"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true" />
             Создать
@@ -282,7 +292,7 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
 
         <div class="px-5 py-4">
           <p class="mb-5 text-sm text-slate-600 dark:text-slate-300">
-            Комната будет закрыта для участников и передана системному администратору.
+            Комната будет закрыта для участников и останется доступна в архиве чатов.
           </p>
           <button
             class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"

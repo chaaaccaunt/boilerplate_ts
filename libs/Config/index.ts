@@ -1,4 +1,3 @@
-import { writeFileSync } from "fs"
 import mysql2 from "mysql2"
 import { Options } from "sequelize"
 import { iHTTPConfig } from "../HTTPServer"
@@ -13,6 +12,7 @@ export interface iAppConfig {
   http: iHTTPConfig
   db?: Options
   internalServices: {
+    token?: string
     usersUrl?: string
     chatUrl?: string
   }
@@ -22,6 +22,7 @@ export class AppConfiguration {
   private readonly requiredEnvKeys: NodeJS.ProcessEnv
   private readonly optionalEnvKeys: readonly (keyof NodeJS.ProcessEnv)[] = [
     "VAR_APP_LOG_LEVEL",
+    "VAR_INTERNAL_SERVICE_TOKEN",
     "VAR_DB_HOST",
     "VAR_DB_NAME",
     "VAR_DB_PASSWORD",
@@ -52,6 +53,7 @@ export class AppConfiguration {
       },
       db: this.getDatabaseConfig(),
       internalServices: {
+        token: this.requiredEnvKeys.VAR_INTERNAL_SERVICE_TOKEN,
         usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
         chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL
       }
@@ -72,6 +74,7 @@ export class AppConfiguration {
       VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
       VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
       VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
+      VAR_INTERNAL_SERVICE_TOKEN: process.env.VAR_INTERNAL_SERVICE_TOKEN,
       VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL,
       VAR_USERS_SERVICE_URL: process.env.VAR_USERS_SERVICE_URL,
       VAR_CHAT_SERVICE_URL: process.env.VAR_CHAT_SERVICE_URL
@@ -86,8 +89,6 @@ export class AppConfiguration {
       }
     }
     if (missingKeys.length > 0) {
-      const existValues = Envs.getEnvFileData()
-      if (existValues) writeFileSync(existValues.path, `${existValues.data}\n${missingKeys.map(k => `${k}=`).join("\n")}`)
       throw new Error(`Отсутствуют обязательные переменные окружения: ${missingKeys.join(", ")}`)
     }
 

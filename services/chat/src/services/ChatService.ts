@@ -3,7 +3,6 @@ import { Exceptions } from "@/libs"
 import { FileStorageService } from "./FileStorageService"
 
 export class ChatService {
-  private readonly systemUserUid = "00000000-0000-4000-8000-000000000202"
   private readonly fileStorage: FileStorageService
 
   constructor(private readonly models: iDatabase.Models) {
@@ -19,7 +18,7 @@ export class ChatService {
       .then((rooms) => ({
         rooms: rooms
           .filter((room) => room.type === "public" || this.hasActiveMember(room, userUid))
-          .map((room) => this.toRoomDto(room))
+          .map((room) => this.toRoomDto(room, userUid))
       }))
   }
 
@@ -45,7 +44,7 @@ export class ChatService {
       order: [["updatedAt", "DESC"]]
     })
       .then((rooms) => ({
-        rooms: rooms.map((room) => this.toRoomDto(room))
+        rooms: rooms.map((room) => this.toRoomDto(room, null))
       }))
   }
 
@@ -64,23 +63,24 @@ export class ChatService {
         limit: 100
       }))
       .then((messages) => ({
-        messages: messages.map((message) => this.toMessageDto(message))
+        messages: messages.map((message) => this.toMessageDto(message, userUid))
       }))
   }
 
   createRoom(userUid: UUID, payload: iSharedChat.ChatRoomCreatePayloadDto): Promise<iSharedChat.ChatRoomCreateResponseDto> {
-    this.assertValidRoomPayload(payload)
+    const memberUserUids = this.getPayloadMemberUserUids(userUid, payload.memberUserUids)
+    const roomType: iSharedChat.ChatRoomType = memberUserUids.length === 1 ? "private" : "group"
 
     return this.models.ChatRoom.create({
-      type: payload.type,
+      type: roomType,
       status: "active",
-      title: payload.title.trim(),
+      title: roomType === "private" ? "Приватный чат" : "Новая группа",
       createdByUserUid: userUid
     })
-      .then((room) => this.createRoomMembers(room.uid, userUid, payload.memberUserUids)
+      .then((room) => this.createRoomMembers(room.uid, userUid, memberUserUids)
         .then(() => this.findActiveRoomWithMembers(room.uid))
         .then((createdRoom) => ({
-          room: this.toRoomDto(createdRoom)
+          room: this.toRoomDto(createdRoom, userUid)
         })))
   }
 
@@ -97,7 +97,7 @@ export class ChatService {
             .then(() => this.findActiveRoomWithMembers(updatedRoom.uid)))
       })
       .then((room) => ({
-        room: this.toRoomDto(room)
+        room: this.toRoomDto(room, userUid)
       }))
   }
 
@@ -120,7 +120,7 @@ export class ChatService {
         })
       })
       .then((messages) => ({
-        messages: messages.map((message) => this.toMessageDto(message))
+        messages: messages.map((message) => this.toMessageDto(message, null))
       }))
   }
 
@@ -130,6 +130,9 @@ export class ChatService {
         if (!room) throw new Exceptions.ServiceError.NotFoundError("Чат не найден")
         if (room.type === "public") {
           throw new Exceptions.ServiceError.ConflictError("Публичный чат нельзя удалить")
+        }
+        if (room.status === "active") {
+          throw new Exceptions.ServiceError.ConflictError("Удалять навсегда можно только закрытые комнаты")
         }
 
         return this.models.ChatMessage.findAll({
@@ -179,7 +182,7 @@ export class ChatService {
         })
           .then(() => room.update({
             status: "archived_by_owner",
-            createdByUserUid: this.systemUserUid as UUID,
+            createdByUserUid: null,
             archivedAt
           }))
       })
@@ -233,16 +236,73 @@ export class ChatService {
           text: payload.text?.trim() || null
         })
       })
-      .then((message) => this.createMessageFiles(message.uid, payload.files)
+      .then((message) => this.createMessageFiles(message.uid, userUid, payload.files)
         .then(() => message))
       .then((message) => this.findCreatedMessage(message.uid))
       .then((createdMessage) => ({
-        message: this.toMessageDto(createdMessage)
+        message: this.toMessageDto(createdMessage, userUid)
       }))
   }
 
-  private createRoomMembers(roomUid: UUID, userUid: UUID, payloadMemberUserUids: string[]): Promise<void> {
-    const memberUserUids = Array.from(new Set([userUid, ...payloadMemberUserUids.map((memberUserUid) => memberUserUid as UUID)]))
+  updateMessage(userUid: UUID, payload: iSharedChat.ChatMessageUpdatePayloadDto): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
+    return this.findMessageForUserAction(userUid, payload.messageUid)
+      .then((message) => {
+        this.assertValidMessagePayload({
+          roomUid: message.roomUid,
+          text: payload.text,
+          files: payload.files
+        })
+
+        return message.update({
+          text: payload.text?.trim() || null
+        })
+          .then(() => this.replaceMessageFiles(message.uid, userUid, payload.files))
+          .then(() => this.findCreatedMessage(message.uid))
+      })
+      .then((message) => ({
+        message: this.toMessageDto(message, userUid)
+      }))
+  }
+
+  deleteMessage(userUid: UUID, payload: iSharedChat.ChatMessageDeletePayloadDto): Promise<iSharedChat.ChatMessageDeleteResponseDto> {
+    return this.findMessageForUserAction(userUid, payload.messageUid)
+      .then((message) => this.models.ChatMessageFile.destroy({
+        where: { messageUid: message.uid }
+      })
+        .then(() => message.destroy())
+        .then(() => ({
+          messageUid: message.uid,
+          roomUid: message.roomUid
+        })))
+  }
+
+  deleteMessageFile(userUid: UUID, payload: iSharedChat.ChatMessageFileDeletePayloadDto): Promise<iSharedChat.ChatMessageFileDeleteResponseDto> {
+    return this.findMessageForUserAction(userUid, payload.messageUid)
+      .then((message) => this.models.ChatMessageFile.findOne({
+        where: {
+          messageUid: message.uid,
+          storedFileUid: payload.fileUid
+        }
+      })
+        .then((messageFile) => {
+          if (!messageFile) throw new Exceptions.ServiceError.NotFoundError("Вложение не найдено")
+          const hasText = Boolean(message.text?.trim())
+
+          if (!hasText && message.files.length <= 1) {
+            throw new Exceptions.ServiceError.ConflictError("Сообщение должно содержать текст или файл")
+          }
+
+          return messageFile.destroy()
+            .then(() => this.findCreatedMessage(message.uid))
+        }))
+      .then((message) => ({
+        message: this.toMessageDto(message, userUid),
+        fileUid: payload.fileUid
+      }))
+  }
+
+  private createRoomMembers(roomUid: UUID, userUid: UUID, roomMemberUserUids: UUID[]): Promise<void> {
+    const memberUserUids = [userUid, ...roomMemberUserUids]
 
     return this.models.ChatRoomMember.bulkCreate(memberUserUids.map((memberUserUid) => ({
       roomUid,
@@ -274,13 +334,27 @@ export class ChatService {
         }))
   }
 
-  private createMessageFiles(messageUid: UUID, files?: iSharedChat.ChatFilePayloadDto[]): Promise<void> {
+  private createMessageFiles(messageUid: UUID, userUid: UUID, files?: iSharedChat.ChatFilePayloadDto[]): Promise<void> {
     if (!files?.length) return Promise.resolve()
 
-    return this.models.ChatMessageFile.bulkCreate(files.map((file) => ({
-      messageUid,
-      storedFileUid: file.fileUid as UUID
-    })))
+    return this.assertMessageFilesOwnedByUser(files, userUid)
+      .then(() => this.models.ChatMessageFile.bulkCreate(files.map((file) => ({
+        messageUid,
+        storedFileUid: file.fileUid as UUID
+      }))))
+      .then(() => undefined)
+  }
+
+  private replaceMessageFiles(messageUid: UUID, userUid: UUID, files?: iSharedChat.ChatFilePayloadDto[]): Promise<void> {
+    return Promise.resolve(files?.length ? this.assertMessageFilesOwnedByUser(files, userUid) : undefined)
+      .then(() => this.models.ChatMessageFile.destroy({ where: { messageUid } }))
+      .then(() => this.createMessageFiles(messageUid, userUid, files))
+  }
+
+  private assertMessageFilesOwnedByUser(files: iSharedChat.ChatFilePayloadDto[], userUid: UUID): Promise<void> {
+    const uniqueFileUids = Array.from(new Set(files.map((file) => file.fileUid)))
+
+    return Promise.all(uniqueFileUids.map((fileUid) => this.fileStorage.findOwned(fileUid, userUid)))
       .then(() => undefined)
   }
 
@@ -325,16 +399,36 @@ export class ChatService {
       })
   }
 
-  private assertValidRoomPayload(payload: iSharedChat.ChatRoomCreatePayloadDto): void {
-    if (payload.type === "public") {
-      throw new Exceptions.ServiceError.ConflictError("Публичный чат создается системой")
+  private getPayloadMemberUserUids(userUid: UUID, payloadMemberUserUids: string[]): UUID[] {
+    const memberUserUids = Array.from(new Set(payloadMemberUserUids.map((memberUserUid) => memberUserUid as UUID)))
+      .filter((memberUserUid) => memberUserUid !== userUid)
+
+    if (!memberUserUids.length) {
+      throw new Exceptions.ServiceError.ConflictError("Выберите хотя бы одного участника")
     }
 
-    this.assertValidRoomTitle(payload.title)
+    return memberUserUids
+  }
 
-    if (payload.type === "private" && payload.memberUserUids.length !== 1) {
-      throw new Exceptions.ServiceError.ConflictError("Приватный чат должен содержать одного собеседника")
-    }
+  private findMessageForUserAction(userUid: UUID, messageUid: string): Promise<iDatabase.Models["ChatMessage"]["prototype"]> {
+    return this.models.ChatMessage.findByPk(messageUid, {
+      include: [
+        { association: this.models.ChatMessage.associations.sender },
+        {
+          association: this.models.ChatMessage.associations.files,
+          include: [{ association: this.models.ChatMessageFile.associations.storedFile }]
+        }
+      ]
+    })
+      .then((message) => {
+        if (!message) throw new Exceptions.ServiceError.NotFoundError("Сообщение не найдено")
+        if (message.senderUserUid !== userUid) {
+          throw new Exceptions.ServiceError.AuthenticationError("Нет доступа к сообщению")
+        }
+
+        return this.assertRoomAccess(userUid, message.roomUid)
+          .then(() => message)
+      })
   }
 
   private assertValidRoomTitle(title: string): void {
@@ -392,7 +486,8 @@ export class ChatService {
       required: false,
       where: {
         leftAt: null
-      }
+      },
+      include: [{ association: this.models.ChatRoomMember.associations.user }]
     }
   }
 
@@ -412,7 +507,7 @@ export class ChatService {
 
         return room.update({
           status: "orphaned",
-          createdByUserUid: this.systemUserUid as UUID,
+          createdByUserUid: null,
           archivedAt: new Date()
         })
           .then(() => undefined)
@@ -428,16 +523,23 @@ export class ChatService {
     }
   }
 
-  private toRoomDto(room: iDatabase.Models["ChatRoom"]["prototype"]): iSharedChat.ChatRoomDto {
+  private toRoomDto(room: iDatabase.Models["ChatRoom"]["prototype"], viewerUserUid: UUID | null): iSharedChat.ChatRoomDto {
     return {
       uid: room.uid,
       type: room.type,
       status: room.status,
-      title: room.title,
+      title: this.getRoomTitle(room, viewerUserUid),
       createdByUserUid: room.createdByUserUid,
       memberUserUids: room.members?.filter((member) => !member.leftAt).map((member) => member.userUid) || [],
       createdAt: room.createdAt.toISOString()
     }
+  }
+
+  private getRoomTitle(room: iDatabase.Models["ChatRoom"]["prototype"], viewerUserUid: UUID | null): string {
+    if (room.type !== "private" || !viewerUserUid) return room.title
+
+    const companion = room.members?.find((member) => member.userUid !== viewerUserUid && !member.leftAt)
+    return companion?.user?.fullName || room.title
   }
 
   private toPublicUserDto(user: iDatabase.Models["User"]["prototype"]): iSharedUser.PublicUserDto {
@@ -455,7 +557,7 @@ export class ChatService {
     }
   }
 
-  private toMessageDto(message: iDatabase.Models["ChatMessage"]["prototype"]): iSharedChat.ChatMessageDto {
+  private toMessageDto(message: iDatabase.Models["ChatMessage"]["prototype"], viewerUserUid: UUID | null): iSharedChat.ChatMessageDto {
     return {
       uid: message.uid,
       roomUid: message.roomUid,
@@ -463,9 +565,11 @@ export class ChatService {
         firstName: message.sender.firstName,
         lastName: message.sender.lastName
       },
+      isOwn: Boolean(viewerUserUid && message.senderUserUid === viewerUserUid),
       text: message.text,
       files: message.files.map((file) => this.toFileDto(file)),
-      createdAt: message.createdAt.toISOString()
+      createdAt: message.createdAt.toISOString(),
+      updatedAt: message.updatedAt.toISOString()
     }
   }
 

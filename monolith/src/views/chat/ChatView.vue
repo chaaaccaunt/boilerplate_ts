@@ -27,6 +27,12 @@ onMounted(() => {
   webSocketClient.on<iSharedChat.ChatMessageSendResponseDto>("chat:message:created", ({ message }) => {
     store.commit("chat/addMessage", message)
   })
+  webSocketClient.on<iSharedChat.ChatMessageUpdateResponseDto>("chat:message:updated", ({ message }) => {
+    store.commit("chat/updateMessage", message)
+  })
+  webSocketClient.on<iSharedChat.ChatMessageDeleteResponseDto>("chat:message:deleted", (payload) => {
+    store.commit("chat/deleteMessage", payload)
+  })
   webSocketClient.on<iSharedChat.ChatRoomUpdateResponseDto>("chat:room:updated", ({ room }) => {
     store.commit("chat/updateRoom", room)
   })
@@ -40,6 +46,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   webSocketClient.off("chat:message:created")
+  webSocketClient.off("chat:message:updated")
+  webSocketClient.off("chat:message:deleted")
   webSocketClient.off("chat:room:updated")
   webSocketClient.off("chat:room:deleted")
 })
@@ -85,11 +93,9 @@ function selectRoom(roomUid: string): void {
     })
 }
 
-function createRoom(title: string): void {
+function createRoom(memberUserUids: string[]): void {
   webSocketClient.emit<iSharedChat.ChatRoomCreateResponseDto, iSharedChat.ChatRoomCreatePayloadDto>("chat:room:create", {
-    type: "group",
-    title,
-    memberUserUids: []
+    memberUserUids
   })
     .then(({ room }) => {
       store.commit("chat/addRoom", room)
@@ -120,6 +126,36 @@ function sendMessage(payload: { text: string, files: iSharedFiles.UploadedFileDt
     })
     .finally(() => {
       isSending.value = false
+    })
+}
+
+function updateMessage(payload: iSharedChat.ChatMessageUpdatePayloadDto): void {
+  webSocketClient.emit<iSharedChat.ChatMessageUpdateResponseDto, iSharedChat.ChatMessageUpdatePayloadDto>("chat:message:update", payload)
+    .then(({ message }) => {
+      store.commit("chat/updateMessage", message)
+    })
+    .catch((error) => {
+      errorMessage.value = error instanceof ApiError ? error.message : "Не удалось обновить сообщение"
+    })
+}
+
+function deleteMessage(payload: iSharedChat.ChatMessageDeletePayloadDto): void {
+  webSocketClient.emit<iSharedChat.ChatMessageDeleteResponseDto, iSharedChat.ChatMessageDeletePayloadDto>("chat:message:delete", payload)
+    .then((result) => {
+      store.commit("chat/deleteMessage", result)
+    })
+    .catch((error) => {
+      errorMessage.value = error instanceof ApiError ? error.message : "Не удалось удалить сообщение"
+    })
+}
+
+function deleteMessageFile(payload: iSharedChat.ChatMessageFileDeletePayloadDto): void {
+  webSocketClient.emit<iSharedChat.ChatMessageFileDeleteResponseDto, iSharedChat.ChatMessageFileDeletePayloadDto>("chat:message:file:delete", payload)
+    .then(({ message }) => {
+      store.commit("chat/updateMessage", message)
+    })
+    .catch((error) => {
+      errorMessage.value = error instanceof ApiError ? error.message : "Не удалось удалить вложение"
     })
 }
 
@@ -241,6 +277,9 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
         :active-room-uid="activeRoomUid"
         :error-message="errorMessage"
         :resolve-file-url="resolveFileUrl"
+        @update-message="updateMessage"
+        @delete-message="deleteMessage"
+        @delete-message-file="deleteMessageFile"
       />
 
       <ChatMessageComposer

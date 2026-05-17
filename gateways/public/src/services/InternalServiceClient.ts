@@ -7,7 +7,7 @@ interface RequestOptions<TPayload> {
 }
 
 export class InternalServiceClient {
-  constructor(private readonly baseUrl: string) { }
+  constructor(private readonly baseUrl: string, private readonly internalServiceToken: string) { }
 
   request<TResult, TPayload = iContracts.iPayload>(options: RequestOptions<TPayload>): Promise<TResult> {
     const url = new URL(options.path, this.baseUrl)
@@ -16,7 +16,8 @@ export class InternalServiceClient {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "x-request-id": options.requestId
+        "x-request-id": options.requestId,
+        "x-internal-service-token": this.internalServiceToken
       },
       body: JSON.stringify(options.payload || {})
     })

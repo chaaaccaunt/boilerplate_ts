@@ -83,3 +83,17 @@ npm run project -- start-dist all
 ```
 
 Конкретный production deployment может использовать свой process manager, но runtime boundary остается тем же: application packages запускаются из production bundle, database schema готовится заранее, а nginx остается внешним edge layer.
+
+## Внутренний transport между gateway и service
+
+Backend-сервисы, которые запускаются через `MicroServiceHTTPServer`, должны требовать заголовок `x-internal-service-token`.
+Gateway, который вызывает backend-сервис через `InternalServiceClient`, должен передавать этот заголовок.
+
+Для всех packages, которые запускают backend-сервис или вызывают backend-сервис, должен быть задан package-local env:
+
+```text
+VAR_INTERNAL_SERVICE_TOKEN=...
+```
+
+Значение токена должно совпадать у вызывающего gateway и вызываемого service в рамках одного окружения.
+Токен не заменяет сетевую изоляцию internal ports: service ports все равно не должны быть публичной external boundary.

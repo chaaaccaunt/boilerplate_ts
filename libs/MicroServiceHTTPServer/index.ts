@@ -4,6 +4,7 @@ import { Logger, LogLevel } from "../Logger"
 
 export interface iMicroServiceHTTPConfig {
   port: string
+  internalServiceToken: string
 }
 
 interface MicroServiceRequestContext {
@@ -56,6 +57,7 @@ export class MicroServiceHTTPServer {
     context: MicroServiceRequestContext
   ): Promise<number> {
     this.assertPostRequest(request)
+    this.assertInternalServiceToken(request)
 
     return this.readJsonRequestPayload(request)
       .then((payload) => route.callback({ requestId: context.requestId, data: payload }))
@@ -147,6 +149,15 @@ export class MicroServiceHTTPServer {
       }
     }
 
+    if (error instanceof Exceptions.HttpServerError.UnauthorizedError) {
+      return {
+        status: 401,
+        code: "AUTHENTICATION_FAILED",
+        message: error.message,
+        error
+      }
+    }
+
     if (error instanceof Exceptions.ServiceError.NotFoundError) {
       return {
         status: 404,
@@ -229,6 +240,14 @@ export class MicroServiceHTTPServer {
     if (request.method === "POST") return
 
     throw new Exceptions.HttpServerError.BadRequestError("Внутренний transport микросервиса поддерживает только POST-запросы")
+  }
+
+  private assertInternalServiceToken(request: IncomingMessage): void {
+    const token = request.headers["x-internal-service-token"]
+
+    if (typeof token === "string" && token === this.config.internalServiceToken) return
+
+    throw new Exceptions.HttpServerError.UnauthorizedError("Invalid internal service token")
   }
 
   private sendSuccess(response: ServerResponse, status: number, result: unknown): void {

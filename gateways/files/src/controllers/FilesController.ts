@@ -27,6 +27,34 @@ export class FilesController extends BaseController {
       callback: this.handle("upload", this.upload.bind(this))
     }
 
+    const listRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<{ files: iSharedFiles.UploadedFileDto[] }>> = {
+      url: /^\/files\/?$/,
+      method: "GET",
+      requireAuthorization: true,
+      callback: this.handle("list", this.list.bind(this))
+    }
+
+    const updateRoute: iContracts.iRoute<iSharedFiles.UpdateFilePayloadDto, iContracts.iControllerResult<iSharedFiles.UpdateFileResponseDto>> = {
+      url: /^\/files\/?$/,
+      method: "PATCH",
+      requireAuthorization: true,
+      validator: {
+        fileUid: { isPrimitive: { string: { minLength: 1, maxLength: 128 } } },
+        description: { optional: true, isPrimitive: { string: { minLength: 1, maxLength: 500 } } }
+      },
+      callback: this.handle("update", this.update.bind(this))
+    }
+
+    const deleteRoute: iContracts.iRoute<iSharedFiles.DeleteFilePayloadDto, iContracts.iControllerResult<iSharedFiles.DeleteFileResponseDto>> = {
+      url: /^\/files\/?$/,
+      method: "DELETE",
+      requireAuthorization: true,
+      validator: {
+        fileUid: { isPrimitive: { string: { minLength: 1, maxLength: 128 } } }
+      },
+      callback: this.handle("delete", this.delete.bind(this))
+    }
+
     const downloadRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iFileControllerResult> = {
       url: /^\/files\/download(?:\?.*)?$/,
       method: "GET",
@@ -48,7 +76,7 @@ export class FilesController extends BaseController {
       callback: this.handle("preview", this.preview.bind(this))
     }
 
-    this.addRoutes([uploadRoute, downloadRoute, viewRoute, previewRoute])
+    this.addRoutes([uploadRoute, listRoute, updateRoute, deleteRoute, downloadRoute, viewRoute, previewRoute])
   }
 
   private upload(payload: iUploadPayload): Promise<iContracts.iControllerResult<iSharedFiles.UploadResponseDto>> {
@@ -63,6 +91,31 @@ export class FilesController extends BaseController {
           files
         }
       }))
+  }
+
+  private list(payload: iDownloadPayload): Promise<iContracts.iControllerResult<{ files: iSharedFiles.UploadedFileDto[] }>> {
+    if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
+
+    return this.service.listOwn(payload.user.uid)
+      .then((files) => ({
+        data: { files }
+      }))
+  }
+
+  private update(payload: iContracts.iRequestContextPayload<iSharedFiles.UpdateFilePayloadDto>): Promise<iContracts.iControllerResult<iSharedFiles.UpdateFileResponseDto>> {
+    if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса")
+
+    return this.service.updateMetadata(payload.data, payload.user.uid)
+      .then((data) => ({ data }))
+  }
+
+  private delete(payload: iContracts.iRequestContextPayload<iSharedFiles.DeleteFilePayloadDto>): Promise<iContracts.iControllerResult<iSharedFiles.DeleteFileResponseDto>> {
+    if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса")
+
+    return this.service.delete(payload.data, payload.user.uid)
+      .then((data) => ({ data }))
   }
 
   private download(payload: iDownloadPayload): Promise<iContracts.iFileControllerResult> {
@@ -151,7 +204,15 @@ export class FilesController extends BaseController {
   }
 
   private isViewable(mimeType: string): boolean {
-    return /^(image|video)\//.test(mimeType)
+    return [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/ogg"
+    ].includes(mimeType)
   }
 
   private getDescription(fields: iContracts.iPayload): string | null {

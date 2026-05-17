@@ -31,6 +31,46 @@ export class UsersService {
       .then((roles) => roles.map((role) => this.toRoleDto(role)))
   }
 
+  createRole(payload: iSharedUserRole.CreateRolePayloadDto): Promise<iSharedUserRole.CreateRoleResponseDto> {
+    const name = this.normalizeRoleName(payload.name)
+
+    return this.assertRoleNameAvailable(name)
+      .then(() => this.roleModel.create({ name }))
+      .then((role) => this.toRoleDto(role))
+  }
+
+  updateRole(payload: iSharedUserRole.UpdateRolePayloadDto): Promise<iSharedUserRole.UpdateRoleResponseDto> {
+    const name = this.normalizeRoleName(payload.name)
+
+    return this.roleModel.findByPk(payload.uid)
+      .then((role) => {
+        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль не найдена")
+        this.assertRoleCanBeChanged(role.name)
+
+        return this.assertRoleNameAvailable(name, role.uid)
+          .then(() => role.update({ name }))
+          .then((updatedRole) => this.toRoleDto(updatedRole))
+      })
+  }
+
+  deleteRole(payload: iSharedUserRole.DeleteRolePayloadDto): Promise<iSharedUserRole.DeleteRoleResponseDto> {
+    return this.roleModel.findByPk(payload.uid)
+      .then((role) => {
+        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль не найдена")
+        this.assertRoleCanBeChanged(role.name)
+
+        return this.userRoleModel.count({ where: { roleUid: role.uid } })
+          .then((usersCount) => {
+            if (usersCount > 0) {
+              throw new Exceptions.ServiceError.ConflictError("Нельзя удалить роль, назначенную пользователям")
+            }
+
+            return role.destroy()
+          })
+      })
+      .then(() => ({ uid: payload.uid }))
+  }
+
   create(payload: iSharedUser.CreateUserPayloadDto): Promise<iSharedUser.PublicUserDto> {
     return this.assertLoginAvailable(payload.login)
       .then(() => this.getRolesByNames(payload.roleNames))
@@ -87,6 +127,31 @@ export class UsersService {
           throw new Exceptions.ServiceError.ConflictError("Пользователь с таким логином уже существует")
         }
       })
+  }
+
+  private assertRoleNameAvailable(roleName: iSharedUserRole.UserRoleName, currentRoleUid?: UUID): Promise<void> {
+    return this.roleModel.findOne({ where: { name: roleName } })
+      .then((role) => {
+        if (role && String(role.uid) !== currentRoleUid) {
+          throw new Exceptions.ServiceError.ConflictError("Роль с таким именем уже существует")
+        }
+      })
+  }
+
+  private normalizeRoleName(roleName: iSharedUserRole.UserRoleName): iSharedUserRole.UserRoleName {
+    const normalizedName = roleName.trim().toLowerCase()
+
+    if (!/^[a-z][a-z0-9_-]{1,63}$/.test(normalizedName)) {
+      throw new Exceptions.ServiceError.ConflictError("Имя роли должно содержать латинские буквы, цифры, дефис или подчеркивание")
+    }
+
+    return normalizedName
+  }
+
+  private assertRoleCanBeChanged(roleName: iSharedUserRole.UserRoleName): void {
+    if (roleName === "administrator" || roleName === "user") {
+      throw new Exceptions.ServiceError.ConflictError("Системную роль нельзя изменить или удалить")
+    }
   }
 
   private updateUserRoles(userUid: UUID, roles: iDatabase.Models["Role"]["prototype"][]): Promise<void> {

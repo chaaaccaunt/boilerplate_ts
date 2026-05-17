@@ -7,6 +7,7 @@ import { useStore } from "@/application/store"
 import { ApiError } from "@/shared/api"
 import UserCreateForm from "./components/UserCreateForm.vue"
 import UserEditForm from "./components/UserEditForm.vue"
+import RolesPanel from "./components/RolesPanel.vue"
 import UsersTable from "./components/UsersTable.vue"
 
 const apiClient = useApiClient()
@@ -107,6 +108,8 @@ function deleteUser(): void {
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>
+
+    <RolesPanel :roles="roles" />
 
     <UsersTable :users="users" @edit="openEditModal" @delete="openDeleteModal" />
 

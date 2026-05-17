@@ -35,7 +35,25 @@ export class UsersController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "listRoles", this.listRoles.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute])
+    const createRoleRoute: iContracts.iMicroServiceRoute<iSharedUserRole.CreateRolePayloadDto, iSharedUserRole.CreateRoleResponseDto> = {
+      url: /^POST:\/users\/roles\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "createRole", this.createRole.bind(this))
+    }
+
+    const updateRoleRoute: iContracts.iMicroServiceRoute<iSharedUserRole.UpdateRolePayloadDto, iSharedUserRole.UpdateRoleResponseDto> = {
+      url: /^POST:\/users\/roles\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "updateRole", this.updateRole.bind(this))
+    }
+
+    const deleteRoleRoute: iContracts.iMicroServiceRoute<iSharedUserRole.DeleteRolePayloadDto, iSharedUserRole.DeleteRoleResponseDto> = {
+      url: /^POST:\/users\/roles\/delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "deleteRole", this.deleteRole.bind(this))
+    }
+
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute])
   }
 
   private list(): Promise<iSharedUser.ListUsersResponseDto> {
@@ -70,5 +88,29 @@ export class UsersController extends MicroServiceController {
   private listRoles(): Promise<iSharedUser.ListRolesResponseDto> {
     return this.service.listRoles()
       .then((roles) => ({ roles }))
+  }
+
+  private createRole(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.CreateRolePayloadDto>): Promise<iSharedUserRole.CreateRoleResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.createRole"))
+    }
+
+    return this.service.createRole(payload.data)
+  }
+
+  private updateRole(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.UpdateRolePayloadDto>): Promise<iSharedUserRole.UpdateRoleResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateRole"))
+    }
+
+    return this.service.updateRole(payload.data)
+  }
+
+  private deleteRole(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.DeleteRolePayloadDto>): Promise<iSharedUserRole.DeleteRoleResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.deleteRole"))
+    }
+
+    return this.service.deleteRole(payload.data)
   }
 }

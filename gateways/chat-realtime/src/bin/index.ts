@@ -6,11 +6,15 @@ const httpServer = new HTTPServer(config.http)
 const webSocketServer = new WebSocketServer(httpServer.getNativeServer(), config.http)
 
 if (!config.internalServices.chatUrl) {
-  throw new Error("Не задан VAR_CHAT_SERVICE_URL для chat realtime gateway")
+  throw new Error("Missing VAR_CHAT_SERVICE_URL for chat realtime gateway")
+}
+
+if (!config.internalServices.token) {
+  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for chat realtime gateway")
 }
 
 webSocketServer.use([
-  new ChatSocketGateway(new InternalServiceClient(config.internalServices.chatUrl))
+  new ChatSocketGateway(new InternalServiceClient(config.internalServices.chatUrl, config.internalServices.token))
 ])
 
 httpServer.listen(config.http.port)

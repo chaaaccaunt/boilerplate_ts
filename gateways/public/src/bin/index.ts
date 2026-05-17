@@ -11,7 +11,11 @@ if (!config.internalServices.chatUrl) {
   throw new Error("Не задан VAR_CHAT_SERVICE_URL для public gateway")
 }
 
-new Controllers(httpServer, config.internalServices.usersUrl, config.internalServices.chatUrl)
+if (!config.internalServices.token) {
+  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for public gateway")
+}
+
+new Controllers(httpServer, config.internalServices.usersUrl, config.internalServices.chatUrl, config.internalServices.token)
 
 httpServer.listen(config.http.port)
 

@@ -7,10 +7,10 @@ import { UsersGatewayController } from "./UsersGatewayController"
 export class Controllers {
   private readonly controllers: BaseController[]
 
-  constructor(httpServer: HTTPServer, usersServiceUrl: string, chatServiceUrl: string) {
+  constructor(httpServer: HTTPServer, usersServiceUrl: string, chatServiceUrl: string, internalServiceToken: string) {
     this.controllers = [
-      new UsersGatewayController(new InternalServiceClient(usersServiceUrl)),
-      new ChatHTTPGatewayController(new InternalServiceClient(chatServiceUrl))
+      new UsersGatewayController(new InternalServiceClient(usersServiceUrl, internalServiceToken)),
+      new ChatHTTPGatewayController(new InternalServiceClient(chatServiceUrl, internalServiceToken))
     ]
 
     this.controllers.forEach((controller) => {

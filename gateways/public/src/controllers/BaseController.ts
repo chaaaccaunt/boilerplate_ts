@@ -62,9 +62,7 @@ export abstract class BaseController {
 
     if (!Array.isArray(roles)) return []
 
-    return roles.filter((role): role is iSharedUserRole.UserRoleName => (
-      role === "administrator" || role === "user"
-    ))
+    return roles.filter((role): role is iSharedUserRole.UserRoleName => typeof role === "string")
   }
 }
 

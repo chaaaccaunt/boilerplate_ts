@@ -1,4 +1,4 @@
-import { Exceptions } from "@/libs"
+﻿import { Exceptions } from "@/libs"
 import { InternalServiceClient } from "@/services/InternalServiceClient"
 import { BaseController } from "./BaseController"
 
@@ -29,7 +29,7 @@ export class UsersGatewayController extends BaseController {
               string: {
                 minLength: 1,
                 maxLength: 64,
-                reg: /^(administrator|user)$/
+                reg: /^[a-z][a-z0-9_-]{1,63}$/
               }
             }
           }
@@ -54,7 +54,7 @@ export class UsersGatewayController extends BaseController {
               string: {
                 minLength: 1,
                 maxLength: 64,
-                reg: /^(administrator|user)$/
+                reg: /^[a-z][a-z0-9_-]{1,63}$/
               }
             }
           }
@@ -80,7 +80,38 @@ export class UsersGatewayController extends BaseController {
       callback: this.handle("listRoles", this.listRoles.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute])
+    const createRoleRoute: iContracts.iRoute<iSharedUserRole.CreateRolePayloadDto, iContracts.iControllerResult<iSharedUserRole.CreateRoleResponseDto>> = {
+      url: /^\/users\/roles\/?$/,
+      method: "POST",
+      requireAuthorization: true,
+      validator: {
+        name: { isPrimitive: { string: { minLength: 2, maxLength: 64, reg: /^[a-z][a-z0-9_-]{1,63}$/ } } }
+      },
+      callback: this.handle("createRole", this.createRole.bind(this))
+    }
+
+    const updateRoleRoute: iContracts.iRoute<iSharedUserRole.UpdateRolePayloadDto, iContracts.iControllerResult<iSharedUserRole.UpdateRoleResponseDto>> = {
+      url: /^\/users\/roles\/?$/,
+      method: "PATCH",
+      requireAuthorization: true,
+      validator: {
+        uid: { isPrimitive: { string: { minLength: 36, maxLength: 36, reg: /^[0-9a-fA-F-]{36}$/ } } },
+        name: { isPrimitive: { string: { minLength: 2, maxLength: 64, reg: /^[a-z][a-z0-9_-]{1,63}$/ } } }
+      },
+      callback: this.handle("updateRole", this.updateRole.bind(this))
+    }
+
+    const deleteRoleRoute: iContracts.iRoute<iSharedUserRole.DeleteRolePayloadDto, iContracts.iControllerResult<iSharedUserRole.DeleteRoleResponseDto>> = {
+      url: /^\/users\/roles\/?$/,
+      method: "DELETE",
+      requireAuthorization: true,
+      validator: {
+        uid: { isPrimitive: { string: { minLength: 36, maxLength: 36, reg: /^[0-9a-fA-F-]{36}$/ } } }
+      },
+      callback: this.handle("deleteRole", this.deleteRole.bind(this))
+    }
+
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute])
   }
 
   private list(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> {
@@ -141,4 +172,44 @@ export class UsersGatewayController extends BaseController {
     })
       .then((data) => ({ data }))
   }
+
+  private createRole(payload: iContracts.iRequestContextPayload<iSharedUserRole.CreateRolePayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.CreateRoleResponseDto>> {
+    this.access(payload, ["administrator"])
+
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.createRole")
+
+    return this.usersServiceClient.request<iSharedUserRole.CreateRoleResponseDto, iSharedUserRole.CreateRolePayloadDto>({
+      requestId: payload.requestId,
+      path: "/users/roles",
+      payload: payload.data
+    })
+      .then((data) => ({ data }))
+  }
+
+  private updateRole(payload: iContracts.iRequestContextPayload<iSharedUserRole.UpdateRolePayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.UpdateRoleResponseDto>> {
+    this.access(payload, ["administrator"])
+
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.updateRole")
+
+    return this.usersServiceClient.request<iSharedUserRole.UpdateRoleResponseDto, iSharedUserRole.UpdateRolePayloadDto>({
+      requestId: payload.requestId,
+      path: "/users/roles/update",
+      payload: payload.data
+    })
+      .then((data) => ({ data }))
+  }
+
+  private deleteRole(payload: iContracts.iRequestContextPayload<iSharedUserRole.DeleteRolePayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.DeleteRoleResponseDto>> {
+    this.access(payload, ["administrator"])
+
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.deleteRole")
+
+    return this.usersServiceClient.request<iSharedUserRole.DeleteRoleResponseDto, iSharedUserRole.DeleteRolePayloadDto>({
+      requestId: payload.requestId,
+      path: "/users/roles/delete",
+      payload: payload.data
+    })
+      .then((data) => ({ data }))
+  }
 }
+

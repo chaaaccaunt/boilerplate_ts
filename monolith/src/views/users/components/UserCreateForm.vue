@@ -97,12 +97,22 @@ function createUser(): void {
     </div>
 
     <div class="mb-5">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-roles">Роли</label>
-      <select id="user-roles" v-model="selectedRoleNames" class="min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" multiple required>
-        <option v-for="role in roles" :key="role.uid" :value="role.name">
-          {{ role.name }}
-        </option>
-      </select>
+      <div class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">Роли</div>
+      <div class="grid gap-2 rounded-md border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-950">
+        <label
+          v-for="role in roles"
+          :key="role.uid"
+          class="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+        >
+          <input
+            v-model="selectedRoleNames"
+            class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-900"
+            type="checkbox"
+            :value="role.name"
+          >
+          <span>{{ role.name }}</span>
+        </label>
+      </div>
     </div>
 
     <button

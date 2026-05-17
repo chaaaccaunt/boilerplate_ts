@@ -38,9 +38,11 @@ declare global {
       uid: string
       roomUid: string
       sender: ChatMessageSenderDto
+      isOwn: boolean
       text: string | null
       files: ChatFileDto[]
       createdAt: string
+      updatedAt: string
     }
 
     interface ChatRoomsListResponseDto {
@@ -76,8 +78,6 @@ declare global {
     }
 
     interface ChatRoomCreatePayloadDto {
-      type: ChatRoomType
-      title: string
       memberUserUids: string[]
     }
 
@@ -120,6 +120,35 @@ declare global {
 
     interface ChatMessageSendResponseDto {
       message: ChatMessageDto
+    }
+
+    interface ChatMessageUpdatePayloadDto {
+      messageUid: string
+      text?: string
+      files?: ChatFilePayloadDto[]
+    }
+
+    interface ChatMessageUpdateResponseDto {
+      message: ChatMessageDto
+    }
+
+    interface ChatMessageDeletePayloadDto {
+      messageUid: string
+    }
+
+    interface ChatMessageDeleteResponseDto {
+      messageUid: string
+      roomUid: string
+    }
+
+    interface ChatMessageFileDeletePayloadDto {
+      messageUid: string
+      fileUid: string
+    }
+
+    interface ChatMessageFileDeleteResponseDto {
+      message: ChatMessageDto
+      fileUid: string
     }
   }
 }

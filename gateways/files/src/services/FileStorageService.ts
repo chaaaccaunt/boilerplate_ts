@@ -34,6 +34,29 @@ export class FileStorageService {
       .then((storedFile) => this.toUploadedFileDto(storedFile))
   }
 
+  listOwn(userUid: string): Promise<iSharedFiles.UploadedFileDto[]> {
+    return this.models.StoredFile.findAll({
+      where: { createdByUserUid: userUid },
+      order: [["createdAt", "DESC"]]
+    })
+      .then((files) => files.map((file) => this.toUploadedFileDto(file)))
+  }
+
+  updateMetadata(payload: iSharedFiles.UpdateFilePayloadDto, userUid: string): Promise<iSharedFiles.UpdateFileResponseDto> {
+    return this.findOwned(payload.fileUid, userUid)
+      .then((storedFile) => storedFile.update({
+        description: payload.description?.trim() || null
+      }))
+      .then((storedFile) => this.toUploadedFileDto(storedFile))
+  }
+
+  delete(payload: iSharedFiles.DeleteFilePayloadDto, userUid: string): Promise<iSharedFiles.DeleteFileResponseDto> {
+    return this.findOwned(payload.fileUid, userUid)
+      .then((storedFile) => this.assertFileHasNoChatAttachments(storedFile.uid)
+        .then(() => storedFile.destroy()))
+      .then(() => ({ fileUid: payload.fileUid }))
+  }
+
   find(fileUid: string): Promise<iDatabase.Models["StoredFile"]["prototype"]> {
     return this.models.StoredFile.findByPk(fileUid)
       .then((storedFile) => {
@@ -52,6 +75,17 @@ export class FileStorageService {
 
         return this.assertChatAttachmentAccess(fileUid, userUid as UUID)
           .then(() => storedFile)
+      })
+  }
+
+  private findOwned(fileUid: string, userUid: string): Promise<iDatabase.Models["StoredFile"]["prototype"]> {
+    return this.find(fileUid)
+      .then((storedFile) => {
+        if (storedFile.createdByUserUid !== userUid) {
+          throw new Exceptions.ServiceError.AuthenticationError("Нет доступа к файлу")
+        }
+
+        return storedFile
       })
   }
 
@@ -93,7 +127,15 @@ export class FileStorageService {
   }
 
   private isViewable(mimeType: string): boolean {
-    return /^(image|video)\//.test(mimeType)
+    return [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/ogg"
+    ].includes(mimeType)
   }
 
   private createPreviewProxy(file: iContracts.iUploadedFile): Promise<void> {
@@ -117,6 +159,15 @@ export class FileStorageService {
       .then((accessibleAttachment) => {
         if (!accessibleAttachment) {
           throw new Exceptions.ServiceError.AuthenticationError("Нет доступа к файлу")
+        }
+      })
+  }
+
+  private assertFileHasNoChatAttachments(fileUid: UUID): Promise<void> {
+    return this.models.ChatMessageFile.count({ where: { storedFileUid: fileUid } })
+      .then((attachmentsCount) => {
+        if (attachmentsCount > 0) {
+          throw new Exceptions.ServiceError.ConflictError("Нельзя удалить файл, который прикреплен к сообщению")
         }
       })
   }

@@ -14,6 +14,21 @@ declare global {
     interface UploadResponseDto {
       files: UploadedFileDto[]
     }
+
+    interface UpdateFilePayloadDto {
+      fileUid: string
+      description?: string
+    }
+
+    type UpdateFileResponseDto = UploadedFileDto
+
+    interface DeleteFilePayloadDto {
+      fileUid: string
+    }
+
+    interface DeleteFileResponseDto {
+      fileUid: string
+    }
   }
 }
 

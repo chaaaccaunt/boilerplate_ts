@@ -28,6 +28,7 @@ export class HTTPResponseSender {
     this.setCorsHeaders(response)
     response.statusCode = 200
     response.setHeader("Content-Type", result.file.mimeType)
+    response.setHeader("X-Content-Type-Options", "nosniff")
     response.setHeader("Content-Disposition", this.getContentDisposition(result.file.originalName, result.file.disposition || "attachment"))
 
     createReadStream(result.file.path)
@@ -85,6 +86,7 @@ export class HTTPResponseSender {
     response.statusCode = status
     this.setCorsHeaders(response)
     response.setHeader("Content-Type", "application/json; charset=utf-8")
+    response.setHeader("X-Content-Type-Options", "nosniff")
     response.end(JSON.stringify(payload))
   }
 

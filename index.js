@@ -16,6 +16,7 @@ const localhostPublicUserCookieDomain = "none"
 const localhostJwtSecret = "localhost-development-jwt-secret"
 const localhostJwtAudience = "boilerplate-ts-localhost"
 const localhostJwtIssuer = "boilerplate-ts-localhost"
+const localhostInternalServiceToken = "localhost-development-internal-service-token"
 const localhostMigrationUser = {
   userName: "migration_service",
   password: "migration_service"
@@ -333,20 +334,21 @@ function getPackageJson(packageDirectory) {
 }
 
 function createSharedTypecheckCommand() {
-  const executable = getLocalBinaryPath("tsc")
+  const executable = getLocalNodePackageBinCommand("typescript", "tsc")
 
   return {
-    command: executable,
-    args: ["-p", "shared/tsconfig.json", "--noEmit"]
+    command: executable.command,
+    args: [...executable.args, "-p", "shared/tsconfig.json", "--noEmit"]
   }
 }
 
 function createWorkspaceCommand(workspaceName, scriptName, scriptArgs = []) {
   const cwd = getWorkspaceDirectory(workspaceName)
+  const npmCommand = getNpmCommand()
 
   return {
-    command: "npm",
-    args: ["run", scriptName, ...scriptArgs],
+    command: npmCommand.command,
+    args: [...npmCommand.args, "run", scriptName, ...scriptArgs],
     workspaceName,
     cwd,
     env: getPackageLocalEnv(cwd, scriptName)
@@ -488,7 +490,6 @@ function run(command, args, cwd = rootDirectory, env = process.env) {
     const child = spawn(command, args, {
       cwd,
       env,
-      shell: true,
       stdio: "inherit"
     })
 
@@ -514,6 +515,30 @@ function getLocalBinaryPath(binaryName) {
   }
 
   return executablePath
+}
+
+function getNpmCommand() {
+  if (process.platform !== "win32") {
+    return { command: "npm", args: [] }
+  }
+
+  return {
+    command: process.execPath,
+    args: [resolve(process.execPath, "..", "node_modules", "npm", "bin", "npm-cli.js")]
+  }
+}
+
+function getLocalNodePackageBinCommand(packageName, binaryName) {
+  if (process.platform !== "win32") {
+    return { command: getLocalBinaryPath(binaryName), args: [] }
+  }
+
+  const executablePath = resolve(rootDirectory, "node_modules", packageName, "bin", binaryName)
+  if (!existsSync(executablePath)) {
+    throw new Error(`РќРµ РЅР°Р№РґРµРЅ ${binaryName}. РЎРЅР°С‡Р°Р»Р° СѓСЃС‚Р°РЅРѕРІРёС‚Рµ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РєРѕРјР°РЅРґРѕР№: npm run project -- install`)
+  }
+
+  return { command: process.execPath, args: [executablePath] }
 }
 
 function getPackageLocalEnv(packageDirectory, scriptName) {
@@ -623,6 +648,7 @@ function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminP
     VAR_HTTP_JWT_SECRET: localhostJwtSecret,
     VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
     VAR_HTTP_JWT_ISSUER: localhostJwtIssuer,
+    VAR_INTERNAL_SERVICE_TOKEN: localhostInternalServiceToken,
     VAR_DB_HOST: "localhost",
     VAR_DB_NAME: localhostDatabaseName,
     VAR_DB_USER: localhostMigrationUser.userName,
@@ -893,7 +919,8 @@ function createHttpDevelopmentEnv(port) {
     VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: localhostPublicUserCookieDomain,
     VAR_HTTP_JWT_SECRET: localhostJwtSecret,
     VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
-    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer
+    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer,
+    VAR_INTERNAL_SERVICE_TOKEN: localhostInternalServiceToken
   }
 }
 

@@ -19,6 +19,28 @@ const mutations: MutationTree<iSharedState.UsersState> = {
 
   deleteUser(state, payload: iSharedUser.DeleteUserResponseDto) {
     state.users = state.users.filter((item) => item.uid !== payload.uid)
+  },
+
+  addRole(state, role: iSharedUserRole.UserRoleDto) {
+    state.roles = [...state.roles.filter((item) => item.uid !== role.uid), role]
+      .sort((left, right) => left.name.localeCompare(right.name))
+  },
+
+  updateRole(state, role: iSharedUserRole.UserRoleDto) {
+    state.roles = state.roles.map((item) => item.uid === role.uid ? role : item)
+      .sort((left, right) => left.name.localeCompare(right.name))
+    state.users = state.users.map((user) => ({
+      ...user,
+      roles: user.roles.map((item) => item.uid === role.uid ? role : item)
+    }))
+  },
+
+  deleteRole(state, payload: iSharedUserRole.DeleteRoleResponseDto) {
+    state.roles = state.roles.filter((item) => item.uid !== payload.uid)
+    state.users = state.users.map((user) => ({
+      ...user,
+      roles: user.roles.filter((role) => role.uid !== payload.uid)
+    }))
   }
 }
 

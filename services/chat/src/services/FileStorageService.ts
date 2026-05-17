@@ -1,5 +1,5 @@
 import { join } from "path"
-import { FilePreviewProxy } from "@/libs"
+import { Exceptions, FilePreviewProxy } from "@/libs"
 
 export class FileStorageService {
   private readonly uploadsRoot = join(process.cwd(), "uploads")
@@ -27,7 +27,18 @@ export class FileStorageService {
     return this.model.findByPk(fileUid)
       .then((storedFile) => {
         if (!storedFile) {
-          throw new Error("Файл не найден")
+          throw new Exceptions.ServiceError.NotFoundError("File not found")
+        }
+
+        return storedFile
+      })
+  }
+
+  findOwned(fileUid: string, userUid: string): Promise<iDatabase.Models["StoredFile"]["prototype"]> {
+    return this.find(fileUid)
+      .then((storedFile) => {
+        if (storedFile.createdByUserUid !== userUid) {
+          throw new Exceptions.ServiceError.AuthenticationError("File is not owned by user")
         }
 
         return storedFile
@@ -68,12 +79,20 @@ export class FileStorageService {
   }
 
   private isViewable(mimeType: string): boolean {
-    return /^(image|video)\//.test(mimeType)
+    return [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/ogg"
+    ].includes(mimeType)
   }
 
   private getSafeStoragePath(storagePath: string): string {
     if (!/^\d{4}\/\d{2}\/\d{2}\/[0-9a-f-]{36}$/i.test(storagePath)) {
-      throw new Error("Некорректный путь хранения файла")
+      throw new Error("Invalid file storage path")
     }
 
     return storagePath

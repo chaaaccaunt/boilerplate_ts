@@ -40,4 +40,28 @@ export class UsersApi {
       commit: "users/deleteUser"
     })
   }
+
+  createRole(payload: iSharedUserRole.CreateRolePayloadDto): Promise<iSharedUserRole.CreateRoleResponseDto> {
+    return this.api.post<iSharedUserRole.CreateRoleResponseDto, iSharedUserRole.CreateRolePayloadDto>({
+      path: "/users/roles",
+      payload,
+      commit: "users/addRole"
+    })
+  }
+
+  updateRole(payload: iSharedUserRole.UpdateRolePayloadDto): Promise<iSharedUserRole.UpdateRoleResponseDto> {
+    return this.api.patch<iSharedUserRole.UpdateRoleResponseDto, iSharedUserRole.UpdateRolePayloadDto>({
+      path: "/users/roles",
+      payload,
+      commit: "users/updateRole"
+    })
+  }
+
+  deleteRole(payload: iSharedUserRole.DeleteRolePayloadDto): Promise<iSharedUserRole.DeleteRoleResponseDto> {
+    return this.api.delete<iSharedUserRole.DeleteRoleResponseDto, iSharedUserRole.DeleteRolePayloadDto>({
+      path: "/users/roles",
+      payload,
+      commit: "users/deleteRole"
+    })
+  }
 }

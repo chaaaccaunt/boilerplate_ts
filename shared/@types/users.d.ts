@@ -1,10 +1,32 @@
 declare global {
   namespace iSharedUserRole {
-    type UserRoleName = "administrator" | "user"
+    type UserRoleName = string
+    type SystemUserRoleName = "administrator" | "user"
 
     interface UserRoleDto {
       uid: string
       name: UserRoleName
+    }
+
+    interface CreateRolePayloadDto {
+      name: UserRoleName
+    }
+
+    type CreateRoleResponseDto = UserRoleDto
+
+    interface UpdateRolePayloadDto {
+      uid: string
+      name: UserRoleName
+    }
+
+    type UpdateRoleResponseDto = UserRoleDto
+
+    interface DeleteRolePayloadDto {
+      uid: string
+    }
+
+    interface DeleteRoleResponseDto {
+      uid: string
     }
   }
 

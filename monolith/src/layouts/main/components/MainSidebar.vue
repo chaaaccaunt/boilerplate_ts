@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ArchiveIcon, LayoutDashboardIcon, MessageCircleIcon, SettingsIcon, UsersIcon } from "@lucide/vue"
+import { ArchiveIcon, FilesIcon, LayoutDashboardIcon, MessageCircleIcon, SettingsIcon, UsersIcon } from "@lucide/vue"
 
 defineProps<{
   isAdministrator: boolean
@@ -29,6 +29,15 @@ defineProps<{
       >
         <MessageCircleIcon class="h-4 w-4 shrink-0" aria-hidden="true" />
         <span class="truncate">Чат</span>
+      </router-link>
+
+      <router-link
+        class="inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50"
+        active-class="bg-blue-600 text-white hover:bg-blue-600 hover:text-white"
+        :to="{ name: 'files' }"
+      >
+        <FilesIcon class="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span class="truncate">Файлы</span>
       </router-link>
 
       <router-link

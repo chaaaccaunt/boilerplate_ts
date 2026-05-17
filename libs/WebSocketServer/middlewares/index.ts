@@ -78,7 +78,11 @@ export class WebSocketMiddlewares {
   }
 
   private getCookieNameRegExp(): RegExp {
-    return new RegExp(`^${this.config.cookie_name}=`)
+    return new RegExp(`^${this.escapeRegExp(this.config.cookie_name)}=`)
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   }
 
   private isUserToken(payload: string | JwtPayload): payload is iContracts.iUserToken {

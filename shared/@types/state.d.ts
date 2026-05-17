@@ -22,6 +22,10 @@
       roles: iSharedUserRole.UserRoleDto[]
     }
 
+    interface FilesState {
+      files: iSharedFiles.UploadedFileDto[]
+    }
+
     interface ChatState {
       rooms: iSharedChat.ChatRoomDto[]
       activeRoomUid: string | null
@@ -32,6 +36,7 @@
       authorization: AuthorizationState
       users: UsersState
       chat: ChatState
+      files: FilesState
       errors: ErrorsState
     }
   }

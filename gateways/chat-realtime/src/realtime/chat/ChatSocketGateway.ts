@@ -2,7 +2,10 @@ import { randomUUID } from "crypto"
 import type { iWebSocketEvent, iWebSocketEventContext, iWebSocketGateway } from "@/libs"
 import { InternalServiceClient } from "@/services/InternalServiceClient"
 import {
+  chatMessageDeleteScheme,
+  chatMessageFileDeleteScheme,
   chatMessageSendScheme,
+  chatMessageUpdateScheme,
   chatMessagesListScheme,
   chatRoomCreateScheme,
   chatRoomDeleteScheme,
@@ -56,6 +59,21 @@ export class ChatSocketGateway implements iWebSocketGateway {
         name: "chat:message:send",
         validator: chatMessageSendScheme,
         handler: this.sendMessage.bind(this)
+      },
+      {
+        name: "chat:message:update",
+        validator: chatMessageUpdateScheme,
+        handler: this.updateMessage.bind(this)
+      },
+      {
+        name: "chat:message:delete",
+        validator: chatMessageDeleteScheme,
+        handler: this.deleteMessage.bind(this)
+      },
+      {
+        name: "chat:message:file:delete",
+        validator: chatMessageFileDeleteScheme,
+        handler: this.deleteMessageFile.bind(this)
       }
     ]
   }
@@ -179,7 +197,88 @@ export class ChatSocketGateway implements iWebSocketGateway {
           .to(this.getRoomChannel(payload.roomUid))
           .emit("chat:message:created", {
             ok: true,
+            result: {
+              message: {
+                ...result.message,
+                isOwn: false
+              }
+            },
+            error: null
+          })
+
+        return result
+      })
+  }
+
+  private updateMessage(context: iWebSocketEventContext, payload: iSharedChat.ChatMessageUpdatePayloadDto): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
+    return this.chatServiceClient.request<iSharedChat.ChatMessageUpdateResponseDto, iSharedChat.ChatMessageUpdatePayloadDto & { userUid: string }>({
+      requestId: randomUUID(),
+      path: "/chat/messages/update",
+      payload: {
+        ...payload,
+        userUid: context.user.uid
+      }
+    })
+      .then((result) => {
+        context.socket
+          .to(this.getRoomChannel(result.message.roomUid))
+          .emit("chat:message:updated", {
+            ok: true,
+            result: {
+              message: {
+                ...result.message,
+                isOwn: false
+              }
+            },
+            error: null
+          })
+
+        return result
+      })
+  }
+
+  private deleteMessage(context: iWebSocketEventContext, payload: iSharedChat.ChatMessageDeletePayloadDto): Promise<iSharedChat.ChatMessageDeleteResponseDto> {
+    return this.chatServiceClient.request<iSharedChat.ChatMessageDeleteResponseDto, iSharedChat.ChatMessageDeletePayloadDto & { userUid: string }>({
+      requestId: randomUUID(),
+      path: "/chat/messages/delete",
+      payload: {
+        ...payload,
+        userUid: context.user.uid
+      }
+    })
+      .then((result) => {
+        context.socket
+          .to(this.getRoomChannel(result.roomUid))
+          .emit("chat:message:deleted", {
+            ok: true,
             result,
+            error: null
+          })
+
+        return result
+      })
+  }
+
+  private deleteMessageFile(context: iWebSocketEventContext, payload: iSharedChat.ChatMessageFileDeletePayloadDto): Promise<iSharedChat.ChatMessageFileDeleteResponseDto> {
+    return this.chatServiceClient.request<iSharedChat.ChatMessageFileDeleteResponseDto, iSharedChat.ChatMessageFileDeletePayloadDto & { userUid: string }>({
+      requestId: randomUUID(),
+      path: "/chat/messages/files/delete",
+      payload: {
+        ...payload,
+        userUid: context.user.uid
+      }
+    })
+      .then((result) => {
+        context.socket
+          .to(this.getRoomChannel(result.message.roomUid))
+          .emit("chat:message:updated", {
+            ok: true,
+            result: {
+              message: {
+                ...result.message,
+                isOwn: false
+              }
+            },
             error: null
           })
 

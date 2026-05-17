@@ -37,6 +37,16 @@ const mutations: MutationTree<iSharedState.ChatState> = {
     const messages = state.messagesByRoomUid[message.roomUid] || []
     if (messages.some((item) => item.uid === message.uid)) return
     state.messagesByRoomUid[message.roomUid] = messages.concat(message)
+  },
+
+  updateMessage(state, message: iSharedChat.ChatMessageDto) {
+    const messages = state.messagesByRoomUid[message.roomUid] || []
+    state.messagesByRoomUid[message.roomUid] = messages.map((item) => item.uid === message.uid ? message : item)
+  },
+
+  deleteMessage(state, payload: iSharedChat.ChatMessageDeleteResponseDto) {
+    const messages = state.messagesByRoomUid[payload.roomUid] || []
+    state.messagesByRoomUid[payload.roomUid] = messages.filter((item) => item.uid !== payload.messageUid)
   }
 }
 

@@ -27,6 +27,9 @@ export class WebSocketServer {
         origin: config.origin,
         credentials: true
       },
+      allowRequest: (request, callback) => {
+        callback(null, request.headers.origin === config.origin)
+      },
       path: "/v1/connection"
     })
     this.middlewares = new WebSocketMiddlewares(config)

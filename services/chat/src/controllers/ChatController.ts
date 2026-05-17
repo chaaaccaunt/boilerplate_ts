@@ -72,6 +72,24 @@ export class ChatController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "sendMessage", this.sendMessage.bind(this))
     }
 
+    const updateMessageRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessageUpdatePayloadDto & { userUid: string }, iSharedChat.ChatMessageUpdateResponseDto> = {
+      url: /^POST:\/chat\/messages\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "updateMessage", this.updateMessage.bind(this))
+    }
+
+    const deleteMessageRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessageDeletePayloadDto & { userUid: string }, iSharedChat.ChatMessageDeleteResponseDto> = {
+      url: /^POST:\/chat\/messages\/delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "deleteMessage", this.deleteMessage.bind(this))
+    }
+
+    const deleteMessageFileRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessageFileDeletePayloadDto & { userUid: string }, iSharedChat.ChatMessageFileDeleteResponseDto> = {
+      url: /^POST:\/chat\/messages\/files\/delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "deleteMessageFile", this.deleteMessageFile.bind(this))
+    }
+
     const assertRoomAccessRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }, { allowed: true }> = {
       url: /^POST:\/chat\/rooms\/access\/?$/,
       method: "POST",
@@ -90,6 +108,9 @@ export class ChatController extends MicroServiceController {
       deleteRoomRoute,
       leaveRoomRoute,
       sendMessageRoute,
+      updateMessageRoute,
+      deleteMessageRoute,
+      deleteMessageFileRoute,
       assertRoomAccessRoute
     ])
   }
@@ -145,6 +166,21 @@ export class ChatController extends MicroServiceController {
   private sendMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageSendPayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageSendResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.sendMessage"))
     return this.service.sendMessage(payload.data.userUid as UUID, payload.data)
+  }
+
+  private updateMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageUpdatePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
+    if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.updateMessage"))
+    return this.service.updateMessage(payload.data.userUid as UUID, payload.data)
+  }
+
+  private deleteMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageDeletePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageDeleteResponseDto> {
+    if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.deleteMessage"))
+    return this.service.deleteMessage(payload.data.userUid as UUID, payload.data)
+  }
+
+  private deleteMessageFile(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageFileDeletePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageFileDeleteResponseDto> {
+    if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.deleteMessageFile"))
+    return this.service.deleteMessageFile(payload.data.userUid as UUID, payload.data)
   }
 
   private assertRoomAccess(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>): Promise<{ allowed: true }> {

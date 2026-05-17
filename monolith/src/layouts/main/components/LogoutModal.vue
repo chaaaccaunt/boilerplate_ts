@@ -19,12 +19,12 @@ const emit = defineEmits<{
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template #default="{ close }">
-      <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
-        <h2 id="logout-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950">
+      <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+        <h2 id="logout-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50">
           Завершить сессию?
         </h2>
         <button
-          class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-50"
           type="button"
           aria-label="Закрыть окно"
           @click="close"
@@ -33,13 +33,13 @@ const emit = defineEmits<{
         </button>
       </header>
 
-      <div class="px-5 py-4 text-sm leading-6 text-slate-700">
+      <div class="px-5 py-4 text-sm leading-6 text-slate-700 dark:text-slate-300">
         Текущая сессия будет завершена, а подключение к realtime будет закрыто.
       </div>
 
-      <footer class="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+      <footer class="flex justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-700">
         <button
-          class="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           type="button"
           @click="close"
         >
