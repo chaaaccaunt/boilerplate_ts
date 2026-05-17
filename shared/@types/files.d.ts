@@ -7,6 +7,8 @@ declare global {
       size: number
       description: string | null
       url: string
+      viewUrl: string | null
+      previewUrl: string | null
     }
 
     interface UploadResponseDto {

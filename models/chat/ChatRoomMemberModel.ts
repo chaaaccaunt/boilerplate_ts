@@ -14,6 +14,7 @@ import type { UserModel } from "../users/UserModel"
 
 export class ChatRoomMemberModel extends Model<InferAttributes<ChatRoomMemberModel>, InferCreationAttributes<ChatRoomMemberModel>> {
   declare uid: CreationOptional<UUID>
+  declare leftAt: Date | null
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
@@ -49,6 +50,10 @@ export function getChatRoomMemberModel(sequelize: Sequelize) {
       userUid: {
         type: DataTypes.UUID,
         allowNull: false
+      },
+      leftAt: {
+        type: DataTypes.DATE,
+        allowNull: true
       },
       createdAt: DataTypes.DATE,
       updatedAt: DataTypes.DATE

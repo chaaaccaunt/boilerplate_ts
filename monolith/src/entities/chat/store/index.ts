@@ -12,6 +12,19 @@ const mutations: MutationTree<iSharedState.ChatState> = {
     state.activeRoomUid = room.uid
   },
 
+  updateRoom(state, room: iSharedChat.ChatRoomDto) {
+    state.rooms = state.rooms.map((item) => item.uid === room.uid ? room : item)
+  },
+
+  removeRoom(state, roomUid: string) {
+    state.rooms = state.rooms.filter((room) => room.uid !== roomUid)
+    delete state.messagesByRoomUid[roomUid]
+
+    if (state.activeRoomUid === roomUid) {
+      state.activeRoomUid = state.rooms[0]?.uid || null
+    }
+  },
+
   setActiveRoomUid(state, roomUid: string) {
     state.activeRoomUid = roomUid
   },

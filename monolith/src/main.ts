@@ -6,12 +6,14 @@ import { createWebSocketClient, webSocketClientKey } from './application/realtim
 import { registerRouterGuards, router } from './application/router'
 import { key, store } from './application/store'
 import { restoreAuthorizationFromPublicUserCookie } from './entities/authorization'
+import { initializeTheme } from './features/theme'
 import './registerServiceWorker'
 
 const app = createApp(App)
 const apiClient = createApiClient(store)
 const webSocketClient = createWebSocketClient()
 
+initializeTheme()
 restoreAuthorizationFromPublicUserCookie(store)
 registerRouterGuards(router, apiClient, store)
 

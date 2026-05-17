@@ -14,6 +14,31 @@ export class ChatApi {
       })
   }
 
+  listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
+    return this.api.get<iSharedChat.ChatAvailableMembersListResponseDto>({
+      path: "/chat/members/available"
+    })
+  }
+
+  listClosedRooms(): Promise<iSharedChat.ChatClosedRoomsListResponseDto> {
+    return this.api.get<iSharedChat.ChatClosedRoomsListResponseDto>({
+      path: "/chat/admin/rooms/closed"
+    })
+  }
+
+  listAdminMessages(roomUid: string): Promise<iSharedChat.ChatMessagesListResponseDto> {
+    return this.api.get<iSharedChat.ChatMessagesListResponseDto>({
+      path: `/chat/admin/messages?roomUid=${encodeURIComponent(roomUid)}` as `/${string}`
+    })
+  }
+
+  hardDeleteRoom(roomUid: string): Promise<iSharedChat.ChatAdminHardDeleteRoomResponseDto> {
+    return this.api.delete<iSharedChat.ChatAdminHardDeleteRoomResponseDto, iSharedChat.ChatAdminHardDeleteRoomPayloadDto>({
+      path: "/chat/admin/rooms/hard-delete",
+      payload: { roomUid }
+    })
+  }
+
   listMessages(roomUid: string): Promise<iSharedChat.ChatMessagesListResponseDto> {
     return this.api.get<iSharedChat.ChatMessagesListResponseDto>({
       path: `/chat/messages?roomUid=${encodeURIComponent(roomUid)}` as `/${string}`

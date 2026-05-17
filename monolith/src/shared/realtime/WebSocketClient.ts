@@ -4,12 +4,17 @@ import { ApiError } from "@/shared/api"
 type WebSocketEvent =
   | "chat:rooms:list"
   | "chat:room:create"
+  | "chat:room:update"
+  | "chat:room:delete"
+  | "chat:room:leave"
   | "chat:room:join"
   | "chat:messages:list"
   | "chat:message:send"
 
 type WebSocketServerEvent =
   | "chat:message:created"
+  | "chat:room:updated"
+  | "chat:room:deleted"
 
 export class WebSocketClient {
   private readonly socket: Socket

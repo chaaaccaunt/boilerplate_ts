@@ -108,6 +108,17 @@ monolith/src/features/file-upload/
   index.ts
 ```
 
+Полноэкранный просмотр медиафайлов, который может использоваться в чате, профиле, вложениях и других местах, должен быть feature:
+
+```text
+monolith/src/features/media-viewer/
+  ui/
+  model/
+  index.ts
+```
+
+Локальные chat components могут открывать `media-viewer`, но не должны содержать собственную отдельную реализацию полноэкранного просмотра изображений и видео.
+
 Feature может использовать `application` clients, `entities` и `shared`, но entity не должна импортировать feature.
 
 `shared` содержит низкоуровневые переиспользуемые вещи без знания домена и приложения:

@@ -8,6 +8,10 @@ defineProps<{
   roles: iSharedUserRole.UserRoleDto[]
 }>()
 
+const emit = defineEmits<{
+  (event: "created"): void
+}>()
+
 const apiClient = useApiClient()
 
 const login = ref("")
@@ -49,6 +53,7 @@ function createUser(): void {
       lastName.value = ""
       surname.value = ""
       selectedRoleNames.value = ["user"]
+      emit("created")
     })
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось создать пользователя"
@@ -60,42 +65,40 @@ function createUser(): void {
 </script>
 
 <template>
-  <form class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" @submit.prevent="createUser">
-    <h2 class="mb-4 text-base font-semibold text-slate-950">Новый пользователь</h2>
-
+  <form class="px-5 py-4" @submit.prevent="createUser">
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>
 
     <div class="mb-4">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700" for="user-login">Логин</label>
-      <input id="user-login" v-model="login" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" type="email" required>
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-login">Логин</label>
+      <input id="user-login" v-model="login" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="email" required>
     </div>
 
     <div class="mb-4">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700" for="user-password">Пароль</label>
-      <input id="user-password" v-model="password" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" type="password" minlength="8" required>
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-password">Пароль</label>
+      <input id="user-password" v-model="password" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="password" minlength="8" required>
     </div>
 
     <div class="grid gap-4 md:grid-cols-2">
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-slate-700" for="user-last-name">Фамилия</label>
-        <input id="user-last-name" v-model="lastName" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" type="text" required>
+        <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-last-name">Фамилия</label>
+        <input id="user-last-name" v-model="lastName" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="text" required>
       </div>
       <div>
-        <label class="mb-1.5 block text-sm font-medium text-slate-700" for="user-first-name">Имя</label>
-        <input id="user-first-name" v-model="firstName" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" type="text" required>
+        <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-first-name">Имя</label>
+        <input id="user-first-name" v-model="firstName" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="text" required>
       </div>
     </div>
 
     <div class="my-4">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700" for="user-surname">Отчество</label>
-      <input id="user-surname" v-model="surname" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" type="text">
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-surname">Отчество</label>
+      <input id="user-surname" v-model="surname" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="text">
     </div>
 
     <div class="mb-5">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700" for="user-roles">Роли</label>
-      <select id="user-roles" v-model="selectedRoleNames" class="min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" multiple required>
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="user-roles">Роли</label>
+      <select id="user-roles" v-model="selectedRoleNames" class="min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" multiple required>
         <option v-for="role in roles" :key="role.uid" :value="role.name">
           {{ role.name }}
         </option>

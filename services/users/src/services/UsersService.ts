@@ -1,5 +1,7 @@
 import { hashSync } from "bcryptjs"
+import type { UUID } from "crypto"
 import { Exceptions } from "@/libs"
+import { Op } from "sequelize"
 
 export class UsersService {
   constructor(
@@ -10,6 +12,11 @@ export class UsersService {
 
   list(): Promise<iSharedUser.PublicUserDto[]> {
     return this.userModel.findAll({
+      where: {
+        login: {
+          [Op.ne]: "system@example.com"
+        }
+      },
       order: [["createdAt", "DESC"]],
       include: [{
         association: this.userModel.associations.roles,
@@ -48,12 +55,122 @@ export class UsersService {
           })))
   }
 
-  private assertLoginAvailable(login: string): Promise<void> {
+  update(payload: iSharedUser.UpdateUserPayloadDto): Promise<iSharedUser.PublicUserDto> {
+    return this.userModel.findByPk(payload.uid)
+      .then((user) => {
+        if (!user) throw new Exceptions.ServiceError.NotFoundError("Пользователь не найден")
+
+        return this.assertLoginAvailable(payload.login, user.uid)
+          .then(() => this.getRolesByNames(payload.roleNames))
+          .then((roles) => user.update({
+            login: payload.login,
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            surname: payload.surname ?? null
+          })
+            .then(() => this.updateUserRoles(user.uid, roles))
+            .then(() => this.findPublicUser(user.uid)))
+      })
+  }
+
+  delete(payload: iSharedUser.DeleteUserPayloadDto): Promise<iSharedUser.DeleteUserResponseDto> {
+    return this.findUserWithRoles(payload.uid)
+      .then((user) => this.assertUserCanBeDeleted(user)
+        .then(() => user.destroy())
+        .then(() => ({ uid: payload.uid })))
+  }
+
+  private assertLoginAvailable(login: string, currentUserUid?: string): Promise<void> {
     return this.userModel.findOne({ where: { login } })
       .then((user) => {
-        if (user) {
+        if (user && String(user.uid) !== currentUserUid) {
           throw new Exceptions.ServiceError.ConflictError("Пользователь с таким логином уже существует")
         }
+      })
+  }
+
+  private updateUserRoles(userUid: UUID, roles: iDatabase.Models["Role"]["prototype"][]): Promise<void> {
+    return this.userRoleModel.findAll({ where: { userUid }, paranoid: false })
+      .then((userRoles) => {
+        const nextRoleUids = roles.map((role) => String(role.uid))
+        const activeUserRoles = userRoles.filter((userRole) => !this.isSoftDeletedUserRole(userRole))
+        const activeRoleUids = activeUserRoles.map((userRole) => String(userRole.roleUid))
+        const removedRoleUids = activeRoleUids.filter((roleUid) => !nextRoleUids.includes(roleUid))
+        const restoredUserRoles = userRoles.filter((userRole) => this.isSoftDeletedUserRole(userRole) && nextRoleUids.includes(String(userRole.roleUid)))
+        const existingRoleUids = userRoles.map((userRole) => String(userRole.roleUid))
+        const addedRoles = roles.filter((role) => !existingRoleUids.includes(String(role.uid)))
+
+        return Promise.all([
+          removedRoleUids.length
+            ? this.userRoleModel.destroy({ where: { userUid, roleUid: removedRoleUids } })
+            : Promise.resolve(0),
+          ...restoredUserRoles.map((userRole) => userRole.restore()),
+          ...addedRoles.map((role) => this.userRoleModel.create({
+            userUid,
+            roleUid: role.uid
+          }))
+        ])
+          .then(() => undefined)
+      })
+  }
+
+  private isSoftDeletedUserRole(userRole: iDatabase.Models["UserRole"]["prototype"]): boolean {
+    return Boolean((userRole as unknown as { deletedAt?: Date | null }).deletedAt)
+  }
+
+  private findUserWithRoles(userUid: string): Promise<iDatabase.Models["User"]["prototype"]> {
+    return this.userModel.findByPk(userUid, {
+      include: [{
+        association: this.userModel.associations.roles,
+        include: [{ association: "role" }]
+      }]
+    })
+      .then((user) => {
+        if (!user) throw new Exceptions.ServiceError.NotFoundError("Пользователь не найден")
+        return user
+      })
+  }
+
+  private assertUserCanBeDeleted(user: iDatabase.Models["User"]["prototype"]): Promise<void> {
+    const isAdministrator = user.roles.some((userRole) => userRole.role.name === "administrator")
+
+    if (!isAdministrator) return Promise.resolve()
+
+    return this.countAdministrators()
+      .then((administratorsCount) => {
+        if (administratorsCount <= 1) {
+          throw new Exceptions.ServiceError.ConflictError("Нельзя удалить последнего администратора")
+        }
+      })
+  }
+
+  private countAdministrators(): Promise<number> {
+    return this.userModel.count({
+      distinct: true,
+      include: [{
+        association: this.userModel.associations.roles,
+        required: true,
+        include: [{
+          association: "role",
+          required: true,
+          where: {
+            name: "administrator"
+          }
+        }]
+      }]
+    })
+  }
+
+  private findPublicUser(userUid: UUID): Promise<iSharedUser.PublicUserDto> {
+    return this.userModel.findByPk(userUid, {
+      include: [{
+        association: this.userModel.associations.roles,
+        include: [{ association: "role" }]
+      }]
+    })
+      .then((user) => {
+        if (!user) throw new Exceptions.ServiceError.NotFoundError("Пользователь не найден")
+        return this.toPublicUserDto(user)
       })
   }
 

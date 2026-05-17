@@ -1,11 +1,15 @@
 declare global {
   namespace iSharedChat {
     type ChatRoomType = "public" | "group" | "private"
+    type ChatRoomStatus = "active" | "archived_by_owner" | "orphaned"
 
     interface ChatRoomDto {
       uid: string
       type: ChatRoomType
+      status: ChatRoomStatus
       title: string
+      createdByUserUid: string | null
+      memberUserUids: string[]
       createdAt: string
     }
 
@@ -21,6 +25,8 @@ declare global {
       size: number
       description: string | null
       url: string
+      viewUrl: string | null
+      previewUrl: string | null
     }
 
     interface ChatMessageSenderDto {
@@ -41,12 +47,32 @@ declare global {
       rooms: ChatRoomDto[]
     }
 
+    interface ChatClosedRoomsListResponseDto {
+      rooms: ChatRoomDto[]
+    }
+
     interface ChatMessagesListPayloadDto {
       roomUid: string
     }
 
     interface ChatMessagesListResponseDto {
       messages: ChatMessageDto[]
+    }
+
+    interface ChatAdminMessagesListPayloadDto {
+      roomUid: string
+    }
+
+    interface ChatAdminHardDeleteRoomPayloadDto {
+      roomUid: string
+    }
+
+    interface ChatAdminHardDeleteRoomResponseDto {
+      roomUid: string
+    }
+
+    interface ChatAvailableMembersListResponseDto {
+      users: iSharedUser.PublicUserDto[]
     }
 
     interface ChatRoomCreatePayloadDto {
@@ -57,6 +83,33 @@ declare global {
 
     interface ChatRoomCreateResponseDto {
       room: ChatRoomDto
+    }
+
+    interface ChatRoomUpdatePayloadDto {
+      roomUid: string
+      title: string
+      memberUserUids: string[]
+    }
+
+    interface ChatRoomUpdateResponseDto {
+      room: ChatRoomDto
+    }
+
+    interface ChatRoomDeletePayloadDto {
+      roomUid: string
+    }
+
+    interface ChatRoomDeleteResponseDto {
+      roomUid: string
+    }
+
+    interface ChatRoomLeavePayloadDto {
+      roomUid: string
+    }
+
+    interface ChatRoomLeaveResponseDto {
+      roomUid: string
+      closedForUser: true
     }
 
     interface ChatMessageSendPayloadDto {

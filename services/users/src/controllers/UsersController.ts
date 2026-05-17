@@ -17,13 +17,25 @@ export class UsersController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "create", this.create.bind(this))
     }
 
+    const updateRoute: iContracts.iMicroServiceRoute<iSharedUser.UpdateUserPayloadDto, iSharedUser.UpdateUserResponseDto> = {
+      url: /^POST:\/users\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "update", this.update.bind(this))
+    }
+
+    const deleteRoute: iContracts.iMicroServiceRoute<iSharedUser.DeleteUserPayloadDto, iSharedUser.DeleteUserResponseDto> = {
+      url: /^POST:\/users\/delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "delete", this.delete.bind(this))
+    }
+
     const rolesRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListRolesResponseDto> = {
       url: /^POST:\/users\/roles\/list\/?$/,
       method: "POST",
       callback: this.handle(this.service.constructor.name, "listRoles", this.listRoles.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, rolesRoute])
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute])
   }
 
   private list(): Promise<iSharedUser.ListUsersResponseDto> {
@@ -37,6 +49,22 @@ export class UsersController extends MicroServiceController {
     }
 
     return this.service.create(payload.data)
+  }
+
+  private update(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.UpdateUserPayloadDto>): Promise<iSharedUser.UpdateUserResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.update"))
+    }
+
+    return this.service.update(payload.data)
+  }
+
+  private delete(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.DeleteUserPayloadDto>): Promise<iSharedUser.DeleteUserResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.delete"))
+    }
+
+    return this.service.delete(payload.data)
   }
 
   private listRoles(): Promise<iSharedUser.ListRolesResponseDto> {

@@ -8,7 +8,8 @@ const servicesDirectory = join(rootDirectory, "services")
 const gatewaysDirectory = join(rootDirectory, "gateways")
 const databaseGrantConfigFileName = "database-grants.json"
 const localhostDatabaseName = "boilerplate_dev"
-const localhostHttpOrigin = "http://localhost:8080"
+const localhostHttpOrigin = "https://node-dev.ru"
+const baseUrl = "https://api.node-dev.ru"
 const localhostCookieName = "authorization"
 const localhostPublicUserCookieName = "authorization_user"
 const localhostPublicUserCookieDomain = "none"
@@ -637,8 +638,9 @@ function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminP
   writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts)
 
   writeDevelopmentEnvFile(frontendPackageDirectory, {
-    VUE_APP_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "authorization")}`,
-    VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName
+    VUE_APP_BASE_URL: baseUrl,
+    VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
+    VUE_APP_HOSTNAME: localhostHttpOrigin
   })
 }
 

@@ -47,8 +47,8 @@ export class ApiClient {
     return this.request<TResult, TPayload>("PATCH", options)
   }
 
-  delete<TResult>(options: Omit<ApiRequestOptions<never>, "payload">): Promise<TResult> {
-    return this.request<TResult, never>("DELETE", options)
+  delete<TResult, TPayload = never>(options: ApiRequestOptions<TPayload>): Promise<TResult> {
+    return this.request<TResult, TPayload>("DELETE", options)
   }
 
   upload<TResult>(path: ApiPath, formData: FormData, reportError = true, onProgress?: UploadProgressCallback): Promise<TResult> {

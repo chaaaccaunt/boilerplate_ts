@@ -5,7 +5,10 @@ import {
   chatMessageSendScheme,
   chatMessagesListScheme,
   chatRoomCreateScheme,
-  chatRoomJoinScheme
+  chatRoomDeleteScheme,
+  chatRoomJoinScheme,
+  chatRoomLeaveScheme,
+  chatRoomUpdateScheme
 } from "./chat.socket-schemes"
 
 export class ChatSocketGateway implements iWebSocketGateway {
@@ -23,6 +26,21 @@ export class ChatSocketGateway implements iWebSocketGateway {
         name: "chat:room:create",
         validator: chatRoomCreateScheme,
         handler: this.createRoom.bind(this)
+      },
+      {
+        name: "chat:room:update",
+        validator: chatRoomUpdateScheme,
+        handler: this.updateRoom.bind(this)
+      },
+      {
+        name: "chat:room:delete",
+        validator: chatRoomDeleteScheme,
+        handler: this.deleteRoom.bind(this)
+      },
+      {
+        name: "chat:room:leave",
+        validator: chatRoomLeaveScheme,
+        handler: this.leaveRoom.bind(this)
       },
       {
         name: "chat:room:join",
@@ -62,6 +80,64 @@ export class ChatSocketGateway implements iWebSocketGateway {
       }
     })
       .then((result) => Promise.resolve(context.socket.join(this.getRoomChannel(result.room.uid)))
+        .then(() => result))
+  }
+
+  private updateRoom(context: iWebSocketEventContext, payload: iSharedChat.ChatRoomUpdatePayloadDto): Promise<iSharedChat.ChatRoomUpdateResponseDto> {
+    return this.chatServiceClient.request<iSharedChat.ChatRoomUpdateResponseDto, iSharedChat.ChatRoomUpdatePayloadDto & { userUid: string }>({
+      requestId: randomUUID(),
+      path: "/chat/rooms/update",
+      payload: {
+        ...payload,
+        userUid: context.user.uid
+      }
+    })
+      .then((result) => {
+        context.socket
+          .to(this.getRoomChannel(result.room.uid))
+          .emit("chat:room:updated", {
+            ok: true,
+            result,
+            error: null
+          })
+
+        return result
+      })
+  }
+
+  private deleteRoom(context: iWebSocketEventContext, payload: iSharedChat.ChatRoomDeletePayloadDto): Promise<iSharedChat.ChatRoomDeleteResponseDto> {
+    return this.chatServiceClient.request<iSharedChat.ChatRoomDeleteResponseDto, iSharedChat.ChatRoomDeletePayloadDto & { userUid: string }>({
+      requestId: randomUUID(),
+      path: "/chat/rooms/delete",
+      payload: {
+        ...payload,
+        userUid: context.user.uid
+      }
+    })
+      .then((result) => {
+        context.socket
+          .to(this.getRoomChannel(payload.roomUid))
+          .emit("chat:room:deleted", {
+            ok: true,
+            result,
+            error: null
+          })
+        context.socket.leave(this.getRoomChannel(payload.roomUid))
+
+        return result
+      })
+  }
+
+  private leaveRoom(context: iWebSocketEventContext, payload: iSharedChat.ChatRoomLeavePayloadDto): Promise<iSharedChat.ChatRoomLeaveResponseDto> {
+    return this.chatServiceClient.request<iSharedChat.ChatRoomLeaveResponseDto, iSharedChat.ChatRoomLeavePayloadDto & { userUid: string }>({
+      requestId: randomUUID(),
+      path: "/chat/rooms/leave",
+      payload: {
+        ...payload,
+        userUid: context.user.uid
+      }
+    })
+      .then((result) => Promise.resolve(context.socket.leave(this.getRoomChannel(payload.roomUid)))
         .then(() => result))
   }
 

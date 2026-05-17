@@ -28,7 +28,7 @@ export class HTTPResponseSender {
     this.setCorsHeaders(response)
     response.statusCode = 200
     response.setHeader("Content-Type", result.file.mimeType)
-    response.setHeader("Content-Disposition", this.getContentDisposition(result.file.originalName))
+    response.setHeader("Content-Disposition", this.getContentDisposition(result.file.originalName, result.file.disposition || "attachment"))
 
     createReadStream(result.file.path)
       .on("error", () => {
@@ -94,9 +94,9 @@ export class HTTPResponseSender {
     response.setHeader("Vary", "Origin")
   }
 
-  private getContentDisposition(fileName: string): string {
+  private getContentDisposition(fileName: string, disposition: "attachment" | "inline"): string {
     const asciiFileName = fileName.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_")
-    return `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+    return `${disposition}; filename="${asciiFileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
   }
 
   private getClearCookieHeaders(cookieNames: string[]): string[] {

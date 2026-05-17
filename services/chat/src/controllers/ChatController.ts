@@ -12,6 +12,30 @@ export class ChatController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "listRooms", this.listRooms.bind(this))
     }
 
+    const listAvailableMembersRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedChat.ChatAvailableMembersListResponseDto> = {
+      url: /^POST:\/chat\/members\/available\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "listAvailableMembers", this.listAvailableMembers.bind(this))
+    }
+
+    const listClosedRoomsRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedChat.ChatClosedRoomsListResponseDto> = {
+      url: /^POST:\/chat\/admin\/rooms\/closed\/list\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "listClosedRooms", this.listClosedRooms.bind(this))
+    }
+
+    const listAdminRoomMessagesRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatAdminMessagesListPayloadDto, iSharedChat.ChatMessagesListResponseDto> = {
+      url: /^POST:\/chat\/admin\/messages\/list\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "listRoomMessagesAsAdministrator", this.listRoomMessagesAsAdministrator.bind(this))
+    }
+
+    const hardDeleteRoomRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatAdminHardDeleteRoomPayloadDto, iSharedChat.ChatAdminHardDeleteRoomResponseDto> = {
+      url: /^POST:\/chat\/admin\/rooms\/hard-delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "hardDeleteRoomAsAdministrator", this.hardDeleteRoomAsAdministrator.bind(this))
+    }
+
     const listMessagesRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }, iSharedChat.ChatMessagesListResponseDto> = {
       url: /^POST:\/chat\/messages\/list\/?$/,
       method: "POST",
@@ -22,6 +46,24 @@ export class ChatController extends MicroServiceController {
       url: /^POST:\/chat\/rooms\/?$/,
       method: "POST",
       callback: this.handle(this.service.constructor.name, "createRoom", this.createRoom.bind(this))
+    }
+
+    const updateRoomRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatRoomUpdatePayloadDto & { userUid: string }, iSharedChat.ChatRoomUpdateResponseDto> = {
+      url: /^POST:\/chat\/rooms\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "updateRoom", this.updateRoom.bind(this))
+    }
+
+    const deleteRoomRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatRoomDeletePayloadDto & { userUid: string }, iSharedChat.ChatRoomDeleteResponseDto> = {
+      url: /^POST:\/chat\/rooms\/delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "deleteRoom", this.deleteRoom.bind(this))
+    }
+
+    const leaveRoomRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatRoomLeavePayloadDto & { userUid: string }, iSharedChat.ChatRoomLeaveResponseDto> = {
+      url: /^POST:\/chat\/rooms\/leave\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "leaveRoom", this.leaveRoom.bind(this))
     }
 
     const sendMessageRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatMessageSendPayloadDto & { userUid: string }, iSharedChat.ChatMessageSendResponseDto> = {
@@ -36,12 +78,43 @@ export class ChatController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "assertRoomAccess", this.assertRoomAccess.bind(this))
     }
 
-    this.addRoutes([listRoomsRoute, listMessagesRoute, createRoomRoute, sendMessageRoute, assertRoomAccessRoute])
+    this.addRoutes([
+      listRoomsRoute,
+      listAvailableMembersRoute,
+      listClosedRoomsRoute,
+      listAdminRoomMessagesRoute,
+      hardDeleteRoomRoute,
+      listMessagesRoute,
+      createRoomRoute,
+      updateRoomRoute,
+      deleteRoomRoute,
+      leaveRoomRoute,
+      sendMessageRoute,
+      assertRoomAccessRoute
+    ])
   }
 
   private listRooms(payload: iContracts.iMicroServiceRequestPayload<{ userUid: string }>): Promise<iSharedChat.ChatRoomsListResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.listRooms"))
     return this.service.listRooms(payload.data.userUid as UUID)
+  }
+
+  private listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
+    return this.service.listAvailableMembers()
+  }
+
+  private listClosedRooms(): Promise<iSharedChat.ChatClosedRoomsListResponseDto> {
+    return this.service.listClosedRooms()
+  }
+
+  private listRoomMessagesAsAdministrator(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatAdminMessagesListPayloadDto>): Promise<iSharedChat.ChatMessagesListResponseDto> {
+    if (!payload.data?.roomUid) return Promise.reject(new Error("Отсутствует roomUid для ChatService.listRoomMessagesAsAdministrator"))
+    return this.service.listRoomMessagesAsAdministrator(payload.data)
+  }
+
+  private hardDeleteRoomAsAdministrator(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatAdminHardDeleteRoomPayloadDto>): Promise<iSharedChat.ChatAdminHardDeleteRoomResponseDto> {
+    if (!payload.data?.roomUid) return Promise.reject(new Error("Отсутствует roomUid для ChatService.hardDeleteRoomAsAdministrator"))
+    return this.service.hardDeleteRoomAsAdministrator(payload.data)
   }
 
   private listMessages(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessagesListResponseDto> {
@@ -52,6 +125,21 @@ export class ChatController extends MicroServiceController {
   private createRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomCreatePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomCreateResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.createRoom"))
     return this.service.createRoom(payload.data.userUid as UUID, payload.data)
+  }
+
+  private updateRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomUpdatePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomUpdateResponseDto> {
+    if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.updateRoom"))
+    return this.service.updateRoom(payload.data.userUid as UUID, payload.data)
+  }
+
+  private deleteRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomDeletePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomDeleteResponseDto> {
+    if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.deleteRoom"))
+    return this.service.deleteRoom(payload.data.userUid as UUID, payload.data)
+  }
+
+  private leaveRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomLeavePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomLeaveResponseDto> {
+    if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.leaveRoom"))
+    return this.service.leaveRoom(payload.data.userUid as UUID, payload.data)
   }
 
   private sendMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageSendPayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageSendResponseDto> {

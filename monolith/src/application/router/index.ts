@@ -26,10 +26,22 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import(/* webpackChunkName: "chat" */ '@/views/chat/ChatView.vue')
   },
   {
+    path: '/admin/chat-rooms',
+    name: 'admin-chat-rooms',
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "admin-chat-rooms" */ '@/views/chat-admin/ChatAdminRoomsView.vue')
+  },
+  {
     path: '/users',
     name: 'users',
     meta: { requiresAuthorization: true },
     component: () => import(/* webpackChunkName: "users" */ '@/views/users/UsersView.vue')
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "settings" */ '@/views/settings/SettingsView.vue')
   }
 ]
 

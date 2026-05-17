@@ -40,19 +40,19 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm" @submit.prevent="submit">
-    <h1 class="mb-6 text-2xl font-semibold text-slate-950">Вход</h1>
+  <form class="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900" @submit.prevent="submit">
+    <h1 class="mb-6 text-2xl font-semibold text-slate-950 dark:text-slate-50">Вход</h1>
 
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>
 
     <div class="mb-4">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700" for="login">Логин</label>
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="login">Логин</label>
       <input
         id="login"
         v-model="login"
-        class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950"
         type="email"
         autocomplete="username"
         required
@@ -60,11 +60,11 @@ function submit(): void {
     </div>
 
     <div class="mb-6">
-      <label class="mb-1.5 block text-sm font-medium text-slate-700" for="password">Пароль</label>
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="password">Пароль</label>
       <input
         id="password"
         v-model="password"
-        class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950"
         type="password"
         autocomplete="current-password"
         required

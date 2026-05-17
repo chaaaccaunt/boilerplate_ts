@@ -2,7 +2,7 @@
   "grants": [
     {
       "table": "users",
-      "operations": ["SELECT", "INSERT"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
     {
       "table": "roles",
@@ -10,7 +10,7 @@
     },
     {
       "table": "user_roles",
-      "operations": ["SELECT", "INSERT"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     }
   ]
 }

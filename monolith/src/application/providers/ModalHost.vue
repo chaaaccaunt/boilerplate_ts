@@ -45,12 +45,12 @@ function close(): void {
   <Teleport to="body">
     <div
       v-if="modelValue"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 dark:bg-slate-950/70"
       role="presentation"
       @click.self="closeByBackdrop"
     >
       <section
-        class="w-full max-w-md rounded-lg border border-slate-200 bg-white shadow-xl"
+        class="w-full max-w-md rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="labelledBy"

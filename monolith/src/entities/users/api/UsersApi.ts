@@ -24,4 +24,20 @@ export class UsersApi {
       commit: "users/addUser"
     })
   }
+
+  update(payload: iSharedUser.UpdateUserPayloadDto): Promise<iSharedUser.UpdateUserResponseDto> {
+    return this.api.patch<iSharedUser.UpdateUserResponseDto, iSharedUser.UpdateUserPayloadDto>({
+      path: "/users",
+      payload,
+      commit: "users/updateUser"
+    })
+  }
+
+  delete(payload: iSharedUser.DeleteUserPayloadDto): Promise<iSharedUser.DeleteUserResponseDto> {
+    return this.api.delete<iSharedUser.DeleteUserResponseDto, iSharedUser.DeleteUserPayloadDto>({
+      path: "/users",
+      payload,
+      commit: "users/deleteUser"
+    })
+  }
 }

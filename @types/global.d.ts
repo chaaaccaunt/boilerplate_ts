@@ -53,6 +53,7 @@ declare global {
         path: string
         originalName: string
         mimeType: string
+        disposition?: "attachment" | "inline"
       }
     }
 

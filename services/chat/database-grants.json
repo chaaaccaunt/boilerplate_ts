@@ -6,19 +6,19 @@
     },
     {
       "table": "chat_rooms",
-      "operations": ["SELECT", "INSERT"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
     {
       "table": "chat_room_members",
-      "operations": ["SELECT", "INSERT"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
     {
       "table": "chat_messages",
-      "operations": ["SELECT", "INSERT"]
+      "operations": ["SELECT", "INSERT", "DELETE"]
     },
     {
       "table": "chat_message_files",
-      "operations": ["SELECT", "INSERT"]
+      "operations": ["SELECT", "INSERT", "DELETE"]
     },
     {
       "table": "stored_files",

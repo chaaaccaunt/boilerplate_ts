@@ -30,6 +30,25 @@ declare global {
 
     type CreateUserResponseDto = PublicUserDto
 
+    interface UpdateUserPayloadDto {
+      uid: string
+      login: string
+      firstName: string
+      lastName: string
+      surname?: string
+      roleNames: iSharedUserRole.UserRoleName[]
+    }
+
+    type UpdateUserResponseDto = PublicUserDto
+
+    interface DeleteUserPayloadDto {
+      uid: string
+    }
+
+    interface DeleteUserResponseDto {
+      uid: string
+    }
+
     interface UserCreatedEventDto {
       user: PublicUserDto
     }

@@ -11,6 +11,14 @@ const mutations: MutationTree<iSharedState.UsersState> = {
 
   addUser(state, user: iSharedUser.PublicUserDto) {
     state.users = [user, ...state.users.filter((item) => item.uid !== user.uid)]
+  },
+
+  updateUser(state, user: iSharedUser.PublicUserDto) {
+    state.users = state.users.map((item) => item.uid === user.uid ? user : item)
+  },
+
+  deleteUser(state, payload: iSharedUser.DeleteUserResponseDto) {
+    state.users = state.users.filter((item) => item.uid !== payload.uid)
   }
 }
 

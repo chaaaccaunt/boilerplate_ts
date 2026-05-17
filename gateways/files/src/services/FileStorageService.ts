@@ -1,9 +1,11 @@
 import { join } from "path"
 import type { UUID } from "crypto"
-import { Exceptions } from "@/libs"
+import { Exceptions, FilePreviewProxy, Logger } from "@/libs"
 
 export class FileStorageService {
   private readonly uploadsRoot = join(process.cwd(), "uploads")
+  private readonly previewProxy = new FilePreviewProxy()
+  private readonly logger = new Logger()
 
   constructor(private readonly models: iDatabase.Models) { }
 
@@ -20,6 +22,15 @@ export class FileStorageService {
       storagePath: file.storagePath,
       createdByUserUid
     })
+      .then((storedFile) => this.createPreviewProxy(file)
+        .catch((error) => {
+          this.logger.warn("Не удалось создать proxy-файл превью", {
+            serviceName: this.constructor.name,
+            serviceMethod: "create",
+            error
+          })
+        })
+        .then(() => storedFile))
       .then((storedFile) => this.toUploadedFileDto(storedFile))
   }
 
@@ -48,6 +59,10 @@ export class FileStorageService {
     return join(this.uploadsRoot, this.getSafeStoragePath(storedFile.storagePath), "content")
   }
 
+  getPreviewProxyPath(storedFile: iDatabase.Models["StoredFile"]["prototype"]): string {
+    return join(this.uploadsRoot, this.getSafeStoragePath(storedFile.storagePath), "preview.jpg")
+  }
+
   toUploadedFileDto(file: iDatabase.Models["StoredFile"]["prototype"]): iSharedFiles.UploadedFileDto {
     return {
       fileUid: file.uid,
@@ -55,12 +70,39 @@ export class FileStorageService {
       mimeType: file.mimeType,
       size: file.size,
       description: file.description,
-      url: this.getDownloadUrl(file.uid)
+      url: this.getDownloadUrl(file.uid),
+      viewUrl: this.getViewUrl(file),
+      previewUrl: this.getPreviewUrl(file)
     }
   }
 
   private getDownloadUrl(fileUid: string): string {
     return `/v1/gateway/files/download?fileUid=${encodeURIComponent(fileUid)}`
+  }
+
+  private getViewUrl(file: iDatabase.Models["StoredFile"]["prototype"]): string | null {
+    if (!this.isViewable(file.mimeType)) return null
+
+    return `/v1/gateway/files/view?fileUid=${encodeURIComponent(file.uid)}`
+  }
+
+  private getPreviewUrl(file: iDatabase.Models["StoredFile"]["prototype"]): string | null {
+    if (!this.previewProxy.supports(file.mimeType)) return null
+
+    return `/v1/gateway/files/preview?fileUid=${encodeURIComponent(file.uid)}`
+  }
+
+  private isViewable(mimeType: string): boolean {
+    return /^(image|video)\//.test(mimeType)
+  }
+
+  private createPreviewProxy(file: iContracts.iUploadedFile): Promise<void> {
+    return this.previewProxy.create({
+      sourcePath: join(this.uploadsRoot, this.getSafeStoragePath(file.storagePath), "content"),
+      targetPath: join(this.uploadsRoot, this.getSafeStoragePath(file.storagePath), "preview.jpg"),
+      mimeType: file.mimeType
+    })
+      .then(() => undefined)
   }
 
   private assertChatAttachmentAccess(fileUid: string, userUid: UUID): Promise<void> {

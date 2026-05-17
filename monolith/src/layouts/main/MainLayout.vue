@@ -37,7 +37,7 @@ function logout(): void {
 </script>
 
 <template>
-  <div class="grid min-h-screen bg-slate-100 text-slate-950 md:grid-cols-[240px_minmax(0,1fr)]">
+  <div class="grid min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50 md:grid-cols-[240px_minmax(0,1fr)]">
     <MainSidebar :is-administrator="isAdministrator" />
 
     <section class="grid min-w-0 grid-rows-[57px_minmax(0,1fr)]">

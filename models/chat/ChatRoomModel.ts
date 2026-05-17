@@ -15,7 +15,9 @@ import type { ChatRoomMemberModel } from "./ChatRoomMemberModel"
 export class ChatRoomModel extends Model<InferAttributes<ChatRoomModel>, InferCreationAttributes<ChatRoomModel>> {
   declare uid: CreationOptional<UUID>
   declare type: iSharedChat.ChatRoomType
+  declare status: CreationOptional<iSharedChat.ChatRoomStatus>
   declare title: string
+  declare archivedAt: Date | null
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
@@ -48,9 +50,18 @@ export function getChatRoomModel(sequelize: Sequelize) {
         type: DataTypes.ENUM("public", "group", "private"),
         allowNull: false
       },
+      status: {
+        type: DataTypes.ENUM("active", "archived_by_owner", "orphaned"),
+        allowNull: false,
+        defaultValue: "active"
+      },
       title: {
         type: DataTypes.STRING(120),
         allowNull: false
+      },
+      archivedAt: {
+        type: DataTypes.DATE,
+        allowNull: true
       },
       createdByUserUid: {
         type: DataTypes.UUID,
