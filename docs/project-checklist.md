@@ -22,6 +22,7 @@
   - `VAR_HTTP_JWT_ISSUER`.
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
 - Проверить, что `VAR_HTTP_ORIGIN` содержит hostname, из которого runtime может вычислить cookie domain второго уровня с ведущей точкой, например `.gtrktuva.local`.
+- Для стандартного localhost-flow проверить, что `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` равен `.gtrktuva.local`, если используются hostnames `test.gtrktuva.local` и `testapi.gtrktuva.local`.
 - Проверить matrix прав database users для каждого backend-сервиса и gateway, который ходит в БД:
   - `package -> table -> allowed operations`;
   - runtime-пользователь не имеет прав на таблицы, которые package не использует;
@@ -66,6 +67,19 @@
 
 ## Проверки перед завершением задачи
 
+- Если задача меняла backend/gateway/service поведение, проверить политику `log-collector`:
+  - CRUD/mutation операции логируются на gateway boundary и как результат mutating service method;
+  - обычные `GET`, read-only `list*` calls и `debug`-логи не отправляются в `log-collector`;
+  - collector lifecycle использует `kind: collector_connection` и `kind: collector_disconnection`;
+  - disconnect от `log-collector` фиксируется как тревога `level: error`;
+  - чувствительные данные не попадают в context.
+- Если задача меняла runtime metrics:
+  - metrics доступны только администратору через `/system`;
+  - public gateway обращается только к `services/log-collector`;
+  - services/gateways не получают отдельные публичные metrics endpoints;
+  - metrics DTO не содержит secrets, env values, tokens, cookies или database credentials;
+  - регулярные metrics snapshots не пишутся в `log_records`;
+  - `services/log-collector` не подключается к собственному socket-server как client.
 - Запустить `npm run project -- typecheck all`, если задача меняла TypeScript-код, shared contracts, backend/frontend contracts или runtime-логику, и зависимости проекта доступны.
 - Если менялся internal gateway-to-service transport, проверить, что backend-сервисы используют controllers в `src/controllers`, не содержат `src/routes`, а internal route regex имеет формат `^POST:/...$`.
 - Если менялись shared contracts, убедиться, что проходят:

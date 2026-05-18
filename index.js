@@ -8,11 +8,11 @@ const servicesDirectory = join(rootDirectory, "services")
 const gatewaysDirectory = join(rootDirectory, "gateways")
 const databaseGrantConfigFileName = "database-grants.json"
 const localhostDatabaseName = "boilerplate_dev"
-const localhostHttpOrigin = "https://node-dev.ru"
-const baseUrl = "https://api.node-dev.ru"
+const localhostHttpOrigin = "http://test.gtrktuva.local"
+const baseUrl = "http://testapi.gtrktuva.local"
 const localhostCookieName = "authorization"
 const localhostPublicUserCookieName = "authorization_user"
-const localhostPublicUserCookieDomain = "none"
+const localhostPublicUserCookieDomain = ".gtrktuva.local"
 const localhostJwtSecret = "localhost-development-jwt-secret"
 const localhostJwtAudience = "boilerplate-ts-localhost"
 const localhostJwtIssuer = "boilerplate-ts-localhost"
@@ -703,6 +703,7 @@ function createBackendDatabaseDevelopmentEnv(runtimeUser) {
 function getLocalhostPackageSpecificDevelopmentEnv(packageKind, packageName, localhostPackagePorts) {
   if (packageKind === "service" && packageName === "log-collector") {
     return {
+      VAR_LOG_COLLECTOR_CLIENT_ENABLED: "false",
       VAR_LOG_COLLECTOR_SOCKET_PORT: localhostLogCollectorSocketPort
     }
   }
@@ -913,6 +914,7 @@ function createHttpDevelopmentEnv(port) {
 function createBackendCommonDevelopmentEnv(packageKind, packageName) {
   return {
     VAR_INTERNAL_SERVICE_TOKEN: localhostInternalServiceToken,
+    VAR_LOG_COLLECTOR_CLIENT_ENABLED: "true",
     VAR_LOG_COLLECTOR_SOCKET_HOST: localhostLogCollectorSocketHost,
     VAR_LOG_COLLECTOR_SOCKET_PORT: localhostLogCollectorSocketPort,
     VAR_LOG_SOURCE: `${packageName}-${packageKind}`

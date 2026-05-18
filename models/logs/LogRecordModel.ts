@@ -4,6 +4,7 @@ import { CreationOptional, DataTypes, InferAttributes, InferCreationAttributes, 
 export class LogRecordModel extends Model<InferAttributes<LogRecordModel>, InferCreationAttributes<LogRecordModel>> {
   declare uid: CreationOptional<UUID>
   declare timestamp: Date
+  declare kind: iSharedLogs.LogKind
   declare level: iSharedLogs.LogLevel
   declare source: string
   declare message: string
@@ -22,6 +23,10 @@ export function getLogRecordModel(sequelize: Sequelize) {
       },
       timestamp: {
         type: DataTypes.DATE,
+        allowNull: false
+      },
+      kind: {
+        type: DataTypes.ENUM("application", "collector_connection", "collector_disconnection"),
         allowNull: false
       },
       level: {

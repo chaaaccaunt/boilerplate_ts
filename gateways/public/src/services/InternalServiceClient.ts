@@ -7,7 +7,11 @@ interface RequestOptions<TPayload> {
 }
 
 export class InternalServiceClient {
-  constructor(private readonly baseUrl: string, private readonly internalServiceToken?: string) { }
+  constructor(private readonly baseUrl: string, private readonly internalServiceToken: string) {
+    if (!this.internalServiceToken) {
+      throw new Error("InternalServiceClient требует x-internal-service-token")
+    }
+  }
 
   request<TResult, TPayload = iContracts.iPayload>(options: RequestOptions<TPayload>): Promise<TResult> {
     const url = new URL(options.path, this.baseUrl)
@@ -40,9 +44,7 @@ export class InternalServiceClient {
       "x-request-id": requestId
     }
 
-    if (this.internalServiceToken) {
-      headers["x-internal-service-token"] = this.internalServiceToken
-    }
+    headers["x-internal-service-token"] = this.internalServiceToken
 
     return headers
   }

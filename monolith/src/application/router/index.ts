@@ -38,6 +38,12 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import(/* webpackChunkName: "logs" */ "@/views/logs/LogsView.vue")
   },
   {
+    path: "/system",
+    name: "system",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemMetricsView.vue")
+  },
+  {
     path: '/settings',
     name: 'settings',
     meta: { requiresAuthorization: true },

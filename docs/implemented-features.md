@@ -205,3 +205,27 @@
 - `index.js`;
 - `services/database-migration`;
 - package-local `database-grants.json`.
+
+## Runtime metrics
+
+Статус: реализовано как admin-only диагностика через `log-collector`.
+
+Покрытый сценарий:
+
+- `log-collector` держит двустороннее TCP-соединение с подключенными сервисами и шлюзами;
+- администратор открывает страницу состояния системы;
+- public gateway запрашивает метрики только у `log-collector`;
+- `log-collector` отправляет подключенным packages `metrics_request`;
+- packages отвечают `metrics_response` с CPU, памятью, диском, uptime, PID, hostname, platform и Node.js version;
+- отдельные публичные metrics endpoints на services/gateways не создаются.
+
+Основные зоны реализации:
+
+- `libs/RuntimeMetrics`;
+- `libs/Logger`;
+- `services/log-collector/src/services/LogCollectorSocketServer.ts`;
+- `services/log-collector/src/controllers/SystemMetricsController.ts`;
+- `gateways/public/src/controllers/SystemMetricsGatewayController.ts`;
+- `shared/@types/system.d.ts`;
+- `monolith/src/entities/system`;
+- `monolith/src/views/system`.

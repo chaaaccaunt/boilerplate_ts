@@ -243,6 +243,8 @@ export class HTTPServer {
   }
 
   private logRequest(request: IncomingMessage, context: RequestContext, status: number): void {
+    if (!this.shouldLogRequest(request)) return
+
     this.logger.log(this.errorMapper.getLogLevel(status), "запрос завершен", {
       requestId: context.requestId,
       method: request.method,
@@ -252,13 +254,18 @@ export class HTTPServer {
     })
   }
 
+  private shouldLogRequest(request: IncomingMessage): boolean {
+    return request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
+  }
+
   private getRequestBodyType(route: iContracts.iRoute): iContracts.iRequestBodyType {
     return route.requestBodyType || "json"
   }
 
   private matchRoute(request: IncomingMessage): iContracts.iRoute {
     if (!request.method || !request.url) throw new this.exceptions.BadRequestError("Некорректный запрос")
-    const exist = this.routes.find(r => r.url.test(`${request.method}:${request.url}`))
+    const path = request.url.split("?")[0]
+    const exist = this.routes.find(r => r.url.test(`${request.method}:${path}`))
     if (!exist) throw new this.exceptions.RouteNotFoundError()
     return exist
   }

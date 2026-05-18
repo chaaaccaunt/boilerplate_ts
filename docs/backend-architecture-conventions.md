@@ -63,6 +63,7 @@ Package-local env-файлы должны явно задавать:
 Например, для `testapi.gtrktuva.local` и `test.gtrktuva.local` cookie domain должен быть `.gtrktuva.local`.
 Host-only cookies для authorization flow запрещены, потому что они ломают восстановление frontend-сессии и ролей между subdomain.
 Runtime должен вычислять cookie domain из `VAR_HTTP_ORIGIN`; `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` остается частью env contract для совместимости, но не должен использоваться как sentinel `none` для отключения `Domain`.
+Для стандартного localhost-flow root runner генерирует `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN=.gtrktuva.local`, потому что `VAR_HTTP_ORIGIN` и `VUE_APP_BASE_URL` по умолчанию используют development hostnames `test.gtrktuva.local` и `testapi.gtrktuva.local`.
 Пустые значения для HTTP config запрещены.
 
 Authorization gateway должен выставлять две разные cookie:
@@ -403,6 +404,140 @@ realtime gateway
 
 nginx не включается в logging map.
 
+### Критически важная политика log-collector
+
+`log-collector` не является request trace viewer и не должен собирать все подряд.
+В `log-collector` отправляются только события, которые помогают понять изменение состояния системы, результат пользовательской mutation или проблему доставки логов.
+
+Обязательно логировать в `log-collector`:
+
+- CRUD/mutation request на gateway boundary: `POST`, `PATCH`, `DELETE`;
+- результат работы backend-сервиса для mutating methods, например `create*`, `update*`, `delete*`, `send*`, `leave*`;
+- controlled и internal ошибки gateway/service, даже если они произошли на read-only request;
+- подключение backend-сервиса или gateway к `log-collector`;
+- потерю подключения backend-сервиса или gateway к `log-collector`.
+
+Не логировать в `log-collector`:
+
+- обычные `GET` requests;
+- read-only internal service calls, например `list*`;
+- `debug`-логи;
+- штатные WebSocket connect/disconnect пользовательских browser-сокетов;
+- payload повторно на нескольких слоях;
+- password, token, cookie, secret, authorization headers и другие чувствительные данные;
+- временные диагностические логи после завершения задачи.
+
+`debug`-логи используются только как локальная диагностическая детализация runtime и не отправляются в `log-collector`.
+
+Записи `log-collector` должны иметь отдельный `kind`, который описывает тип события независимо от severity `level`:
+
+- `application` — прикладные runtime-события, включая CRUD gateway request и service result;
+- `collector_connection` — backend-сервис или gateway подключился к `log-collector`;
+- `collector_disconnection` — backend-сервис или gateway потерял подключение к `log-collector`.
+
+Для package `services/log-collector` collector-client должен быть отключен через `VAR_LOG_COLLECTOR_CLIENT_ENABLED=false`, чтобы сервис не подключался к собственному socket-серверу и не создавал ложные тревоги о self-disconnect.
+
+Подключение backend-сервиса или gateway к `log-collector` выделяется записью `kind: collector_connection`, `level: info`, `message: Подключение к log collector установлено`.
+Отключение backend-сервиса или gateway от `log-collector` фиксируется самим `log-collector` как `kind: collector_disconnection`, `level: error`, `message: Потеряно подключение к log collector`, потому что потеря канала доставки логов является тревожным событием.
+
+`log-collector` использует двусторонний TCP protocol с подключенными backend-сервисами и gateway.
+По этому соединению разрешены только:
+
+- доставка log records от package к `log-collector`;
+- внутренний запрос `metrics_request` от `log-collector` к package;
+- ответ `metrics_response` от package к `log-collector`.
+
+Метрики CPU, памяти, диска и runtime-информации не открываются отдельными публичными endpoints на каждом service/gateway.
+Админская панель запрашивает метрики только у `log-collector` через защищенный admin endpoint public gateway, а `log-collector` опрашивает уже подключенные internal clients по TCP.
+
+## Runtime metrics
+
+Runtime metrics являются operational/admin diagnostic data и не должны становиться публичной API-поверхностью каждого backend-сервиса или gateway.
+
+Цель фичи:
+
+- быстро увидеть, какие backend packages подключены к `log-collector`;
+- получить текущий runtime snapshot package по запросу администратора;
+- не создавать отдельные внешние metrics endpoints на services/gateways;
+- не писать регулярные metrics snapshots в `log_records`;
+- не превращать `log-collector` в шумный time-series storage.
+
+Сбор runtime metrics выполняется только по запросу:
+
+```text
+admin UI
+  -> GET /v1/gateway/system/metrics
+  -> gateways/public
+  -> POST /system/metrics
+  -> services/log-collector
+  -> metrics_request по TCP к подключенным packages
+  -> metrics_response по TCP от packages
+```
+
+`GET /v1/gateway/system/metrics` должен:
+
+- требовать authorization;
+- проверять роль `administrator` на уровне controller;
+- обращаться только к `services/log-collector`;
+- не проксировать запросы напрямую к остальным services/gateways.
+
+`services/log-collector` должен:
+
+- хранить только активные TCP connections clients, которые уже подключились для доставки логов;
+- отправлять `metrics_request` только по этим existing internal connections;
+- возвращать `status: online` для ответивших packages;
+- возвращать `status: unavailable` при timeout ответа package;
+- не выполнять сетевой scan портов и не открывать отдельные public/internal HTTP endpoints для metrics на каждом package.
+
+Package, получивший `metrics_request`, отвечает `metrics_response` с JSON-safe DTO из `shared/@types/system.d.ts`.
+
+Runtime metrics DTO содержит:
+
+- `source`;
+- `packageKind`;
+- `pid`;
+- `hostname`;
+- `platform`;
+- `nodeVersion`;
+- `uptimeSeconds`;
+- `checkedAt`;
+- CPU процесса;
+- memory процесса и host memory;
+- disk usage для рабочей директории процесса.
+
+CPU percentage вычисляется по delta между текущим и предыдущим замером внутри процесса.
+Первый замер может вернуть `usagePercent: null`, потому что для вычисления процента нужен предыдущий snapshot.
+
+Disk metrics собираются по запросу администратора, а не по таймеру.
+Не добавлять регулярный сбор disk metrics без отдельного решения о retention, нагрузке и storage.
+
+Ограничения runtime metrics:
+
+- не добавлять metrics в `log_records`;
+- не логировать каждый metrics request как application log;
+- не отправлять metrics snapshots в `log-collector` по таймеру;
+- не раскрывать metrics endpoint через nginx напрямую;
+- не показывать страницу metrics обычным пользователям;
+- не добавлять secrets, env values, tokens, cookies или database credentials в metrics DTO.
+
+Frontend admin page находится в:
+
+```text
+monolith/src/views/system/SystemMetricsView.vue
+```
+
+Frontend получает metrics через entity:
+
+```text
+monolith/src/entities/system
+```
+
+Shared contract находится в:
+
+```text
+shared/@types/system.d.ts
+```
+
 Логирование выполняется только на уровнях:
 
 - `httpServer`
@@ -414,8 +549,7 @@ nginx не включается в logging map.
 
 ### httpServer
 
-- `info` -> route resolved
-- `info` -> route not found
+- `info` -> state-changing gateway request завершен успешно
 - `warn` -> token validation error
 - `warn` -> payload parse error
 - `warn` -> payload validation failed
@@ -425,25 +559,31 @@ nginx не включается в logging map.
   - sanitized payload
 - `error` -> unhandled server error
 
+Обычные `GET` requests не отправляются в `log-collector`.
+Gateway request log пишется только для state-changing методов `POST`, `PATCH` и `DELETE`.
+
 ### microServiceHTTPServer
 
 - `warn` -> отсутствует или некорректен `x-request-id`
-- `info` -> internal request завершен успешно
+- `info` -> результат работы сервиса для mutating service method завершен успешно
 - `warn` -> internal request завершен controlled client/domain error
 - `error` -> internal request завершен internal error
 - Не логировать trace.
 - Не логировать payload повторно.
 
+Read-only internal methods, например `list*`, не отправляются в `log-collector`.
+Service result log пишется для mutating methods с префиксами `create`, `update`, `delete`, `send`, `leave`, а также для ошибок.
+
 ### webSocketServer
 
-- `info` -> WebSocket подключение установлено
-- `info` -> WebSocket подключение закрыто
 - `warn` -> token validation error
 - `warn` -> payload validation failed
 - `debug` -> WebSocket событие получено:
   - event name
   - sanitized payload
 - `error` -> unhandled WebSocket transport error
+
+Рядовые события подключения и отключения WebSocket-клиентов не логируются, чтобы не засорять журнал при refresh, reconnect и навигации пользователя.
 
 ### controller
 

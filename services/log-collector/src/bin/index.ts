@@ -1,12 +1,15 @@
-import { LogsController } from "@/controllers"
+import { LogsController, SystemMetricsController } from "@/controllers"
 import { Database } from "@/database"
-import { config, getRequiredDatabaseConfig, HTTPServer, Logger } from "@/libs"
+import { config, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
 import { LogCollectorService } from "@/services/LogCollectorService"
 import { LogCollectorSocketServer } from "@/services/LogCollectorSocketServer"
 
 const logger = new Logger()
 const database = new Database(getRequiredDatabaseConfig())
-const httpServer = new HTTPServer(config.http)
+if (!config.internalServices.token) {
+  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for log collector service")
+}
+const httpServer = new MicroServiceHTTPServer({ port: config.http.port, internalServiceToken: config.internalServices.token })
 const service = new LogCollectorService(database.models)
 const socketPort = process.env.VAR_LOG_COLLECTOR_SOCKET_PORT
 
@@ -16,7 +19,10 @@ if (!socketPort) {
 
 const socketServer = new LogCollectorSocketServer(socketPort, service)
 
-httpServer.use([...new LogsController(service).getRoutes()])
+httpServer.use([
+  ...new LogsController(service).getRoutes(),
+  ...new SystemMetricsController(socketServer).getRoutes()
+])
 
 start().catch((error) => {
   logger.error("Не удалось запустить log collector service", { error })

@@ -3,6 +3,7 @@ import { InternalServiceClient } from "@/services/InternalServiceClient"
 import { BaseController } from "./BaseController"
 import { ChatHTTPGatewayController } from "./ChatHTTPGatewayController"
 import { LogsGatewayController } from "./LogsGatewayController"
+import { SystemMetricsGatewayController } from "./SystemMetricsGatewayController"
 import { UsersGatewayController } from "./UsersGatewayController"
 
 export class Controllers {
@@ -18,7 +19,8 @@ export class Controllers {
     this.controllers = [
       new UsersGatewayController(new InternalServiceClient(usersServiceUrl, internalServiceToken)),
       new ChatHTTPGatewayController(new InternalServiceClient(chatServiceUrl, internalServiceToken)),
-      new LogsGatewayController(new InternalServiceClient(logCollectorServiceUrl))
+      new LogsGatewayController(new InternalServiceClient(logCollectorServiceUrl, internalServiceToken)),
+      new SystemMetricsGatewayController(new InternalServiceClient(logCollectorServiceUrl, internalServiceToken))
     ]
 
     this.controllers.forEach((controller) => {

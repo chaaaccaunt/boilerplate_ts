@@ -1,12 +1,14 @@
 import { Exceptions } from "../Exceptions"
 import { Socket, createConnection } from "net"
 import { basename } from "path"
+import { RuntimeMetrics } from "../RuntimeMetrics"
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type TraceLayer = 'httpServer' | 'webSocketServer' | 'controller' | 'gateway' | 'service'
 
 export interface iLoggerEnv {
   VAR_APP_LOG_LEVEL?: LogLevel
+  VAR_LOG_COLLECTOR_CLIENT_ENABLED?: string
   VAR_LOG_COLLECTOR_SOCKET_HOST?: string
   VAR_LOG_COLLECTOR_SOCKET_PORT?: string
   VAR_LOG_SOURCE?: string
@@ -47,10 +49,23 @@ interface LogContext {
 
 interface LogRecord {
   timestamp: string
+  kind: iSharedLogs.LogKind
   level: LogLevel
   source: string
   message: string
   context: LogContext
+}
+
+interface MetricsRequestMessage {
+  collectorMessageType: "metrics_request"
+  requestId: string
+}
+
+interface MetricsResponseMessage {
+  collectorMessageType: "metrics_response"
+  requestId: string
+  source: string
+  metrics: iSharedSystem.RuntimeMetricsDto
 }
 
 class LogCollectorClient {
@@ -64,14 +79,18 @@ class LogCollectorClient {
   private connectionAttempts = 0
   private disabled = false
   private failureReported = false
+  private inputBuffer = ""
+  private readonly metrics = new RuntimeMetrics()
 
   constructor(
     private readonly host: string | undefined,
-    private readonly port: string | undefined
+    private readonly port: string | undefined,
+    private readonly enabled: boolean
   ) { }
 
   send(record: LogRecord): void {
-    if (!this.host || !this.port || this.disabled) return
+    if (!this.enabled || !this.host || !this.port || this.disabled) return
+    if (record.level === "debug") return
 
     this.queue.push(`${JSON.stringify(record)}\n`)
     if (this.queue.length > this.maxQueueSize) {
@@ -82,6 +101,8 @@ class LogCollectorClient {
   }
 
   private flush(): void {
+    if (!this.queue.length) return
+
     if (this.socket?.writable) {
       while (this.queue.length) {
         const payload = this.queue.shift()
@@ -95,6 +116,8 @@ class LogCollectorClient {
   }
 
   private connect(): void {
+    if (!this.queue.length) return
+
     const port = Number(this.port)
     if (!Number.isSafeInteger(port) || port <= 0) return
     if (this.connectionAttempts >= this.maxConnectionAttempts) {
@@ -108,11 +131,19 @@ class LogCollectorClient {
     let failed = false
     socket.setTimeout(this.connectTimeoutMs)
 
+    socket.setEncoding("utf8")
+
     socket.on("connect", () => {
       this.socket = socket
       this.connecting = false
       this.connectionAttempts = 0
+      socket.setTimeout(0)
+      this.queue.unshift(`${JSON.stringify(this.createLifecycleRecord("collector_connection", "info", "Подключение к log collector установлено"))}\n`)
       this.flush()
+    })
+
+    socket.on("data", (chunk) => {
+      this.handleData(socket, chunk.toString())
     })
 
     socket.on("timeout", () => {
@@ -133,6 +164,7 @@ class LogCollectorClient {
 
   private scheduleRetry(): void {
     if (this.disabled) return
+    if (!this.queue.length) return
 
     if (this.connectionAttempts >= this.maxConnectionAttempts) {
       this.disable()
@@ -151,12 +183,68 @@ class LogCollectorClient {
     this.failureReported = true
     console.warn(`Не удалось подключиться к log collector ${this.host}:${this.port} после ${this.maxConnectionAttempts} попыток. Приложение продолжит работу без отправки логов.`)
   }
+
+  private handleData(socket: Socket, chunk: string): void {
+    this.inputBuffer += chunk
+    const lines = this.inputBuffer.split("\n")
+    this.inputBuffer = lines.pop() || ""
+
+    lines
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => this.handleLine(socket, line))
+  }
+
+  private handleLine(socket: Socket, line: string): void {
+    let message: MetricsRequestMessage
+
+    try {
+      message = JSON.parse(line) as MetricsRequestMessage
+    } catch {
+      return
+    }
+
+    if (message.collectorMessageType !== "metrics_request" || !message.requestId) return
+
+    const response: MetricsResponseMessage = {
+      collectorMessageType: "metrics_response",
+      requestId: message.requestId,
+      source: this.getSource(),
+      metrics: this.metrics.collect(this.getSource())
+    }
+
+    socket.write(`${JSON.stringify(response)}\n`)
+  }
+
+  private createLifecycleRecord(kind: iSharedLogs.LogKind, level: LogLevel, message: string): LogRecord {
+    return {
+      timestamp: new Date().toISOString(),
+      kind,
+      level,
+      source: this.getSource(),
+      message,
+      context: {
+        serviceName: "LogCollectorClient",
+        serviceMethod: "connect"
+      }
+    }
+  }
+
+  private getSource(): string {
+    return process.env.VAR_LOG_SOURCE || process.env.npm_package_name || basename(process.cwd())
+  }
 }
+
+const sharedLogCollectorClient = new LogCollectorClient(
+  process.env.VAR_LOG_COLLECTOR_SOCKET_HOST,
+  process.env.VAR_LOG_COLLECTOR_SOCKET_PORT,
+  process.env.VAR_LOG_COLLECTOR_CLIENT_ENABLED !== "false"
+)
 
 export class Logger {
   #debugEnabled = process.env.VAR_APP_LOG_LEVEL === 'debug'
   #source = process.env.VAR_LOG_SOURCE || process.env.npm_package_name || basename(process.cwd())
-  #collectorClient = new LogCollectorClient(process.env.VAR_LOG_COLLECTOR_SOCKET_HOST, process.env.VAR_LOG_COLLECTOR_SOCKET_PORT)
+  #collectorClient = sharedLogCollectorClient
 
   constructor() { }
 
@@ -167,6 +255,7 @@ export class Logger {
 
     const record: LogRecord = {
       timestamp: new Date().toISOString(),
+      kind: "application",
       level,
       source: this.#source,
       message,

@@ -28,6 +28,13 @@
 
     interface LogsState {
       logs: iSharedLogs.LogRecordDto[]
+      total: number
+      limit: number
+      offset: number
+    }
+
+    interface SystemState {
+      metrics: iSharedSystem.RuntimeMetricsItemDto[]
     }
 
     interface ChatState {
@@ -42,6 +49,7 @@
       chat: ChatState
       files: FilesState
       logs: LogsState
+      system: SystemState
       errors: ErrorsState
     }
   }

@@ -61,20 +61,9 @@ export class WebSocketServer {
       return
     }
 
-    this.logger.info("WebSocket подключение установлено", {
-      userId: user.uid
-    })
-
     for (const gateway of this.gateways) {
       this.registerGateway(socket, user, gateway)
     }
-
-    socket.on("disconnect", (reason) => {
-      this.logger.info("WebSocket подключение закрыто", {
-        userId: user.uid,
-        reason
-      })
-    })
   }
 
   private registerGateway(socket: Socket, user: iContracts.iUserToken, gateway: iWebSocketGateway): void {

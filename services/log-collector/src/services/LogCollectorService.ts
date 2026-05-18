@@ -6,6 +6,7 @@ export class LogCollectorService {
   collect(payload: iSharedLogs.CollectLogPayloadDto): Promise<iSharedLogs.LogRecordDto> {
     return this.models.LogRecord.create({
       timestamp: new Date(payload.timestamp),
+      kind: payload.kind,
       level: payload.level,
       source: payload.source,
       message: payload.message,
@@ -16,15 +17,23 @@ export class LogCollectorService {
 
   list(payload: iSharedLogs.LogsListPayloadDto = {}): Promise<iSharedLogs.LogsListResponseDto> {
     const limit = this.getLimit(payload.limit)
-    const where = payload.level ? { level: payload.level } : undefined
+    const offset = this.getOffset(payload.offset)
+    const where = {
+      ...(payload.level ? { level: payload.level } : {}),
+      ...(payload.kind ? { kind: payload.kind } : {})
+    }
 
-    return this.models.LogRecord.findAll({
-      where,
+    return this.models.LogRecord.findAndCountAll({
+      where: Object.keys(where).length ? where : undefined,
       limit,
+      offset,
       order: [["timestamp", "DESC"]]
     })
-      .then((records) => ({
-        logs: records.map((record) => this.toDto(record))
+      .then((result) => ({
+        logs: result.rows.map((record) => this.toDto(record)),
+        total: result.count,
+        limit,
+        offset
       }))
   }
 
@@ -32,6 +41,7 @@ export class LogCollectorService {
     return {
       uid: record.uid,
       timestamp: record.timestamp.toISOString(),
+      kind: record.kind,
       level: record.level,
       source: record.source,
       message: record.message,
@@ -44,9 +54,18 @@ export class LogCollectorService {
   }
 
   private getLimit(value: number | undefined): number {
-    if (value === undefined) return 200
-    if (!Number.isSafeInteger(value) || value < 1 || value > 1000) {
+    if (value === undefined) return 50
+    if (!Number.isSafeInteger(value) || value < 1 || value > 300) {
       throw new Exceptions.ServiceError.ConflictError("Некорректный лимит логов")
+    }
+
+    return value
+  }
+
+  private getOffset(value: number | undefined): number {
+    if (value === undefined) return 0
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new Exceptions.ServiceError.ConflictError("Некорректное смещение логов")
     }
 
     return value

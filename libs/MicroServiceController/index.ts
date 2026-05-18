@@ -6,6 +6,12 @@ export abstract class MicroServiceController {
   }
 
   protected addRoutes(routes: iContracts.iMicroServiceRoute[]): void {
+    routes.forEach((route) => {
+      if (route.method !== "POST" || !route.url.source.startsWith("^POST:")) {
+        throw new Error("Маршрут микросервиса должен использовать method POST и regex формата /^POST:/")
+      }
+    })
+
     this.routes.push(...routes)
   }
 

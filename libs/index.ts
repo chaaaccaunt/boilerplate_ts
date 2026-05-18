@@ -5,6 +5,7 @@ export interface iLibsEnv extends iLoggerEnv, iHTTPServerEnv { }
 
 export { PayloadValidator } from "./Validator"
 export { FilePreviewProxy } from "./FilePreviewProxy"
+export { RuntimeMetrics } from "./RuntimeMetrics"
 export { HTTPServer, iHTTPServerEnv, iHTTPConfig } from "./HTTPServer"
 export { MicroServiceHTTPServer, iMicroServiceHTTPConfig } from "./MicroServiceHTTPServer"
 export { MicroServiceController } from "./MicroServiceController"

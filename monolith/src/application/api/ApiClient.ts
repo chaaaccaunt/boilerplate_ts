@@ -4,6 +4,7 @@ import { AuthorizationApi } from "@/entities/authorization/api/AuthorizationApi"
 import { ChatApi } from "@/entities/chat/api/ChatApi"
 import { FilesApi } from "@/entities/files/api/FilesApi"
 import { LogsApi } from "@/entities/logs/api/LogsApi"
+import { SystemApi } from "@/entities/system/api/SystemApi"
 import { UsersApi } from "@/entities/users/api/UsersApi"
 
 type ApiPath = `/${string}`
@@ -21,6 +22,7 @@ export class ApiClient {
   readonly chat: ChatApi
   readonly files: FilesApi
   readonly logs: LogsApi
+  readonly system: SystemApi
   readonly users: UsersApi
 
   constructor(
@@ -31,6 +33,7 @@ export class ApiClient {
     this.chat = new ChatApi(this)
     this.files = new FilesApi(this)
     this.logs = new LogsApi(this)
+    this.system = new SystemApi(this)
     this.users = new UsersApi(this)
   }
 

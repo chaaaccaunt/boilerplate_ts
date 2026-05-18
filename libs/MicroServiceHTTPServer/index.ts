@@ -204,8 +204,9 @@ export class MicroServiceHTTPServer {
 
   private logRequest(request: IncomingMessage, context: MicroServiceRequestContext, status: number): void {
     const routeCallback = context.route?.callback
+    if (!this.shouldLogServiceResult(routeCallback?.serviceMethod, status)) return
 
-    this.logger.log(this.getLogLevel(status), "запрос микросервиса завершен", {
+    this.logger.log(this.getLogLevel(status), "результат работы сервиса", {
       requestId: context.requestId,
       method: request.method,
       path: request.url,
@@ -213,6 +214,12 @@ export class MicroServiceHTTPServer {
       serviceName: routeCallback?.serviceName,
       serviceMethod: routeCallback?.serviceMethod
     })
+  }
+
+  private shouldLogServiceResult(serviceMethod: string | undefined, status: number): boolean {
+    if (status >= 400) return true
+    if (!serviceMethod) return false
+    return /^(create|update|delete|send|leave)/.test(serviceMethod)
   }
 
   private getRequestId(request: IncomingMessage): string {
