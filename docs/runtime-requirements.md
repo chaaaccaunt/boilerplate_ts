@@ -16,6 +16,7 @@
 - Для каждого backend-сервиса и gateway должен существовать package-local `database-grants.json`.
 - Для каждого backend-сервиса и gateway должны существовать package-local env-файлы `.dev.env`, `.prod.env` и `.env.example`.
 - nginx используется как edge boundary для static, CORS preflight, method restrictions и CSRF/Origin checks.
+- Для быстрого локального development-старта допускается режим `localhost noNginx`, в котором frontend обращается к gateway напрямую, а `httpServer` отвечает на browser preflight `OPTIONS`.
 - Лимит размера upload request должен задаваться на nginx/deployment boundary через `client_max_body_size`; frontend не должен хардкодить этот лимит.
 - Nginx response для превышения upload limit должен возвращать HTTP `413` с CORS headers для разрешенного frontend origin, чтобы браузер мог передать frontend корректный статус ошибки.
 
@@ -59,6 +60,21 @@ Frontend использует `monolith/src/features/media-viewer` для пол
 ```bash
 npm run project -- localhost
 ```
+
+Если nginx не настроен, можно сгенерировать development env для прямого обращения к gateway:
+
+```bash
+npm run project -- localhost noNginx
+```
+
+В этом режиме root runner:
+
+- задает frontend base URL напрямую на `gateways/public`;
+- задает отдельные frontend URL для `gateways/authorization`, `gateways/files` и `gateways/chat-realtime`;
+- включает `VAR_HTTP_ENABLE_PREFLIGHT=true` для backend/gateway;
+- включает `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true` для host-only cookies на `localhost`.
+
+Режим `noNginx` не заменяет nginx в production и не выполняет CSRF/Origin policy на edge-уровне.
 
 Пересоздание database внутри localhost-flow допускается только для development/test/local database и не должно использоваться для production.
 

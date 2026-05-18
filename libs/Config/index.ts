@@ -28,6 +28,8 @@ export class AppConfiguration {
     "VAR_DB_NAME",
     "VAR_DB_PASSWORD",
     "VAR_DB_USER",
+    "VAR_HTTP_ALLOW_HOST_ONLY_COOKIES",
+    "VAR_HTTP_ENABLE_PREFLIGHT",
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
     "VAR_LOG_COLLECTOR_SERVICE_URL"
@@ -52,6 +54,8 @@ export class AppConfiguration {
         jwt_audience: this.getRequiredEnv("VAR_HTTP_JWT_AUDIENCE"),
         jwt_issuer: this.getRequiredEnv("VAR_HTTP_JWT_ISSUER"),
         jwt_secret: this.getRequiredEnv("VAR_HTTP_JWT_SECRET"),
+        allowHostOnlyCookies: this.getBooleanEnv("VAR_HTTP_ALLOW_HOST_ONLY_COOKIES"),
+        enablePreflight: this.getBooleanEnv("VAR_HTTP_ENABLE_PREFLIGHT"),
       },
       db: this.getDatabaseConfig(),
       internalServices: {
@@ -77,6 +81,8 @@ export class AppConfiguration {
       VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
       VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
       VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
+      VAR_HTTP_ALLOW_HOST_ONLY_COOKIES: process.env.VAR_HTTP_ALLOW_HOST_ONLY_COOKIES,
+      VAR_HTTP_ENABLE_PREFLIGHT: process.env.VAR_HTTP_ENABLE_PREFLIGHT,
       VAR_INTERNAL_SERVICE_TOKEN: process.env.VAR_INTERNAL_SERVICE_TOKEN,
       VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL,
       VAR_USERS_SERVICE_URL: process.env.VAR_USERS_SERVICE_URL,
@@ -128,6 +134,10 @@ export class AppConfiguration {
     const value = this.requiredEnvKeys[key]
     if (!value) throw new Error(`Отсутствует обязательная переменная окружения: ${key}`)
     return value
+  }
+
+  private getBooleanEnv(key: keyof NodeJS.ProcessEnv): boolean {
+    return this.requiredEnvKeys[key] === "true"
   }
 
   deepFreeze<T extends object>(value: T): Readonly<T> {

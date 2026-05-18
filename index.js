@@ -11,6 +11,7 @@ const localhostDatabaseName = "boilerplate_dev"
 const localhostPublicUserCookieDomain = ".gtrktuva.local"
 const localhostHttpOrigin = "http://test.gtrktuva.local"
 const baseUrl = "http://testapi.gtrktuva.local"
+const localhostNoNginxHttpOrigin = "http://localhost:8080"
 const localhostCookieName = "authorization"
 const localhostPublicUserCookieName = "authorization_user"
 const localhostJwtSecret = "localhost-development-jwt-secret"
@@ -69,7 +70,7 @@ const commands = {
     handler: handleMigrate
   },
   localhost: {
-    description: "Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost: localhost [db-root-user db-root-password]",
+    description: "Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost: localhost [noNginx] [db-root-user db-root-password]",
     handler: handleLocalhost
   },
   "start-dist": {
@@ -207,20 +208,33 @@ function runLocalhostDatabaseReset() {
 }
 
 function handleLocalhost(args) {
-  if (args.length !== 0 && args.length !== 2) {
-    throw new Error("Формат команды: localhost [db-root-user db-root-password]")
-  }
+  const options = parseLocalhostOptions(args)
 
   const migrationWorkspaceName = getServiceWorkspaceName("database-migration")
   const migrationWorkspaceDirectory = getWorkspaceDirectory(migrationWorkspaceName)
-  const adminCredentials = getLocalhostDatabaseAdminCredentials(args, migrationWorkspaceDirectory)
+  const adminCredentials = getLocalhostDatabaseAdminCredentials(options.credentials, migrationWorkspaceDirectory)
 
   return Promise.resolve()
     .then(() => {
-      writeLocalhostDevelopmentEnvFiles(adminCredentials.userName, adminCredentials.password)
+      writeLocalhostDevelopmentEnvFiles(adminCredentials.userName, adminCredentials.password, options)
     })
     .then(() => runLocalhostDatabaseReset())
     .then(() => handleDevelopment(["all"]))
+}
+
+function parseLocalhostOptions(args) {
+  const noNginxFlags = new Set(["noNginx", "--noNginx", "--no-nginx"])
+  const noNginx = args.some((arg) => noNginxFlags.has(arg))
+  const credentials = args.filter((arg) => !noNginxFlags.has(arg))
+
+  if (credentials.length !== 0 && credentials.length !== 2) {
+    throw new Error("Формат команды: localhost [noNginx] [db-root-user db-root-password]")
+  }
+
+  return {
+    noNginx,
+    credentials
+  }
 }
 
 function handleWorkspace(args) {
@@ -603,7 +617,8 @@ function getLocalhostDatabaseAdminCredentials(args, migrationWorkspaceDirectory)
   return { userName, password }
 }
 
-function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminPassword, runtimeUsers = getDatabaseRuntimeUserConfigItems()) {
+function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminPassword, options = {}) {
+  const runtimeUsers = getDatabaseRuntimeUserConfigItems()
   const localhostPackagePorts = getLocalhostPackagePorts()
   const runtimeGrants = runtimeUsers.map((runtimeUser) => ({
     userName: runtimeUser.userName,
@@ -615,13 +630,14 @@ function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminP
   writeDevelopmentEnvFile(join(servicesDirectory, "database-migration"), {
     VAR_APP_LOG_LEVEL: "debug",
     VAR_HTTP_PORT: "8094",
-    VAR_HTTP_ORIGIN: localhostHttpOrigin,
+    VAR_HTTP_ORIGIN: getLocalhostHttpOrigin(options),
     VAR_HTTP_COOKIE_NAME: localhostCookieName,
     VAR_HTTP_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
     VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: localhostPublicUserCookieDomain,
     VAR_HTTP_JWT_SECRET: localhostJwtSecret,
     VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
     VAR_HTTP_JWT_ISSUER: localhostJwtIssuer,
+    ...createNoNginxHttpDevelopmentEnv(options),
     VAR_INTERNAL_SERVICE_TOKEN: localhostInternalServiceToken,
     VAR_DB_HOST: "localhost",
     VAR_DB_NAME: localhostDatabaseName,
@@ -635,13 +651,9 @@ function writeLocalhostDevelopmentEnvFiles(databaseAdminUserName, databaseAdminP
   })
 
   writeLocalhostServiceDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts)
-  writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts)
+  writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts, options)
 
-  writeDevelopmentEnvFile(frontendPackageDirectory, {
-    VUE_APP_BASE_URL: baseUrl,
-    VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
-    VUE_APP_HOSTNAME: localhostHttpOrigin
-  })
+  writeDevelopmentEnvFile(frontendPackageDirectory, createFrontendDevelopmentEnv(localhostPackagePorts, options))
 }
 
 function writeLocalhostServiceDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts) {
@@ -659,7 +671,7 @@ function writeLocalhostServiceDevelopmentEnvFiles(runtimeUsers, localhostPackage
     })
 }
 
-function writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts) {
+function writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackagePorts, options) {
   getPackageDirectoryNames(gatewaysDirectory)
     .forEach((packageName) => {
       writeLocalhostBackendPackageDevelopmentEnvFile({
@@ -668,7 +680,8 @@ function writeLocalhostGatewayDevelopmentEnvFiles(runtimeUsers, localhostPackage
         packageDirectory: join(gatewaysDirectory, packageName),
         port: getLocalhostPackagePort(localhostPackagePorts, "gateway", packageName),
         localhostPackagePorts,
-        runtimeUsers
+        runtimeUsers,
+        noNginx: options.noNginx
       })
     })
 }
@@ -677,7 +690,7 @@ function writeLocalhostBackendPackageDevelopmentEnvFile(options) {
   const runtimeUser = options.runtimeUsers.find((item) => item.packageKind === options.packageKind && item.packageName === options.packageName)
 
   writeDevelopmentEnvFile(options.packageDirectory, {
-    ...createHttpDevelopmentEnv(options.port),
+    ...createHttpDevelopmentEnv(options.port, options),
     ...createBackendDatabaseDevelopmentEnv(runtimeUser),
     ...createBackendCommonDevelopmentEnv(options.packageKind, options.packageName),
     ...getLocalhostPackageSpecificDevelopmentEnv(options.packageKind, options.packageName, options.localhostPackagePorts)
@@ -892,17 +905,50 @@ function normalizePackageNameForDatabaseUser(packageName) {
   return packageName.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "")
 }
 
-function createHttpDevelopmentEnv(port) {
+function createHttpDevelopmentEnv(port, options = {}) {
   return {
     VAR_APP_LOG_LEVEL: "debug",
     VAR_HTTP_PORT: port,
-    VAR_HTTP_ORIGIN: localhostHttpOrigin,
+    VAR_HTTP_ORIGIN: getLocalhostHttpOrigin(options),
     VAR_HTTP_COOKIE_NAME: localhostCookieName,
     VAR_HTTP_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
     VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: localhostPublicUserCookieDomain,
     VAR_HTTP_JWT_SECRET: localhostJwtSecret,
     VAR_HTTP_JWT_AUDIENCE: localhostJwtAudience,
-    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer
+    VAR_HTTP_JWT_ISSUER: localhostJwtIssuer,
+    ...createNoNginxHttpDevelopmentEnv(options)
+  }
+}
+
+function createNoNginxHttpDevelopmentEnv(options = {}) {
+  if (!options.noNginx) return {}
+
+  return {
+    VAR_HTTP_ENABLE_PREFLIGHT: "true",
+    VAR_HTTP_ALLOW_HOST_ONLY_COOKIES: "true"
+  }
+}
+
+function getLocalhostHttpOrigin(options = {}) {
+  return options.noNginx ? localhostNoNginxHttpOrigin : localhostHttpOrigin
+}
+
+function createFrontendDevelopmentEnv(localhostPackagePorts, options = {}) {
+  if (!options.noNginx) {
+    return {
+      VUE_APP_BASE_URL: baseUrl,
+      VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
+      VUE_APP_HOSTNAME: localhostHttpOrigin
+    }
+  }
+
+  return {
+    VUE_APP_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "public")}`,
+    VUE_APP_AUTHORIZATION_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "authorization")}`,
+    VUE_APP_FILES_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "files")}`,
+    VUE_APP_WEBSOCKET_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "chat-realtime")}`,
+    VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: localhostPublicUserCookieName,
+    VUE_APP_HOSTNAME: localhostNoNginxHttpOrigin
   }
 }
 
@@ -1060,11 +1106,12 @@ function showHelp() {
   console.log("Примеры:")
   console.log("  npm run project -- install")
   console.log("  npm run project -- dev")
-  console.log("  npm run project -- dev service monolith")
-  console.log("  npm run project -- dev gateway monolith")
+  console.log("  npm run project -- dev service users")
+  console.log("  npm run project -- dev gateway public")
   console.log("  npm run project -- migrate")
   console.log("  npm run project -- migrate dist")
   console.log("  npm run project -- localhost root password")
+  console.log("  npm run project -- localhost noNginx root password")
   console.log("  npm run project -- build frontend")
-  console.log("  npm run project -- workspace service:monolith start")
+  console.log("  npm run project -- workspace service:users start")
 }

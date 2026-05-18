@@ -295,6 +295,14 @@ Frontend dev-server должен работать локально по умол
 
 `VUE_APP_BASE_URL` является обязательной переменной окружения для frontend API client.
 `VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME` является обязательной переменной окружения для восстановления frontend authorization state из публичной user cookie.
+В стандартном nginx-flow `VUE_APP_BASE_URL` указывает на единый публичный API origin, где nginx маршрутизирует `/v1/gateway/authorization`, `/v1/gateway/files`, `/v1/gateway/*` и `/v1/connection` к нужным gateway.
+В development-only режиме `localhost noNginx` frontend может использовать дополнительные env-переменные:
+
+- `VUE_APP_AUTHORIZATION_BASE_URL` для прямого обращения к `gateways/authorization`;
+- `VUE_APP_FILES_BASE_URL` для прямого обращения к `gateways/files`;
+- `VUE_APP_WEBSOCKET_BASE_URL` для прямого подключения к `gateways/chat-realtime`.
+
+Если эти переменные не заданы, frontend должен использовать `VUE_APP_BASE_URL`, чтобы стандартный nginx-flow оставался конфигурацией по умолчанию.
 
 Если `VUE_APP_BASE_URL` не задан, frontend должен падать с понятной ошибкой и не должен подставлять fallback вроде пустой строки или `undefined`.
 Если `VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME` не задан, frontend должен падать с понятной ошибкой и не должен подставлять fallback-имя cookie.

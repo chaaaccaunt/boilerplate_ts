@@ -16,6 +16,8 @@ export interface iHTTPServerEnv {
   VAR_HTTP_JWT_SECRET: string
   VAR_HTTP_JWT_ISSUER: string
   VAR_HTTP_JWT_AUDIENCE: string
+  VAR_HTTP_ALLOW_HOST_ONLY_COOKIES?: string
+  VAR_HTTP_ENABLE_PREFLIGHT?: string
 }
 
 export interface iHTTPConfig {
@@ -27,6 +29,8 @@ export interface iHTTPConfig {
   jwt_secret: string
   jwt_issuer: string
   jwt_audience: string
+  allowHostOnlyCookies?: boolean
+  enablePreflight?: boolean
 }
 
 interface RequestContext {
@@ -57,6 +61,11 @@ export class HTTPServer {
   }
 
   private handleRequest(request: IncomingMessage, response: ServerResponse): void {
+    if (this.shouldHandlePreflight(request)) {
+      this.responseSender.sendPreflight(response)
+      return
+    }
+
     const context: RequestContext = {
       requestId: randomUUID(),
       traceContext: new TraceContext(),
@@ -256,6 +265,10 @@ export class HTTPServer {
 
   private shouldLogRequest(request: IncomingMessage): boolean {
     return request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
+  }
+
+  private shouldHandlePreflight(request: IncomingMessage): boolean {
+    return this.config.enablePreflight === true && request.method === "OPTIONS"
   }
 
   private getRequestBodyType(route: iContracts.iRoute): iContracts.iRequestBodyType {

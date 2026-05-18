@@ -10,6 +10,12 @@ import { UsersApi } from "@/entities/users/api/UsersApi"
 type ApiPath = `/${string}`
 type VuexMutation = string
 
+interface ApiClientHttpClients {
+  default: HttpClient
+  authorization: HttpClient
+  files: HttpClient
+}
+
 interface ApiRequestOptions<TPayload> {
   path: ApiPath
   payload?: TPayload
@@ -26,7 +32,7 @@ export class ApiClient {
   readonly users: UsersApi
 
   constructor(
-    private readonly http: HttpClient,
+    private readonly http: ApiClientHttpClients,
     private readonly store: Store<iSharedState.RootState>
   ) {
     this.authorization = new AuthorizationApi(this)
@@ -62,12 +68,12 @@ export class ApiClient {
   }
 
   resolvePublicUrl(path: ApiPath): string {
-    return this.http.resolvePublicUrl(path)
+    return this.getHttpClient(path).resolvePublicUrl(path)
   }
 
   private async uploadRequest<TResult>(path: ApiPath, formData: FormData, reportError: boolean, onProgress?: UploadProgressCallback): Promise<TResult> {
     try {
-      return await this.http.upload<TResult>(path, formData, onProgress)
+      return await this.getHttpClient(path).upload<TResult>(path, formData, onProgress)
     } catch (error) {
       const apiError = this.normalizeError(error)
 
@@ -88,7 +94,7 @@ export class ApiClient {
     options: ApiRequestOptions<TPayload>
   ): Promise<TResult> {
     try {
-      const result = await this.http.request<TResult, TPayload>({
+      const result = await this.getHttpClient(options.path).request<TResult, TPayload>({
         method,
         path: options.path,
         payload: options.payload
@@ -118,6 +124,13 @@ export class ApiClient {
     if (error instanceof ApiError) return error
     if (error instanceof Error) return new ApiError("API_UNKNOWN_ERROR", error.message, 0)
     return new ApiError("API_UNKNOWN_ERROR", "Неизвестная ошибка API", 0)
+  }
+
+  private getHttpClient(path: ApiPath): HttpClient {
+    if (path.startsWith("/authorization")) return this.http.authorization
+    if (path.startsWith("/files")) return this.http.files
+
+    return this.http.default
   }
 }
 

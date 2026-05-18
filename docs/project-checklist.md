@@ -23,6 +23,7 @@
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
 - Проверить, что `VAR_HTTP_ORIGIN` содержит hostname, из которого runtime может вычислить cookie domain второго уровня с ведущей точкой, например `.gtrktuva.local`.
 - Для стандартного localhost-flow проверить, что `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` равен `.gtrktuva.local`, если используются hostnames `test.gtrktuva.local` и `testapi.gtrktuva.local`.
+- Для режима `localhost noNginx` проверить, что `VAR_HTTP_ENABLE_PREFLIGHT=true` и `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true` заданы только в development `.dev.env`.
 - Проверить matrix прав database users для каждого backend-сервиса и gateway, который ходит в БД:
   - `package -> table -> allowed operations`;
   - runtime-пользователь не имеет прав на таблицы, которые package не использует;
@@ -54,6 +55,7 @@
 
 - Проверить обязательную переменную `VUE_APP_BASE_URL`.
 - Проверить обязательную переменную `VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME`.
+- Для режима `localhost noNginx` проверить direct gateway env: `VUE_APP_AUTHORIZATION_BASE_URL`, `VUE_APP_FILES_BASE_URL`, `VUE_APP_WEBSOCKET_BASE_URL`.
 - Если frontend доступен через внешний development hostname, указать `VUE_APP_HOSTNAME`.
 - Не использовать fallback для обязательных env-переменных.
 - Проверить, что обязательные frontend env-переменные не равны placeholder/default-значениям.
@@ -99,4 +101,5 @@
 - Seed не должен запускаться runtime backend-сервисами и gateway.
 - Cookie/CORS policy приложения должна быть явно настроена.
 - CSRF/Origin policy должна быть явно настроена на уровне nginx.
+- `VAR_HTTP_ENABLE_PREFLIGHT` и `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES` не должны использоваться как production-замена nginx edge policy.
 - Не должно быть фиксированных production-паролей или тестовых учетных данных.

@@ -160,6 +160,8 @@ Fullstack boilerplate для проектов, где frontend остается 
 - discovery packages по директориям;
 - package-local `.dev.env`, `.prod.env`, `.env.example`;
 - localhost env generation;
+- быстрый development-старт без локального nginx через `localhost noNginx`;
+- прямые frontend base URL для отдельных public gateway в no-nginx режиме;
 - runtime database grants из `database-grants.json`;
 - database setup, migrations и seed через `services/database-migration`;
 - исключение utility packages из `dev all` через `boilerplate.runWithDevAll: false`;
@@ -287,12 +289,31 @@ npm run project -- localhost root password
 
 Где `root password` — credentials database admin user для локального setup.
 
+Если локальный nginx не настроен, можно запустить development окружение напрямую через Node.js gateway:
+
+```bash
+npm run project -- localhost noNginx root password
+```
+
+Флаг `noNginx` меняет только development `.dev.env`:
+
+- frontend dev-server остается на `http://localhost:8080`;
+- `VUE_APP_BASE_URL` указывает напрямую на `gateways/public`;
+- `VUE_APP_AUTHORIZATION_BASE_URL` указывает напрямую на `gateways/authorization`;
+- `VUE_APP_FILES_BASE_URL` указывает напрямую на `gateways/files`;
+- `VUE_APP_WEBSOCKET_BASE_URL` указывает напрямую на `gateways/chat-realtime`;
+- backend включает ответы на browser preflight `OPTIONS` через `VAR_HTTP_ENABLE_PREFLIGHT=true`;
+- authorization cookies становятся host-only через `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true`, потому что для `localhost` нельзя вычислить cookie domain второго уровня.
+
+`noNginx` предназначен только для быстрого development-старта. Production и полноценный development edge остаются за nginx.
+
 Root runner генерирует:
 
 - package-local `.dev.env`;
 - runtime database users из `database-grants.json`;
 - `VAR_DB_RUNTIME_GRANTS` для migration package;
 - frontend `VUE_APP_BASE_URL`;
+- frontend direct gateway URL, если используется `noNginx`;
 - cookie domain `.gtrktuva.local` для стандартных localhost hostnames.
 
 ### Полная инициализация localhost database
@@ -372,7 +393,7 @@ dev          Запустить разработку: dev [all|frontend|service 
 build        Собрать проект: build [all|frontend|service <name>|gateway <name>]
 typecheck    Проверить типы: typecheck [all|shared|frontend|service <name>|gateway <name>]
 migrate      Выполнить миграции базы данных: migrate [dev|dist]
-localhost    Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost
+localhost    Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost: localhost [noNginx] [db-root-user db-root-password]
 start-dist   Запустить production bundle: start-dist [service <name>|gateway <name>]
 workspace    Запустить workspace script: workspace <workspace|frontend|service:name|gateway:name> <script> [...args]
 ```
@@ -386,6 +407,7 @@ npm run project -- typecheck all
 npm run project -- typecheck shared
 npm run project -- build frontend
 npm run project -- build gateway public
+npm run project -- localhost noNginx root password
 npm run project -- workspace service:database-migration setup
 npm run project -- workspace service:database-migration grant-runtime
 ```

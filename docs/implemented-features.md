@@ -196,6 +196,10 @@
 - workspace discovery по `services/*`, `gateways/*`, `monolith`;
 - package-local env loading;
 - localhost env generation;
+- `localhost noNginx` для прямого development-запуска без локального nginx;
+- генерация отдельных frontend base URL для public, authorization, files и realtime gateway в no-nginx режиме;
+- Node.js preflight responses для no-nginx development через `VAR_HTTP_ENABLE_PREFLIGHT`;
+- host-only authorization cookies для `localhost` через `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES`;
 - runtime database grants generation из `database-grants.json`;
 - database setup/migrate/seed flow через `services/database-migration`;
 - исключение utility package из `dev all` через `boilerplate.runWithDevAll: false`.

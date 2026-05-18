@@ -30,6 +30,15 @@ export class HTTPResponseSender {
     })
   }
 
+  sendPreflight(response: ServerResponse): void {
+    response.statusCode = 204
+    this.setCorsHeaders(response)
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    response.setHeader("Access-Control-Max-Age", "86400")
+    response.end()
+  }
+
   sendFile(response: ServerResponse, result: iContracts.iFileControllerResult): void {
     this.setCorsHeaders(response)
     const range = this.getFileRange(result.file.path, result.file.range)
@@ -194,7 +203,7 @@ export class HTTPResponseSender {
 
     if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`)
     if (options.path) parts.push(`Path=${options.path}`)
-    parts.push(`Domain=${domain}`)
+    if (domain) parts.push(`Domain=${domain}`)
     if (options.httpOnly) parts.push("HttpOnly")
     if (options.secure) parts.push("Secure")
     if (options.sameSite) parts.push(`SameSite=${this.formatSameSite(options.sameSite)}`)
@@ -202,11 +211,12 @@ export class HTTPResponseSender {
     return parts.join("; ")
   }
 
-  private getCookieDomain(): string {
+  private getCookieDomain(): string | null {
     const hostname = new URL(this.config.origin).hostname
     const parts = hostname.split(".").filter(Boolean)
 
     if (parts.length < 2) {
+      if (this.config.allowHostOnlyCookies) return null
       throw new Error("VAR_HTTP_ORIGIN должен содержать hostname, из которого можно вычислить cookie domain второго уровня")
     }
 
