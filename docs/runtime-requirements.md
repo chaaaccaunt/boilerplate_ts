@@ -51,17 +51,16 @@ Frontend использует `monolith/src/features/media-viewer` для пол
 - подготовить database и service user через migration package setup;
 - применить migrations;
 - выдать runtime grants из package-local `database-grants.json`;
-- выполнить development seed через root reset-flow, если нужна чистая локальная база;
+- выполнить полный localhost-flow, если нужна чистая локальная база с development seed;
 - убедиться, что `libs/ffmpeg/lgpl/bin/ffmpeg.exe` доступен, если сценарии загрузки файлов должны создавать preview proxy.
 
-Базовые команды:
+Базовая команда полного localhost-flow:
 
 ```bash
-npm run project -- reset
-npm run project -- dev all
+npm run project -- localhost
 ```
 
-`reset` допускается только для development/test/local database и не должен использоваться для production.
+Пересоздание database внутри localhost-flow допускается только для development/test/local database и не должно использоваться для production.
 
 ## Production
 
@@ -74,7 +73,7 @@ npm run project -- dev all
 - применить migrations до запуска runtime backend;
 - проверить nginx-конфигурацию для публичных gateway, frontend origin, WebSocket gateway и package-local ports;
 - убедиться, что production deployment содержит FFmpeg LGPL binary, если upload preview proxy должен работать в production;
-- не запускать development seed и database reset.
+- не запускать development seed и пересоздание database.
 
 Базовые команды:
 

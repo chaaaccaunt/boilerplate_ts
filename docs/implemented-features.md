@@ -197,7 +197,7 @@
 - package-local env loading;
 - localhost env generation;
 - runtime database grants generation из `database-grants.json`;
-- database setup/migrate/reset flow через `services/database-migration`;
+- database setup/migrate/seed flow через `services/database-migration`;
 - исключение utility package из `dev all` через `boilerplate.runWithDevAll: false`.
 
 Основные зоны реализации:

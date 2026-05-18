@@ -8,11 +8,11 @@ const servicesDirectory = join(rootDirectory, "services")
 const gatewaysDirectory = join(rootDirectory, "gateways")
 const databaseGrantConfigFileName = "database-grants.json"
 const localhostDatabaseName = "boilerplate_dev"
+const localhostPublicUserCookieDomain = ".gtrktuva.local"
 const localhostHttpOrigin = "http://test.gtrktuva.local"
 const baseUrl = "http://testapi.gtrktuva.local"
 const localhostCookieName = "authorization"
 const localhostPublicUserCookieName = "authorization_user"
-const localhostPublicUserCookieDomain = ".gtrktuva.local"
 const localhostJwtSecret = "localhost-development-jwt-secret"
 const localhostJwtAudience = "boilerplate-ts-localhost"
 const localhostJwtIssuer = "boilerplate-ts-localhost"
@@ -67,10 +67,6 @@ const commands = {
   migrate: {
     description: "Выполнить миграции базы данных: migrate [dev|dist]",
     handler: handleMigrate
-  },
-  reset: {
-    description: "Пересоздать development database: reset",
-    handler: handleReset
   },
   localhost: {
     description: "Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost: localhost [db-root-user db-root-password]",
@@ -191,10 +187,9 @@ function handleMigrate(args) {
   throw new Error("Формат команды: migrate [dev|dist]")
 }
 
-function handleReset(args) {
-  if (args.length) throw new Error("Формат команды: reset")
+function runLocalhostDatabaseReset() {
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Reset базы данных запрещен в production-среде")
+    throw new Error("Пересоздание базы данных запрещено в production-среде")
   }
 
   const migrationWorkspaceName = getServiceWorkspaceName("database-migration")
@@ -224,7 +219,7 @@ function handleLocalhost(args) {
     .then(() => {
       writeLocalhostDevelopmentEnvFiles(adminCredentials.userName, adminCredentials.password)
     })
-    .then(() => handleReset([]))
+    .then(() => runLocalhostDatabaseReset())
     .then(() => handleDevelopment(["all"]))
 }
 
@@ -1069,7 +1064,6 @@ function showHelp() {
   console.log("  npm run project -- dev gateway monolith")
   console.log("  npm run project -- migrate")
   console.log("  npm run project -- migrate dist")
-  console.log("  npm run project -- reset")
   console.log("  npm run project -- localhost root password")
   console.log("  npm run project -- build frontend")
   console.log("  npm run project -- workspace service:monolith start")

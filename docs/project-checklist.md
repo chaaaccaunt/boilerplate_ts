@@ -41,7 +41,7 @@
 - Для каждого нового package зафиксировать grants по конкретным таблицам до запуска setup.
 - Выполнить настройку БД и пользователя сервиса через `npm run project -- workspace service:database-migration setup`.
 - После настройки выполнить миграции через `npm run project -- migrate`.
-- Если нужно полностью пересоздать development database, использовать `npm run project -- reset`: команда удалит базу, заново выполнит setup, применит миграции, выдаст runtime grants и выполнит development seed.
+- Если нужно полностью пересоздать development database, использовать `npm run project -- localhost`: команда обновит localhost env, удалит базу, заново выполнит setup, применит миграции, выдаст runtime grants, выполнит development seed и запустит development окружение.
 
 ## Режим работы БД
 

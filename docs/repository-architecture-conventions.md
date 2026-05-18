@@ -258,13 +258,13 @@ Production bundle миграций запускается через:
 npm run project -- migrate dist
 ```
 
-Пересоздание базы данных допускается только для среды разработки и выполняется через root runner:
+Пересоздание базы данных допускается только для среды разработки и выполняется как часть localhost-flow через root runner:
 
 ```bash
-npm run project -- reset
+npm run project -- localhost
 ```
 
-Эта команда должна выполнять полный development reset-flow:
+Эта команда должна выполнять полный development database flow:
 
 1. удалить development database;
 2. заново выполнить setup database и service user;
@@ -272,8 +272,9 @@ npm run project -- reset
 4. выдать runtime database grants на созданные таблицы;
 5. выполнить development seed.
 
-Команда reset базы данных не должна иметь production/dist-вариант.
-Она обязана завершаться ошибкой при `NODE_ENV=production` и дополнительно проверять, что имя базы данных явно относится к development/test/local окружению.
+Отдельная root-команда для пересоздания базы данных не используется.
+Пересоздание базы данных не должно иметь production/dist-вариант.
+Оно обязано завершаться ошибкой при `NODE_ENV=production` и дополнительно проверять, что имя базы данных явно относится к development/test/local окружению.
 
 Первичная настройка базы данных выполняется package-local script:
 

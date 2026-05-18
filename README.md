@@ -161,7 +161,7 @@ Fullstack boilerplate для проектов, где frontend остается 
 - package-local `.dev.env`, `.prod.env`, `.env.example`;
 - localhost env generation;
 - runtime database grants из `database-grants.json`;
-- database setup, migrations, reset и seed через `services/database-migration`;
+- database setup, migrations и seed через `services/database-migration`;
 - исключение utility packages из `dev all` через `boilerplate.runWithDevAll: false`;
 - typecheck/build/start-dist orchestration.
 
@@ -218,7 +218,7 @@ services/
   log-collector/
     сервис сбора логов
   database-migration/
-    setup/migration/reset/seed utility package
+    setup/migration/seed utility package
 
 monolith/
   Vue frontend-монолит
@@ -295,13 +295,9 @@ Root runner генерирует:
 - frontend `VUE_APP_BASE_URL`;
 - cookie domain `.gtrktuva.local` для стандартных localhost hostnames.
 
-### Полный reset development database
+### Полная инициализация localhost database
 
-```bash
-npm run project -- reset
-```
-
-Команда выполняет development reset-flow:
+Команда `localhost` выполняет development database flow:
 
 1. удаляет development database;
 2. выполняет setup database и service user;
@@ -309,7 +305,7 @@ npm run project -- reset
 4. выдает runtime grants;
 5. выполняет development seed.
 
-`reset` нельзя использовать для production.
+Отдельной root-команды для пересоздания БД нет. Пересоздание БД доступно только внутри `localhost` и не предназначено для production.
 
 ### Запуск development
 
@@ -376,7 +372,6 @@ dev          Запустить разработку: dev [all|frontend|service 
 build        Собрать проект: build [all|frontend|service <name>|gateway <name>]
 typecheck    Проверить типы: typecheck [all|shared|frontend|service <name>|gateway <name>]
 migrate      Выполнить миграции базы данных: migrate [dev|dist]
-reset        Пересоздать development database: reset
 localhost    Инициализировать development env из database-grants.json, пересоздать БД и запустить localhost
 start-dist   Запустить production bundle: start-dist [service <name>|gateway <name>]
 workspace    Запустить workspace script: workspace <workspace|frontend|service:name|gateway:name> <script> [...args]
@@ -543,7 +538,6 @@ Runtime services и gateways не вызывают `sequelize.sync()`.
 ```bash
 npm run project -- migrate
 npm run project -- migrate dist
-npm run project -- reset
 ```
 
 ## Логирование
@@ -766,7 +760,7 @@ Gateway бывает двух типов:
 - запустить `npm run project -- typecheck all`.
 
 Исторические migrations обычно не удаляются, если база уже могла быть применена в окружениях.
-Если это чистый boilerplate reset без внешних окружений, удаление migrations возможно только осознанно.
+Если это чистая локальная boilerplate database без внешних окружений, удаление migrations возможно только осознанно.
 
 ## Добавление frontend entity
 
@@ -826,7 +820,7 @@ npm run project -- typecheck all
 ```
 
 Если менялись shared contracts, проверить весь backend/frontend.
-Если менялись migrations/schema, применить migrations или выполнить development reset.
+Если менялись migrations/schema, применить migrations или выполнить полный localhost flow.
 Если менялись scripts/package orchestration, проверить `index.js`.
 Если менялся публичный gateway, проверить `nginx`.
 Если менялось логирование, свериться с политикой `log-collector`.

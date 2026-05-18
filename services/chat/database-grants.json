@@ -26,7 +26,7 @@
     },
     {
       "table": "chat_message_files",
-      "operations": ["SELECT", "INSERT", "DELETE"]
+      "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
     },
     {
       "table": "stored_files",

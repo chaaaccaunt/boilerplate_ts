@@ -45,8 +45,8 @@ export class SomeModel extends Model<InferAttributes<SomeModel>, InferCreationAt
 - Добавить SQL-миграцию для новой или измененной таблицы в `./services/database-migration/src/database/migrations`.
 - Миграция должна создавать или изменять schema явно и не должна заменяться runtime `sequelize.sync()`.
 - Не подключать созданную модель в `iModels`, `this.models`, controllers, services или routes без отдельного явного запроса пользователя.
-- После добавления или изменения Sequelize model набор миграций должен поднимать актуальную schema на пустой базе через `npm run project -- reset`.
-- Нельзя полагаться на dev `sequelize.sync()` как на единственный способ создания таблиц, потому что reset-flow выполняет setup и миграции до запуска backend-сервисов.
+- После добавления или изменения Sequelize model набор миграций должен поднимать актуальную schema на пустой базе через `npm run project -- localhost`.
+- Нельзя полагаться на dev `sequelize.sync()` как на единственный способ создания таблиц, потому что localhost-flow выполняет setup и миграции до запуска backend-сервисов.
 
 Пример подключения модели в `./services/<service-name>/src/database/instance.ts`:
 
