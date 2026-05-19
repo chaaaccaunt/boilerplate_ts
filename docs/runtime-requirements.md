@@ -47,7 +47,7 @@ Frontend использует `monolith/src/features/media-viewer` для пол
 Перед запуском development окружения нужно:
 
 - установить npm dependencies;
-- проверить корневой `development.config.json` с настройками стандартного localhost-flow;
+- проверить корневой `development.config.json` с локальными настройками стандартного localhost-flow или fallback `development.config.example.json`;
 - проверить package-local `package.config.json` у services/gateways;
 - подготовить package-local `.dev.env` для frontend, gateway и backend-сервисов;
 - проверить, что `.dev.env` не указывает production database;
@@ -78,7 +78,9 @@ npm run project -- localhost noNginx
 
 Режим `noNginx` не заменяет nginx в production и не выполняет CSRF/Origin policy на edge-уровне.
 
-Стандартные hostname и cookie domain для localhost-flow задаются в корневом `development.config.json`:
+Стандартные hostname и cookie domain для localhost-flow задаются в локальном корневом `development.config.json`.
+Файл `development.config.json` не хранится в Git и предназначен для настроек конкретной машины.
+Если локальный файл отсутствует, root runner использует fallback `development.config.example.json`.
 
 ```json
 {

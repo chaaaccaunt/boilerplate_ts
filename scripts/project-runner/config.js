@@ -7,6 +7,7 @@ const servicesDirectory = join(rootDirectory, "services")
 const gatewaysDirectory = join(rootDirectory, "gateways")
 const packageConfigFileName = "package.config.json"
 const rootDevelopmentConfigFileName = "development.config.json"
+const rootDevelopmentConfigExampleFileName = "development.config.example.json"
 const localhostNoNginxHttpOrigin = "http://localhost:8080"
 
 function createProjectConfig() {
@@ -19,6 +20,7 @@ function createProjectConfig() {
     gatewaysDirectory,
     packageConfigFileName,
     rootDevelopmentConfigFileName,
+    rootDevelopmentConfigExampleFileName,
     localhostDatabaseName: "boilerplate_dev",
     localhostPublicUserCookieDomain: developmentConfig.localhost.publicUserCookieDomain,
     localhostHttpOrigin: developmentConfig.localhost.httpOrigin,
@@ -42,28 +44,31 @@ function createProjectConfig() {
 
 function getDevelopmentConfig() {
   const configPath = join(rootDirectory, rootDevelopmentConfigFileName)
+  const fallbackConfigPath = join(rootDirectory, rootDevelopmentConfigExampleFileName)
+  const sourceConfigPath = existsSync(configPath) ? configPath : fallbackConfigPath
+  const sourceConfigFileName = existsSync(configPath) ? rootDevelopmentConfigFileName : rootDevelopmentConfigExampleFileName
 
-  if (!existsSync(configPath)) {
-    throw new Error(`Не найден корневой ${rootDevelopmentConfigFileName}`)
+  if (!existsSync(sourceConfigPath)) {
+    throw new Error(`Не найден корневой ${rootDevelopmentConfigFileName} или fallback ${rootDevelopmentConfigExampleFileName}`)
   }
 
-  const config = JSON.parse(readFileSync(configPath, "utf-8"))
+  const config = JSON.parse(readFileSync(sourceConfigPath, "utf-8"))
   const localhost = config.localhost
 
   if (!localhost || typeof localhost !== "object" || Array.isArray(localhost)) {
-    throw new Error(`В ${rootDevelopmentConfigFileName} должен быть объект localhost`)
+    throw new Error(`В ${sourceConfigFileName} должен быть объект localhost`)
   }
 
-  validateRequiredDevelopmentConfigValue(localhost.publicUserCookieDomain, "localhost.publicUserCookieDomain")
-  validateRequiredDevelopmentConfigValue(localhost.httpOrigin, "localhost.httpOrigin")
-  validateRequiredDevelopmentConfigValue(localhost.baseUrl, "localhost.baseUrl")
+  validateRequiredDevelopmentConfigValue(localhost.publicUserCookieDomain, "localhost.publicUserCookieDomain", sourceConfigFileName)
+  validateRequiredDevelopmentConfigValue(localhost.httpOrigin, "localhost.httpOrigin", sourceConfigFileName)
+  validateRequiredDevelopmentConfigValue(localhost.baseUrl, "localhost.baseUrl", sourceConfigFileName)
 
   return config
 }
 
-function validateRequiredDevelopmentConfigValue(value, path) {
+function validateRequiredDevelopmentConfigValue(value, path, configFileName) {
   if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`В ${rootDevelopmentConfigFileName} должно быть задано строковое значение ${path}`)
+    throw new Error(`В ${configFileName} должно быть задано строковое значение ${path}`)
   }
 }
 
