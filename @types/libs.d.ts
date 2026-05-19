@@ -1,6 +1,8 @@
 import {
   AppConfiguration,
+  DatabaseServiceTools,
   Exceptions,
+  HTTPController,
   HTTPServer,
   Logger,
   MethodTracer,
@@ -31,7 +33,11 @@ declare global {
   namespace iLibs {
     type AppConfiguration = InstanceType<typeof AppConfiguration>
     type AppConfigurationClass = typeof AppConfiguration
+    type DatabaseServiceTools = InstanceType<typeof DatabaseServiceTools>
+    type DatabaseServiceToolsClass = typeof DatabaseServiceTools
     type Exceptions = typeof Exceptions
+    type HTTPController = InstanceType<typeof HTTPController>
+    type HTTPControllerClass = typeof HTTPController
     type HTTPServer = InstanceType<typeof HTTPServer>
     type HTTPServerClass = typeof HTTPServer
     type MicroServiceHTTPServer = InstanceType<typeof MicroServiceHTTPServer>

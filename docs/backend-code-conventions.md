@@ -1,6 +1,6 @@
 # Правила backend-кода
 
-## Использование Sequelize helpers
+## Работа с Sequelize и DB tools
 
 Агент не должен импортировать ORM helpers напрямую в services, controllers и иной прикладной код:
 
@@ -8,25 +8,59 @@
 import { Op, fn } from "sequelize"
 ```
 
-Вместо этого helpers должны браться от database instance:
+Вместо этого services, которые работают с БД, должны получать `DatabaseServiceTools` из `@/libs`.
+Этот класс хранит разрешенные Sequelize helpers и фабрику логирования SQL-запросов:
 
 ```ts
-const { Op, fn } = database.Sequelize
+private readonly databaseTools: iLibs.DatabaseServiceTools
 ```
 
 `database.sequelize` используется как live Sequelize connection instance.
 `database.Sequelize` используется как доступ к статическим Sequelize helpers/runtime utilities, например `Op`, `fn`, `col`, `literal`, `where`.
 
 Service не должен принимать весь `database` instance как зависимость.
-Service должен получать только явно необходимые зависимости: конкретные models, набор models или Sequelize helpers.
+Service должен получать только явно необходимые зависимости: конкретные models, набор models и `DatabaseServiceTools`, если нужны ORM helpers или SQL logging.
 
-Для типизации Sequelize helpers в service следует использовать глобальный namespace:
+Bootstrap package создает helper один раз и передает его в service:
 
 ```ts
-private readonly helpers: iDatabase.Database["Sequelize"]
+const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
+const service = new UsersService(database.models.User, database.models.Role, database.models.UserRole, databaseTools)
 ```
 
+В service нужно обращаться к helpers через `databaseTools.Op`, `databaseTools.fn`, `databaseTools.col`, `databaseTools.literal`.
+Это оставляет ORM-зависимости внутри общего infrastructure слоя и не размазывает прямые импорты Sequelize по прикладному коду.
+
 Это ограничение нужно для будущей изоляции services: каждый service может быть вынесен в отдельный микросервис и подключаться к БД под отдельным логином с правами только на необходимые таблицы.
+
+## Логирование SQL-запросов
+
+Глобальное Sequelize logging должно быть выключено в `AppConfiguration.getDatabaseConfig()`.
+Иначе SQL-запросы появляются там, где нет `requestId`, service context и политики очистки чувствительных данных.
+
+Для runtime-запросов, которые меняют данные, service должен передавать в Sequelize option `logging` через `DatabaseServiceTools.createDatabaseQueryLogger`.
+Такие запросы логируются как `info` с событием `DB mutation`.
+
+```ts
+return this.userModel.create({
+  login: payload.login,
+  password: hashSync(payload.password, 10)
+}, {
+  logging: this.databaseTools.createDatabaseQueryLogger({
+    requestId,
+    serviceName: "UsersService",
+    serviceMethod: "create",
+    event: "users insert query",
+    mutation: true
+  })
+})
+```
+
+Read-only SQL-запросы можно логировать тем же helper только для локальной диагностики и debug-сценариев.
+Обычный production runtime не должен превращать каждый read-запрос в application log.
+
+`sanitizeSql` внутри `DatabaseServiceTools` обязан скрывать пароль перед записью SQL в лог.
+Сейчас в boilerplate чувствительным SQL-полем является `password`; если в schema появятся `token`, `cookie`, `secret` или другие секреты, правила очистки должны быть расширены в `sanitizeSql` до включения SQL logging для этих полей.
 
 ## Экспорты libs и глобальные типы
 
@@ -86,6 +120,9 @@ Business payload не должен передаваться через query str
 `MicroServiceHTTPServer` не должен использовать `HTTPMiddlewares`, `PayloadValidator`, `TraceContext` или `MethodTracer`.
 
 `requestId` передается между gateway и микросервисом через header `x-request-id`. Не добавлять `requestId` в shared DTO как domain field.
+
+Gateway controllers должны наследоваться от `HTTPController` из `@/libs`.
+`HTTPController` используется как общий базовый класс для `getRoutes`, `addRoutes`, проверки ролей через `access` и общего `handle`, который преобразует service errors в controller errors.
 
 Service controllers должны наследоваться от `MicroServiceController` из `@/libs`.
 `MicroServiceController` должен использоваться как общий базовый класс для `getRoutes`, `addRoutes` и metadata wrapper route callback.

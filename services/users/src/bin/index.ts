@@ -1,6 +1,6 @@
 import { Database } from "@/database"
 import { UsersController } from "@/controllers"
-import { config, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
+import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
 import { UsersService } from "@/services/UsersService"
 
 const logger = new Logger()
@@ -9,7 +9,8 @@ if (!config.internalServices.token) {
   throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for users service")
 }
 const httpServer = new MicroServiceHTTPServer({ port: config.http.port, internalServiceToken: config.internalServices.token })
-const service = new UsersService(database.models.User, database.models.Role, database.models.UserRole)
+const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
+const service = new UsersService(database.models.User, database.models.Role, database.models.UserRole, databaseTools)
 
 httpServer.use([...new UsersController(service).getRoutes()])
 

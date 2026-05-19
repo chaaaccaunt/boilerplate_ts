@@ -1,6 +1,6 @@
 import { LogsController, SystemMetricsController } from "@/controllers"
 import { Database } from "@/database"
-import { config, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
+import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
 import { LogCollectorService } from "@/services/LogCollectorService"
 import { LogCollectorSocketServer } from "@/services/LogCollectorSocketServer"
 
@@ -10,7 +10,8 @@ if (!config.internalServices.token) {
   throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for log collector service")
 }
 const httpServer = new MicroServiceHTTPServer({ port: config.http.port, internalServiceToken: config.internalServices.token })
-const service = new LogCollectorService(database.models)
+const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
+const service = new LogCollectorService(database.models, databaseTools)
 const socketPort = process.env.VAR_LOG_COLLECTOR_SOCKET_PORT
 
 if (!socketPort) {

@@ -1,0 +1,23 @@
+{
+  "database": {
+    "runtimeGrants": [
+      {
+        "table": "users",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "roles",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "user_roles",
+        "operations": ["SELECT"]
+      }
+    ]
+  },
+  "development": {
+    "localhost": {
+      "port": "4201"
+    }
+  }
+}

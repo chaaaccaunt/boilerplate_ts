@@ -5,7 +5,10 @@ import { FileStorageService } from "./FileStorageService"
 export class ChatService {
   private readonly fileStorage: FileStorageService
 
-  constructor(private readonly models: iDatabase.Models) {
+  constructor(
+    private readonly models: iDatabase.Models,
+    private readonly databaseTools: iLibs.DatabaseServiceTools
+  ) {
     this.fileStorage = new FileStorageService(models.StoredFile)
   }
 
@@ -54,7 +57,7 @@ export class ChatService {
       }))
   }
 
-  createRoom(userUid: UUID, payload: iSharedChat.ChatRoomCreatePayloadDto): Promise<iSharedChat.ChatRoomCreateResponseDto> {
+  createRoom(userUid: UUID, payload: iSharedChat.ChatRoomCreatePayloadDto, requestId?: string): Promise<iSharedChat.ChatRoomCreateResponseDto> {
     const memberUserUids = this.getPayloadMemberUserUids(userUid, payload.memberUserUids)
     const roomType: iSharedChat.ChatRoomType = memberUserUids.length === 1 ? "private" : "group"
 
@@ -63,15 +66,17 @@ export class ChatService {
       status: "active",
       title: roomType === "private" ? "Приватный чат" : "Новая группа",
       createdByUserUid: userUid
+    }, {
+      logging: this.createMutationQueryLogger("createRoom", "chat_rooms insert query", requestId)
     })
-      .then((room) => this.createRoomMembers(room.uid, userUid, memberUserUids)
+      .then((room) => this.createRoomMembers(room.uid, userUid, memberUserUids, requestId)
         .then(() => this.findActiveRoomWithMembers(room.uid))
         .then((createdRoom) => ({
           room: this.toRoomDto(createdRoom, userUid)
         })))
   }
 
-  updateRoom(userUid: UUID, payload: iSharedChat.ChatRoomUpdatePayloadDto): Promise<iSharedChat.ChatRoomUpdateResponseDto> {
+  updateRoom(userUid: UUID, payload: iSharedChat.ChatRoomUpdatePayloadDto, requestId?: string): Promise<iSharedChat.ChatRoomUpdateResponseDto> {
     return this.findActiveRoom(payload.roomUid)
       .then((room) => {
         this.assertGroupRoomOwner(room, userUid)
@@ -79,8 +84,10 @@ export class ChatService {
 
         return room.update({
           title: payload.title.trim()
+        }, {
+          logging: this.createMutationQueryLogger("updateRoom", "chat_rooms update query", requestId)
         })
-          .then((updatedRoom) => this.replaceRoomMembers(updatedRoom.uid, userUid, payload.memberUserUids)
+          .then((updatedRoom) => this.replaceRoomMembers(updatedRoom.uid, userUid, payload.memberUserUids, requestId)
             .then(() => this.findActiveRoomWithMembers(updatedRoom.uid)))
       })
       .then((room) => ({
@@ -88,7 +95,7 @@ export class ChatService {
       }))
   }
 
-  deleteRoom(userUid: UUID, payload: iSharedChat.ChatRoomDeletePayloadDto): Promise<iSharedChat.ChatRoomDeleteResponseDto> {
+  deleteRoom(userUid: UUID, payload: iSharedChat.ChatRoomDeletePayloadDto, requestId?: string): Promise<iSharedChat.ChatRoomDeleteResponseDto> {
     return this.findActiveRoom(payload.roomUid)
       .then((room) => {
         this.assertGroupRoomOwner(room, userUid)
@@ -101,12 +108,15 @@ export class ChatService {
           where: {
             roomUid: room.uid,
             leftAt: null
-          }
+          },
+          logging: this.createMutationQueryLogger("deleteRoom", "chat_room_members update query", requestId)
         })
           .then(() => room.update({
             status: "archived_by_owner",
             createdByUserUid: null,
             archivedAt
+          }, {
+            logging: this.createMutationQueryLogger("deleteRoom", "chat_rooms update query", requestId)
           }))
       })
       .then(() => ({
@@ -114,7 +124,7 @@ export class ChatService {
       }))
   }
 
-  leaveRoom(userUid: UUID, payload: iSharedChat.ChatRoomLeavePayloadDto): Promise<iSharedChat.ChatRoomLeaveResponseDto> {
+  leaveRoom(userUid: UUID, payload: iSharedChat.ChatRoomLeavePayloadDto, requestId?: string): Promise<iSharedChat.ChatRoomLeaveResponseDto> {
     return this.findActiveRoom(payload.roomUid)
       .then((room) => {
         if (room.type === "public") {
@@ -135,12 +145,14 @@ export class ChatService {
           .then((member) => {
             if (!member) throw new Exceptions.ServiceError.AuthenticationError("Нет доступа к чату")
 
-            return member.update({ leftAt: new Date() })
+            return member.update({ leftAt: new Date() }, {
+              logging: this.createMutationQueryLogger("leaveRoom", "chat_room_members update query", requestId)
+            })
               .then(() => room)
           })
       })
       .then((room) => room.type === "private"
-        ? this.archivePrivateRoomIfEmpty(room)
+        ? this.archivePrivateRoomIfEmpty(room, requestId)
         : undefined)
       .then(() => ({
         roomUid: payload.roomUid,
@@ -148,7 +160,7 @@ export class ChatService {
       }))
   }
 
-  sendMessage(userUid: UUID, payload: iSharedChat.ChatMessageSendPayloadDto): Promise<iSharedChat.ChatMessageSendResponseDto> {
+  sendMessage(userUid: UUID, payload: iSharedChat.ChatMessageSendPayloadDto, requestId?: string): Promise<iSharedChat.ChatMessageSendResponseDto> {
     return this.assertRoomAccess(userUid, payload.roomUid)
       .then(() => {
         this.assertValidMessagePayload(payload)
@@ -157,9 +169,11 @@ export class ChatService {
           roomUid: payload.roomUid as UUID,
           senderUserUid: userUid,
           text: payload.text?.trim() || null
+        }, {
+          logging: this.createMutationQueryLogger("sendMessage", "chat_messages insert query", requestId)
         })
       })
-      .then((message) => this.createMessageFiles(message.uid, userUid, payload.files)
+      .then((message) => this.createMessageFiles(message.uid, userUid, payload.files, requestId)
         .then(() => message))
       .then((message) => this.findCreatedMessage(message.uid))
       .then((createdMessage) => ({
@@ -167,7 +181,7 @@ export class ChatService {
       }))
   }
 
-  updateMessage(userUid: UUID, payload: iSharedChat.ChatMessageUpdatePayloadDto): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
+  updateMessage(userUid: UUID, payload: iSharedChat.ChatMessageUpdatePayloadDto, requestId?: string): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
     return this.findMessageForUserAction(userUid, payload.messageUid)
       .then((message) => {
         this.assertValidMessagePayload({
@@ -178,8 +192,10 @@ export class ChatService {
 
         return message.update({
           text: payload.text?.trim() || null
+        }, {
+          logging: this.createMutationQueryLogger("updateMessage", "chat_messages update query", requestId)
         })
-          .then(() => this.replaceMessageFiles(message.uid, userUid, payload.files))
+          .then(() => this.replaceMessageFiles(message.uid, userUid, payload.files, requestId))
           .then(() => this.findCreatedMessage(message.uid))
       })
       .then((message) => ({
@@ -187,19 +203,22 @@ export class ChatService {
       }))
   }
 
-  deleteMessage(userUid: UUID, payload: iSharedChat.ChatMessageDeletePayloadDto): Promise<iSharedChat.ChatMessageDeleteResponseDto> {
+  deleteMessage(userUid: UUID, payload: iSharedChat.ChatMessageDeletePayloadDto, requestId?: string): Promise<iSharedChat.ChatMessageDeleteResponseDto> {
     return this.findMessageForUserAction(userUid, payload.messageUid)
       .then((message) => this.models.ChatMessageFile.destroy({
-        where: { messageUid: message.uid }
+        where: { messageUid: message.uid },
+        logging: this.createMutationQueryLogger("deleteMessage", "chat_message_files delete query", requestId)
       })
-        .then(() => message.destroy())
+        .then(() => message.destroy({
+          logging: this.createMutationQueryLogger("deleteMessage", "chat_messages delete query", requestId)
+        }))
         .then(() => ({
           messageUid: message.uid,
           roomUid: message.roomUid
         })))
   }
 
-  deleteMessageFile(userUid: UUID, payload: iSharedChat.ChatMessageFileDeletePayloadDto): Promise<iSharedChat.ChatMessageFileDeleteResponseDto> {
+  deleteMessageFile(userUid: UUID, payload: iSharedChat.ChatMessageFileDeletePayloadDto, requestId?: string): Promise<iSharedChat.ChatMessageFileDeleteResponseDto> {
     return this.findMessageForUserAction(userUid, payload.messageUid)
       .then((message) => this.models.ChatMessageFile.findOne({
         where: {
@@ -215,7 +234,9 @@ export class ChatService {
             throw new Exceptions.ServiceError.ConflictError("Сообщение должно содержать текст или файл")
           }
 
-          return messageFile.destroy()
+          return messageFile.destroy({
+            logging: this.createMutationQueryLogger("deleteMessageFile", "chat_message_files delete query", requestId)
+          })
             .then(() => this.findCreatedMessage(message.uid))
         }))
       .then((message) => ({
@@ -224,23 +245,27 @@ export class ChatService {
       }))
   }
 
-  private createRoomMembers(roomUid: UUID, userUid: UUID, roomMemberUserUids: UUID[]): Promise<void> {
+  private createRoomMembers(roomUid: UUID, userUid: UUID, roomMemberUserUids: UUID[], requestId?: string): Promise<void> {
     const memberUserUids = [userUid, ...roomMemberUserUids]
 
     return this.models.ChatRoomMember.bulkCreate(memberUserUids.map((memberUserUid) => ({
       roomUid,
       userUid: memberUserUid
-    })))
+    })), {
+      logging: this.createMutationQueryLogger("createRoomMembers", "chat_room_members insert query", requestId)
+    })
       .then(() => undefined)
   }
 
-  private replaceRoomMembers(roomUid: UUID, ownerUserUid: UUID, payloadMemberUserUids: string[]): Promise<void> {
+  private replaceRoomMembers(roomUid: UUID, ownerUserUid: UUID, payloadMemberUserUids: string[], requestId?: string): Promise<void> {
     const memberUserUids = Array.from(new Set([ownerUserUid, ...payloadMemberUserUids.map((memberUserUid) => memberUserUid as UUID)]))
 
     return this.models.ChatRoomMember.findAll({ where: { roomUid } })
       .then((members) => members.reduce<Promise<void>>((previous, member) => previous
         .then(() => member.update({
           leftAt: memberUserUids.includes(member.userUid) ? null : new Date()
+        }, {
+          logging: this.createMutationQueryLogger("replaceRoomMembers", "chat_room_members update query", requestId)
         }))
         .then(() => undefined), Promise.resolve())
         .then(() => {
@@ -252,26 +277,33 @@ export class ChatService {
           return this.models.ChatRoomMember.bulkCreate(missingMemberUserUids.map((memberUserUid) => ({
             roomUid,
             userUid: memberUserUid
-          })))
+          })), {
+            logging: this.createMutationQueryLogger("replaceRoomMembers", "chat_room_members insert query", requestId)
+          })
             .then(() => undefined)
         }))
   }
 
-  private createMessageFiles(messageUid: UUID, userUid: UUID, files?: iSharedChat.ChatFilePayloadDto[]): Promise<void> {
+  private createMessageFiles(messageUid: UUID, userUid: UUID, files?: iSharedChat.ChatFilePayloadDto[], requestId?: string): Promise<void> {
     if (!files?.length) return Promise.resolve()
 
     return this.assertMessageFilesOwnedByUser(files, userUid)
       .then(() => this.models.ChatMessageFile.bulkCreate(files.map((file) => ({
         messageUid,
         storedFileUid: file.fileUid as UUID
-      }))))
+      })), {
+        logging: this.createMutationQueryLogger("createMessageFiles", "chat_message_files insert query", requestId)
+      }))
       .then(() => undefined)
   }
 
-  private replaceMessageFiles(messageUid: UUID, userUid: UUID, files?: iSharedChat.ChatFilePayloadDto[]): Promise<void> {
+  private replaceMessageFiles(messageUid: UUID, userUid: UUID, files?: iSharedChat.ChatFilePayloadDto[], requestId?: string): Promise<void> {
     return Promise.resolve(files?.length ? this.assertMessageFilesOwnedByUser(files, userUid) : undefined)
-      .then(() => this.models.ChatMessageFile.destroy({ where: { messageUid } }))
-      .then(() => this.createMessageFiles(messageUid, userUid, files))
+      .then(() => this.models.ChatMessageFile.destroy({
+        where: { messageUid },
+        logging: this.createMutationQueryLogger("replaceMessageFiles", "chat_message_files delete query", requestId)
+      }))
+      .then(() => this.createMessageFiles(messageUid, userUid, files, requestId))
   }
 
   private assertMessageFilesOwnedByUser(files: iSharedChat.ChatFilePayloadDto[], userUid: UUID): Promise<void> {
@@ -418,7 +450,7 @@ export class ChatService {
     return room.members.some((member) => member.userUid === userUid && !member.leftAt)
   }
 
-  private archivePrivateRoomIfEmpty(room: iDatabase.Models["ChatRoom"]["prototype"]): Promise<void> {
+  private archivePrivateRoomIfEmpty(room: iDatabase.Models["ChatRoom"]["prototype"], requestId?: string): Promise<void> {
     return this.models.ChatRoomMember.count({
       where: {
         roomUid: room.uid,
@@ -432,6 +464,8 @@ export class ChatService {
           status: "orphaned",
           createdByUserUid: null,
           archivedAt: new Date()
+        }, {
+          logging: this.createMutationQueryLogger("archivePrivateRoomIfEmpty", "chat_rooms update query", requestId)
         })
           .then(() => undefined)
       })
@@ -514,5 +548,15 @@ export class ChatService {
     } catch (error) {
       throw new Exceptions.ServiceError.InternalError("Не удалось прочитать metadata файла", { cause: error })
     }
+  }
+
+  private createMutationQueryLogger(serviceMethod: string, event: string, requestId?: string): (sql: string) => void {
+    return this.databaseTools.createDatabaseQueryLogger({
+      requestId,
+      serviceName: this.constructor.name,
+      serviceMethod,
+      event,
+      mutation: true
+    })
   }
 }

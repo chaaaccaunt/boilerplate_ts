@@ -1,12 +1,13 @@
 import { Controllers } from "@/controllers"
 import { Database } from "@/database"
-import { config, getRequiredDatabaseConfig, HTTPServer, Logger } from "@/libs"
+import { config, DatabaseServiceTools, getRequiredDatabaseConfig, HTTPServer, Logger } from "@/libs"
 
 const logger = new Logger()
 const database = new Database(getRequiredDatabaseConfig())
 const httpServer = new HTTPServer(config.http)
+const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
 
-new Controllers(httpServer, database.models)
+new Controllers(httpServer, database.models, databaseTools)
 
 start().catch((error) => {
   logger.error("Не удалось запустить files gateway", { error })

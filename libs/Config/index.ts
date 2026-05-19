@@ -126,7 +126,8 @@ export class AppConfiguration {
       password: this.getRequiredEnv("VAR_DB_PASSWORD"),
       username: this.getRequiredEnv("VAR_DB_USER"),
       dialect: "mysql",
-      dialectModule: mysql2
+      dialectModule: mysql2,
+      logging: false
     }
   }
 

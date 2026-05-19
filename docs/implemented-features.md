@@ -200,7 +200,7 @@
 - генерация отдельных frontend base URL для public, authorization, files и realtime gateway в no-nginx режиме;
 - Node.js preflight responses для no-nginx development через `VAR_HTTP_ENABLE_PREFLIGHT`;
 - host-only authorization cookies для `localhost` через `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES`;
-- runtime database grants generation из `database-grants.json`;
+- runtime database grants generation из `package.config.json`;
 - database setup/migrate/seed flow через `services/database-migration`;
 - исключение utility package из `dev all` через `boilerplate.runWithDevAll: false`.
 
@@ -208,7 +208,7 @@
 
 - `index.js`;
 - `services/database-migration`;
-- package-local `database-grants.json`.
+- package-local `package.config.json`.
 
 ## Runtime metrics
 

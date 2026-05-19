@@ -7,8 +7,10 @@ export { PayloadValidator } from "./Validator"
 export { FilePreviewProxy } from "./FilePreviewProxy"
 export { RuntimeMetrics } from "./RuntimeMetrics"
 export { HTTPServer, iHTTPServerEnv, iHTTPConfig } from "./HTTPServer"
+export { HTTPController } from "./HTTPController"
 export { MicroServiceHTTPServer, iMicroServiceHTTPConfig } from "./MicroServiceHTTPServer"
 export { MicroServiceController } from "./MicroServiceController"
+export { DatabaseServiceTools } from "./DatabaseServiceTools"
 export { WebSocketServer } from "./WebSocketServer"
 export type {
   iWebSocketBroadcastOptions,

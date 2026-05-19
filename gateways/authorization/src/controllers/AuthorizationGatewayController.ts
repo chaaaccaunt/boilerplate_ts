@@ -1,8 +1,8 @@
 import { Exceptions } from "@/libs"
 import { AuthorizationService } from "@/services/AuthorizationService"
-import { BaseController } from "./BaseController"
+import { HTTPController } from "@/libs"
 
-export class AuthorizationGatewayController extends BaseController {
+export class AuthorizationGatewayController extends HTTPController {
   private readonly publicUserCookieName: string
 
   constructor(

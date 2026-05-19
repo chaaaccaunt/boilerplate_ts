@@ -7,12 +7,16 @@ export class FileStorageService {
   private readonly previewProxy = new FilePreviewProxy()
   private readonly logger = new Logger()
 
-  constructor(private readonly models: iDatabase.Models) { }
+  constructor(
+    private readonly models: iDatabase.Models,
+    private readonly databaseTools: iLibs.DatabaseServiceTools
+  ) { }
 
   create(
     file: iContracts.iUploadedFile,
     description: string | null,
-    createdByUserUid: iContracts.iUserToken["uid"]
+    createdByUserUid: iContracts.iUserToken["uid"],
+    requestId?: string
   ): Promise<iSharedFiles.UploadedFileDto> {
     return this.models.StoredFile.create({
       originalName: file.originalName,
@@ -21,6 +25,8 @@ export class FileStorageService {
       description,
       storagePath: file.storagePath,
       createdByUserUid
+    }, {
+      logging: this.createMutationQueryLogger("create", "stored_files insert query", requestId)
     })
       .then((storedFile) => this.createPreviewProxy(file)
         .catch((error) => {
@@ -42,18 +48,22 @@ export class FileStorageService {
       .then((files) => files.map((file) => this.toUploadedFileDto(file)))
   }
 
-  updateMetadata(payload: iSharedFiles.UpdateFilePayloadDto, userUid: string): Promise<iSharedFiles.UpdateFileResponseDto> {
+  updateMetadata(payload: iSharedFiles.UpdateFilePayloadDto, userUid: string, requestId?: string): Promise<iSharedFiles.UpdateFileResponseDto> {
     return this.findOwned(payload.fileUid, userUid)
       .then((storedFile) => storedFile.update({
         description: payload.description?.trim() || null
+      }, {
+        logging: this.createMutationQueryLogger("updateMetadata", "stored_files update query", requestId)
       }))
       .then((storedFile) => this.toUploadedFileDto(storedFile))
   }
 
-  delete(payload: iSharedFiles.DeleteFilePayloadDto, userUid: string): Promise<iSharedFiles.DeleteFileResponseDto> {
+  delete(payload: iSharedFiles.DeleteFilePayloadDto, userUid: string, requestId?: string): Promise<iSharedFiles.DeleteFileResponseDto> {
     return this.findOwned(payload.fileUid, userUid)
       .then((storedFile) => this.assertFileHasNoChatAttachments(storedFile.uid)
-        .then(() => storedFile.destroy()))
+        .then(() => storedFile.destroy({
+          logging: this.createMutationQueryLogger("delete", "stored_files delete query", requestId)
+        })))
       .then(() => ({ fileUid: payload.fileUid }))
   }
 
@@ -197,5 +207,15 @@ export class FileStorageService {
     }
 
     return storagePath
+  }
+
+  private createMutationQueryLogger(serviceMethod: string, event: string, requestId?: string): (sql: string) => void {
+    return this.databaseTools.createDatabaseQueryLogger({
+      requestId,
+      serviceName: this.constructor.name,
+      serviceMethod,
+      event,
+      mutation: true
+    })
   }
 }

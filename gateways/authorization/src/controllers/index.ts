@@ -1,10 +1,9 @@
-import { HTTPServer } from "@/libs"
+import { HTTPController, HTTPServer } from "@/libs"
 import { AuthorizationService } from "@/services/AuthorizationService"
 import { AuthorizationGatewayController } from "./AuthorizationGatewayController"
-import { BaseController } from "./BaseController"
 
 export class Controllers {
-  private readonly controllers: BaseController[]
+  private readonly controllers: HTTPController[]
 
   constructor(httpServer: HTTPServer, authorizationService: AuthorizationService) {
     this.controllers = [
@@ -16,5 +15,3 @@ export class Controllers {
     })
   }
 }
-
-export { BaseController }

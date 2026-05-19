@@ -1,0 +1,10 @@
+{
+  "database": {
+    "runtimeGrants": []
+  },
+  "development": {
+    "localhost": {
+      "port": "4200"
+    }
+  }
+}

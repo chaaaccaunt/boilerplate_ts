@@ -6,7 +6,8 @@ export class UsersService {
   constructor(
     private readonly userModel: iDatabase.Models["User"],
     private readonly roleModel: iDatabase.Models["Role"],
-    private readonly userRoleModel: iDatabase.Models["UserRole"]
+    private readonly userRoleModel: iDatabase.Models["UserRole"],
+    private readonly databaseTools: iLibs.DatabaseServiceTools
   ) { }
 
   list(): Promise<iSharedUser.PublicUserDto[]> {
@@ -25,15 +26,17 @@ export class UsersService {
       .then((roles) => roles.map((role) => this.toRoleDto(role)))
   }
 
-  createRole(payload: iSharedUserRole.CreateRolePayloadDto): Promise<iSharedUserRole.CreateRoleResponseDto> {
+  createRole(payload: iSharedUserRole.CreateRolePayloadDto, requestId?: string): Promise<iSharedUserRole.CreateRoleResponseDto> {
     const name = this.normalizeRoleName(payload.name)
 
     return this.assertRoleNameAvailable(name)
-      .then(() => this.roleModel.create({ name }))
+      .then(() => this.roleModel.create({ name }, {
+        logging: this.createMutationQueryLogger("createRole", "roles insert query", requestId)
+      }))
       .then((role) => this.toRoleDto(role))
   }
 
-  updateRole(payload: iSharedUserRole.UpdateRolePayloadDto): Promise<iSharedUserRole.UpdateRoleResponseDto> {
+  updateRole(payload: iSharedUserRole.UpdateRolePayloadDto, requestId?: string): Promise<iSharedUserRole.UpdateRoleResponseDto> {
     const name = this.normalizeRoleName(payload.name)
 
     return this.roleModel.findByPk(payload.uid)
@@ -42,12 +45,14 @@ export class UsersService {
         this.assertRoleCanBeChanged(role.name)
 
         return this.assertRoleNameAvailable(name, role.uid)
-          .then(() => role.update({ name }))
+          .then(() => role.update({ name }, {
+            logging: this.createMutationQueryLogger("updateRole", "roles update query", requestId)
+          }))
           .then((updatedRole) => this.toRoleDto(updatedRole))
       })
   }
 
-  deleteRole(payload: iSharedUserRole.DeleteRolePayloadDto): Promise<iSharedUserRole.DeleteRoleResponseDto> {
+  deleteRole(payload: iSharedUserRole.DeleteRolePayloadDto, requestId?: string): Promise<iSharedUserRole.DeleteRoleResponseDto> {
     return this.roleModel.findByPk(payload.uid)
       .then((role) => {
         if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль не найдена")
@@ -59,13 +64,15 @@ export class UsersService {
               throw new Exceptions.ServiceError.ConflictError("Нельзя удалить роль, назначенную пользователям")
             }
 
-            return role.destroy()
+            return role.destroy({
+              logging: this.createMutationQueryLogger("deleteRole", "roles delete query", requestId)
+            })
           })
       })
       .then(() => ({ uid: payload.uid }))
   }
 
-  create(payload: iSharedUser.CreateUserPayloadDto): Promise<iSharedUser.PublicUserDto> {
+  create(payload: iSharedUser.CreateUserPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
     return this.assertLoginAvailable(payload.login)
       .then(() => this.getRolesByNames(payload.roleNames))
       .then((roles) => this.userModel.create({
@@ -74,10 +81,14 @@ export class UsersService {
         firstName: payload.firstName,
         lastName: payload.lastName,
         surname: payload.surname ?? null
+      }, {
+        logging: this.createMutationQueryLogger("create", "users insert query", requestId)
       })
         .then((user) => Promise.all(roles.map((role) => this.userRoleModel.create({
           userUid: user.uid,
           roleUid: role.uid
+        }, {
+          logging: this.createMutationQueryLogger("create", "user_roles insert query", requestId)
         })))
           .then((userRoles) => {
             user.roles = userRoles.map((userRole, index) => {
@@ -89,7 +100,7 @@ export class UsersService {
           })))
   }
 
-  update(payload: iSharedUser.UpdateUserPayloadDto): Promise<iSharedUser.PublicUserDto> {
+  update(payload: iSharedUser.UpdateUserPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
     return this.userModel.findByPk(payload.uid)
       .then((user) => {
         if (!user) throw new Exceptions.ServiceError.NotFoundError("Пользователь не найден")
@@ -101,16 +112,20 @@ export class UsersService {
             firstName: payload.firstName,
             lastName: payload.lastName,
             surname: payload.surname ?? null
+          }, {
+            logging: this.createMutationQueryLogger("update", "users update query", requestId)
           })
-            .then(() => this.updateUserRoles(user.uid, roles))
+            .then(() => this.updateUserRoles(user.uid, roles, requestId))
             .then(() => this.findPublicUser(user.uid)))
       })
   }
 
-  delete(payload: iSharedUser.DeleteUserPayloadDto): Promise<iSharedUser.DeleteUserResponseDto> {
+  delete(payload: iSharedUser.DeleteUserPayloadDto, requestId?: string): Promise<iSharedUser.DeleteUserResponseDto> {
     return this.findUserWithRoles(payload.uid)
       .then((user) => this.assertUserCanBeDeleted(user)
-        .then(() => user.destroy())
+        .then(() => user.destroy({
+          logging: this.createMutationQueryLogger("delete", "users delete query", requestId)
+        }))
         .then(() => ({ uid: payload.uid })))
   }
 
@@ -148,7 +163,7 @@ export class UsersService {
     }
   }
 
-  private updateUserRoles(userUid: UUID, roles: iDatabase.Models["Role"]["prototype"][]): Promise<void> {
+  private updateUserRoles(userUid: UUID, roles: iDatabase.Models["Role"]["prototype"][], requestId?: string): Promise<void> {
     return this.userRoleModel.findAll({ where: { userUid }, paranoid: false })
       .then((userRoles) => {
         const nextRoleUids = roles.map((role) => String(role.uid))
@@ -161,12 +176,19 @@ export class UsersService {
 
         return Promise.all([
           removedRoleUids.length
-            ? this.userRoleModel.destroy({ where: { userUid, roleUid: removedRoleUids } })
+            ? this.userRoleModel.destroy({
+              where: { userUid, roleUid: removedRoleUids },
+              logging: this.createMutationQueryLogger("updateUserRoles", "user_roles delete query", requestId)
+            })
             : Promise.resolve(0),
-          ...restoredUserRoles.map((userRole) => userRole.restore()),
+          ...restoredUserRoles.map((userRole) => userRole.restore({
+            logging: this.createMutationQueryLogger("updateUserRoles", "user_roles restore query", requestId)
+          })),
           ...addedRoles.map((role) => this.userRoleModel.create({
             userUid,
             roleUid: role.uid
+          }, {
+            logging: this.createMutationQueryLogger("updateUserRoles", "user_roles insert query", requestId)
           }))
         ])
           .then(() => undefined)
@@ -274,5 +296,15 @@ export class UsersService {
       uid: role.uid,
       name: role.name
     }
+  }
+
+  private createMutationQueryLogger(serviceMethod: string, event: string, requestId?: string): (sql: string) => void {
+    return this.databaseTools.createDatabaseQueryLogger({
+      requestId,
+      serviceName: this.constructor.name,
+      serviceMethod,
+      event,
+      mutation: true
+    })
   }
 }

@@ -1,0 +1,15 @@
+{
+  "database": {
+    "runtimeGrants": [
+      {
+        "table": "log_records",
+        "operations": ["SELECT", "INSERT"]
+      }
+    ]
+  },
+  "development": {
+    "localhost": {
+      "port": "4104"
+    }
+  }
+}

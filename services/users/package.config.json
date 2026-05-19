@@ -1,0 +1,23 @@
+{
+  "database": {
+    "runtimeGrants": [
+      {
+        "table": "users",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "roles",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "user_roles",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      }
+    ]
+  },
+  "development": {
+    "localhost": {
+      "port": "4102"
+    }
+  }
+}

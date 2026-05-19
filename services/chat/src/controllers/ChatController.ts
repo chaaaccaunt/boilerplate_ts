@@ -110,42 +110,42 @@ export class ChatController extends MicroServiceController {
 
   private createRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomCreatePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomCreateResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.createRoom"))
-    return this.service.createRoom(payload.data.userUid as UUID, payload.data)
+    return this.service.createRoom(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private updateRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomUpdatePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomUpdateResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.updateRoom"))
-    return this.service.updateRoom(payload.data.userUid as UUID, payload.data)
+    return this.service.updateRoom(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private deleteRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomDeletePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomDeleteResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.deleteRoom"))
-    return this.service.deleteRoom(payload.data.userUid as UUID, payload.data)
+    return this.service.deleteRoom(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private leaveRoom(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatRoomLeavePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatRoomLeaveResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.leaveRoom"))
-    return this.service.leaveRoom(payload.data.userUid as UUID, payload.data)
+    return this.service.leaveRoom(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private sendMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageSendPayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageSendResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.sendMessage"))
-    return this.service.sendMessage(payload.data.userUid as UUID, payload.data)
+    return this.service.sendMessage(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private updateMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageUpdatePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.updateMessage"))
-    return this.service.updateMessage(payload.data.userUid as UUID, payload.data)
+    return this.service.updateMessage(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private deleteMessage(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageDeletePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageDeleteResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.deleteMessage"))
-    return this.service.deleteMessage(payload.data.userUid as UUID, payload.data)
+    return this.service.deleteMessage(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private deleteMessageFile(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessageFileDeletePayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessageFileDeleteResponseDto> {
     if (!payload.data?.userUid) return Promise.reject(new Error("Отсутствует userUid для ChatService.deleteMessageFile"))
-    return this.service.deleteMessageFile(payload.data.userUid as UUID, payload.data)
+    return this.service.deleteMessageFile(payload.data.userUid as UUID, payload.data, payload.requestId)
   }
 
   private assertRoomAccess(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>): Promise<{ allowed: true }> {

@@ -1,7 +1,7 @@
 import { InternalServiceClient } from "@/services/InternalServiceClient"
-import { BaseController } from "./BaseController"
+import { HTTPController } from "@/libs"
 
-export class LogsGatewayController extends BaseController {
+export class LogsGatewayController extends HTTPController {
   constructor(private readonly logCollectorServiceClient: InternalServiceClient) {
     super()
 

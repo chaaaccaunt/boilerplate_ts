@@ -1,0 +1,43 @@
+{
+  "database": {
+    "runtimeGrants": [
+      {
+        "table": "users",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "user_roles",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "roles",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "chat_rooms",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "chat_room_members",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "chat_messages",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "chat_message_files",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "stored_files",
+        "operations": ["SELECT"]
+      }
+    ]
+  },
+  "development": {
+    "localhost": {
+      "port": "4103"
+    }
+  }
+}

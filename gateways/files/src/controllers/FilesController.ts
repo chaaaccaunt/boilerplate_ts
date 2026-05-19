@@ -1,17 +1,16 @@
-import { Exceptions } from "@/libs"
+import { Exceptions, HTTPController } from "@/libs"
 import { FileStorageService } from "@/services/FileStorageService"
-import { BaseController } from "./BaseController"
 
 interface iUploadPayload extends iContracts.iRequestContextPayload<iContracts.iMultipartPayload> {}
 
 interface iDownloadPayload extends iContracts.iRequestContextPayload<iContracts.iPayload> {}
 
-export class FilesController extends BaseController {
+export class FilesController extends HTTPController {
   private readonly service: FileStorageService
 
-  constructor(models: iDatabase.Models) {
+  constructor(models: iDatabase.Models, databaseTools: iLibs.DatabaseServiceTools) {
     super()
-    this.service = new FileStorageService(models)
+    this.service = new FileStorageService(models, databaseTools)
 
     const uploadRoute: iContracts.iRoute<iContracts.iMultipartPayload, iContracts.iControllerResult<iSharedFiles.UploadResponseDto>> = {
       url: /^\/files\/upload\/?$/,
@@ -79,7 +78,7 @@ export class FilesController extends BaseController {
 
     const user = payload.user
     const description = this.getDescription(payload.data.fields)
-    return Promise.all(payload.data.files.map((file) => this.service.create(file, description, user.uid)))
+    return Promise.all(payload.data.files.map((file) => this.service.create(file, description, user.uid, payload.requestId)))
       .then((files) => ({
         data: {
           files
@@ -100,7 +99,7 @@ export class FilesController extends BaseController {
     if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса")
 
-    return this.service.updateMetadata(payload.data, payload.user.uid)
+    return this.service.updateMetadata(payload.data, payload.user.uid, payload.requestId)
       .then((data) => ({ data }))
   }
 
@@ -108,7 +107,7 @@ export class FilesController extends BaseController {
     if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса")
 
-    return this.service.delete(payload.data, payload.user.uid)
+    return this.service.delete(payload.data, payload.user.uid, payload.requestId)
       .then((data) => ({ data }))
   }
 

@@ -1,7 +1,10 @@
 import { Exceptions } from "@/libs"
 
 export class LogCollectorService {
-  constructor(private readonly models: iDatabase.Models) {}
+  constructor(
+    private readonly models: iDatabase.Models,
+    private readonly databaseTools: iLibs.DatabaseServiceTools
+  ) {}
 
   collect(payload: iSharedLogs.CollectLogPayloadDto): Promise<iSharedLogs.LogRecordDto> {
     return this.models.LogRecord.create({
@@ -11,6 +14,14 @@ export class LogCollectorService {
       source: payload.source,
       message: payload.message,
       context: this.normalizeContext(payload.context)
+    }, {
+      logging: this.databaseTools.createDatabaseQueryLogger({
+        requestId: this.getPayloadRequestId(payload),
+        serviceName: this.constructor.name,
+        serviceMethod: "collect",
+        event: "log_records insert query",
+        mutation: true
+      })
     })
       .then((record) => this.toDto(record))
   }
@@ -69,5 +80,14 @@ export class LogCollectorService {
     }
 
     return value
+  }
+
+  private getPayloadRequestId(payload: iSharedLogs.CollectLogPayloadDto): string | undefined {
+    const context = payload.context
+
+    if (!context || typeof context !== "object" || Array.isArray(context)) return undefined
+
+    const requestId = context.requestId
+    return typeof requestId === "string" ? requestId : undefined
   }
 }

@@ -36,6 +36,7 @@ interface LogContext {
   path?: string
   payload?: LogValue
   result?: LogValue
+  sql?: string
   reason?: string
   error?: LogValue
   trace?: unknown

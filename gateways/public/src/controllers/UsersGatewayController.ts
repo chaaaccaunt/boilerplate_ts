@@ -1,8 +1,8 @@
 ﻿import { Exceptions } from "@/libs"
 import { InternalServiceClient } from "@/services/InternalServiceClient"
-import { BaseController } from "./BaseController"
+import { HTTPController } from "@/libs"
 
-export class UsersGatewayController extends BaseController {
+export class UsersGatewayController extends HTTPController {
   constructor(private readonly usersServiceClient: InternalServiceClient) {
     super()
 

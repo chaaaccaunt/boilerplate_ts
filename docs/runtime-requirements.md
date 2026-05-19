@@ -13,7 +13,7 @@
 - Корневой runner запускается через `npm run project -- <command>`.
 - Runtime backend-сервисы и gateway не должны создавать schema через `sequelize.sync()` и не должны выполнять seed.
 - Schema, начальные данные и runtime database grants подготавливаются через `services/database-migration`.
-- Для каждого backend-сервиса и gateway должен существовать package-local `database-grants.json`.
+- Для каждого backend-сервиса и gateway должен существовать package-local `package.config.json` с `database.runtimeGrants`.
 - Для каждого backend-сервиса и gateway должны существовать package-local env-файлы `.dev.env`, `.prod.env` и `.env.example`.
 - nginx используется как edge boundary для static, CORS preflight, method restrictions и CSRF/Origin checks.
 - Для быстрого локального development-старта допускается режим `localhost noNginx`, в котором frontend обращается к gateway напрямую, а `httpServer` отвечает на browser preflight `OPTIONS`.
@@ -47,11 +47,13 @@ Frontend использует `monolith/src/features/media-viewer` для пол
 Перед запуском development окружения нужно:
 
 - установить npm dependencies;
+- проверить корневой `development.config.json` с настройками стандартного localhost-flow;
+- проверить package-local `package.config.json` у services/gateways;
 - подготовить package-local `.dev.env` для frontend, gateway и backend-сервисов;
 - проверить, что `.dev.env` не указывает production database;
 - подготовить database и service user через migration package setup;
 - применить migrations;
-- выдать runtime grants из package-local `database-grants.json`;
+- выдать runtime grants из package-local `package.config.json`;
 - выполнить полный localhost-flow, если нужна чистая локальная база с development seed;
 - убедиться, что `libs/ffmpeg/lgpl/bin/ffmpeg.exe` доступен, если сценарии загрузки файлов должны создавать preview proxy.
 
@@ -75,6 +77,35 @@ npm run project -- localhost noNginx
 - включает `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true` для host-only cookies на `localhost`.
 
 Режим `noNginx` не заменяет nginx в production и не выполняет CSRF/Origin policy на edge-уровне.
+
+Стандартные hostname и cookie domain для localhost-flow задаются в корневом `development.config.json`:
+
+```json
+{
+  "localhost": {
+    "publicUserCookieDomain": ".gtrktuva.local",
+    "httpOrigin": "http://test.gtrktuva.local",
+    "baseUrl": "http://testapi.gtrktuva.local"
+  }
+}
+```
+
+Runtime database grants и стабильные localhost ports для отдельных backend packages задаются рядом с package в `package.config.json`:
+
+```json
+{
+  "database": {
+    "runtimeGrants": []
+  },
+  "development": {
+    "localhost": {
+      "port": "4200"
+    }
+  }
+}
+```
+
+Если package-local port конфликтует с другим явно заданным port, root runner должен завершиться ошибкой.
 
 Пересоздание database внутри localhost-flow допускается только для development/test/local database и не должно использоваться для production.
 

@@ -1,13 +1,12 @@
-import { HTTPServer } from "@/libs"
+import { HTTPController, HTTPServer } from "@/libs"
 import { InternalServiceClient } from "@/services/InternalServiceClient"
-import { BaseController } from "./BaseController"
 import { ChatHTTPGatewayController } from "./ChatHTTPGatewayController"
 import { LogsGatewayController } from "./LogsGatewayController"
 import { SystemMetricsGatewayController } from "./SystemMetricsGatewayController"
 import { UsersGatewayController } from "./UsersGatewayController"
 
 export class Controllers {
-  private readonly controllers: BaseController[]
+  private readonly controllers: HTTPController[]
 
   constructor(
     httpServer: HTTPServer,
@@ -28,5 +27,3 @@ export class Controllers {
     })
   }
 }
-
-export { BaseController }
