@@ -84,6 +84,7 @@ npm run project -- typecheck all
 ## Production
 
 Production flow строится вокруг заранее подготовленной БД и package-local `.prod.env`.
+Команда `build all` складывает production bundles в `build/service/<domain>`, `build/gateway/<domain>` и `build/monolith`, а также копирует туда `.prod.env` каждого package.
 
 Базовые команды:
 

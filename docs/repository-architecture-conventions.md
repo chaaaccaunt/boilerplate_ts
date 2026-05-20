@@ -307,7 +307,7 @@ services/database-migration/src/database/migrations/postgres
 npm run project -- migrate
 ```
 
-Production bundle миграций запускается через:
+Production bundle миграций собирается в `./build/service/database-migration` и запускается через:
 
 ```bash
 npm run project -- migrate dist

@@ -5,7 +5,7 @@
   "main": "src/bin/index.ts",
   "scripts": {
     "start": "nodemon",
-    "start:dist": "node dist/app.js",
+    "start:dist": "cd ../../build/gateway/authorization && node app.js",
     "typecheck": "tsc --noEmit",
     "build": "webpack --config webpack.config.ts"
   },

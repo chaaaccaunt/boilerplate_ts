@@ -1,4 +1,6 @@
 const { defineConfig } = require('@vue/cli-service')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const { resolve } = require('path')
 
 function getExternalDevServerConfig() {
   const hostname = process.env.VUE_APP_HOSTNAME
@@ -23,6 +25,19 @@ function getExternalDevServerConfig() {
 
 module.exports = defineConfig({
   transpileDependencies: true,
+  outputDir: resolve(__dirname, '../build/monolith'),
+  configureWebpack: {
+    plugins: [
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: resolve(__dirname, '.prod.env'),
+            to: '.prod.env'
+          }
+        ]
+      })
+    ]
+  },
   devServer: {
     host: '0.0.0.0',
     ...getExternalDevServerConfig()

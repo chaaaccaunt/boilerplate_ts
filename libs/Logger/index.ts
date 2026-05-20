@@ -82,6 +82,7 @@ class LogCollectorClient {
   private failureReported = false
   private inputBuffer = ""
   private readonly metrics = new RuntimeMetrics()
+  private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
 
   constructor(
     private readonly host: string | undefined,
@@ -91,7 +92,7 @@ class LogCollectorClient {
 
   send(record: LogRecord): void {
     if (!this.enabled || !this.host || !this.port || this.disabled) return
-    if (record.level === "debug") return
+    if (record.level === "debug" && !this.debugEnabled) return
 
     this.queue.push(`${JSON.stringify(record)}\n`)
     if (this.queue.length > this.maxQueueSize) {
@@ -280,6 +281,10 @@ export class Logger {
 
   error(message: string, context: LogContext = {}): void {
     this.log('error', message, context)
+  }
+
+  isDebugEnabled(): boolean {
+    return this.#debugEnabled
   }
 
   #sanitizeContext(context: LogContext): LogContext {

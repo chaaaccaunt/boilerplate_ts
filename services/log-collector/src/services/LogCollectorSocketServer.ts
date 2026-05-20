@@ -22,7 +22,7 @@ interface PendingMetricsRequest {
 
 export class LogCollectorSocketServer {
   private readonly server: Server
-  private readonly shouldPrintCollectedLogs = process.env.NODE_ENV !== "production"
+  private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
   private readonly connectionStates = new Set<CollectorConnectionState>()
   private readonly pendingMetricsRequests = new Map<string, PendingMetricsRequest>()
   private readonly metricsTimeoutMs = 1500
@@ -82,6 +82,7 @@ export class LogCollectorSocketServer {
         if (!payload) return null
         state.source = payload.source
         this.printCollectedLog(payload)
+        if (this.debugEnabled) return null
         return this.service.collect(payload)
       })
       .catch((error) => {
@@ -185,6 +186,8 @@ export class LogCollectorSocketServer {
     }
 
     this.printCollectedLog(payload)
+    if (this.debugEnabled) return
+
     this.service.collect(payload)
       .catch((error) => {
         this.logger.warn("Не удалось сохранить тревогу об отключении от log collector", {
@@ -196,7 +199,7 @@ export class LogCollectorSocketServer {
   }
 
   private printCollectedLog(payload: iSharedLogs.CollectLogPayloadDto): void {
-    if (!this.shouldPrintCollectedLogs) return
+    if (!this.debugEnabled) return
 
     console.log({
       timestamp: payload.timestamp,

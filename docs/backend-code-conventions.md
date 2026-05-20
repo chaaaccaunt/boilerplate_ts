@@ -152,14 +152,18 @@ return service.find(payload.uid)
 
 Production-сборка backend должна собираться как Node.js bundle.
 
-Основной результат сборки backend-сервиса должен находиться в `./services/<service-name>/dist/app.js` и запускаться командой:
+Основной результат сборки backend-сервиса должен находиться в `./build/service/<service-name>/app.js`, а gateway — в `./build/gateway/<gateway-name>/app.js`.
+Запуск выполняется командой:
 
 ```bash
 npm run project -- start-dist service <service-name>
 ```
 
-Backend bundle должен быть рассчитан на запуск без локальной папки `node_modules` рядом с `dist`.
+Backend bundle должен быть рассчитан на запуск без локальной папки `node_modules` рядом с `build/service/<service-name>` или `build/gateway/<gateway-name>`.
 Runtime-зависимости, необходимые приложению, должны попадать в bundle.
+
+Production bundle каждого backend-сервиса и gateway должен содержать package-local `.prod.env`, скопированный через `CopyWebpackPlugin`.
+Package-local `start:dist` должен запускать bundle из соответствующей директории `./build/service/<service-name>` или `./build/gateway/<gateway-name>`, чтобы `AppConfiguration` читал `.prod.env` рядом с production bundle.
 
 Webpack-конфигурация backend должна:
 

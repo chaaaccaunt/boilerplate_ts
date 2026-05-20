@@ -79,7 +79,8 @@
   - CRUD/mutation операции логируются на gateway boundary и как результат mutating service method;
   - SQL-запросы, которые меняют данные, логируются точечно через `DatabaseServiceTools.createDatabaseQueryLogger` с `mutation: true`;
   - SQL перед записью в лог проходит через `sanitizeSql`, пароль не попадает в context в открытом виде;
-  - обычные `GET`, read-only `list*` calls и `debug`-логи не отправляются в `log-collector`;
+  - при обычном log level `GET`, read-only `list*` calls и `debug`-логи не отправляются в `log-collector`;
+  - при `VAR_APP_LOG_LEVEL=debug` services/gateways отправляют все записи, а `log-collector` печатает их в консоль и не пишет в `log_records`;
   - collector lifecycle использует `kind: collector_connection` и `kind: collector_disconnection`;
   - disconnect от `log-collector` фиксируется как тревога `level: error`;
   - чувствительные данные не попадают в context.

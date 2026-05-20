@@ -424,7 +424,7 @@ nginx не включается в logging map.
 - подключение backend-сервиса или gateway к `log-collector`;
 - потерю подключения backend-сервиса или gateway к `log-collector`.
 
-Не логировать в `log-collector`:
+Не логировать в `log-collector` при обычном log level:
 
 - обычные `GET` requests;
 - read-only internal service calls, например `list*`;
@@ -434,7 +434,9 @@ nginx не включается в logging map.
 - password, token, cookie, secret, authorization headers и другие чувствительные данные;
 - временные диагностические логи после завершения задачи.
 
-`debug`-логи используются только как локальная диагностическая детализация runtime и не отправляются в `log-collector`.
+При `VAR_APP_LOG_LEVEL=debug` backend packages отправляют в `log-collector` все записи, включая `debug`, обычные `GET` requests и read-only internal calls.
+В этом режиме `log-collector` печатает принятые записи в консоль и не записывает их в `log_records`.
+При обычном log level `debug`-логи используются только как локальная диагностическая детализация runtime и не отправляются в `log-collector`.
 
 Записи `log-collector` должны иметь отдельный `kind`, который описывает тип события независимо от severity `level`:
 

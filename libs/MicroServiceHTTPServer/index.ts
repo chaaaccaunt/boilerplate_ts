@@ -217,6 +217,8 @@ export class MicroServiceHTTPServer {
   }
 
   private shouldLogServiceResult(serviceMethod: string | undefined, status: number): boolean {
+    if (this.logger.isDebugEnabled()) return true
+
     if (status >= 400) return true
     if (!serviceMethod) return false
     return /^(create|update|delete|send|leave)/.test(serviceMethod)

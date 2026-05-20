@@ -264,6 +264,8 @@ export class HTTPServer {
   }
 
   private shouldLogRequest(request: IncomingMessage): boolean {
+    if (this.logger.isDebugEnabled()) return true
+
     return request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
   }
 

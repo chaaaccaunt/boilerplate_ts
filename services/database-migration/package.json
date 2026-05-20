@@ -8,12 +8,12 @@
   },
   "scripts": {
     "setup": "ts-node -r tsconfig-paths/register ./src/bin/setup.ts",
-    "setup:dist": "node dist/setup.js",
+    "setup:dist": "cd ../../build/service/database-migration && node setup.js",
     "drop-database": "ts-node -r tsconfig-paths/register ./src/bin/drop-database.ts",
     "grant-runtime": "ts-node -r tsconfig-paths/register ./src/bin/grant-runtime.ts",
     "seed-development": "ts-node -r tsconfig-paths/register ./src/bin/seed-development.ts",
     "start": "ts-node -r tsconfig-paths/register ./src/bin",
-    "start:dist": "node dist/app.js",
+    "start:dist": "cd ../../build/service/database-migration && node app.js",
     "typecheck": "tsc --noEmit",
     "build": "webpack --config webpack.config.ts"
   },

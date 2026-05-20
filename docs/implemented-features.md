@@ -193,6 +193,7 @@
 Покрытый сценарий:
 
 - root runner для install/dev/build/typecheck/start-dist;
+- production bundles в корневых `./build/service/<domain>`, `./build/gateway/<domain>` и `./build/monolith` со скопированным package-local `.prod.env`;
 - workspace discovery по `services/*`, `gateways/*`, `monolith`;
 - package-local env loading;
 - development env generation;

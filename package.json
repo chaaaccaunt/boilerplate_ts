@@ -15,5 +15,8 @@
     "build": "node index.js build",
     "typecheck": "node index.js typecheck",
     "start:dist": "node index.js start-dist"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^9.0.1"
   }
 }
