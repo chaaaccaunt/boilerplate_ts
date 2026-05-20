@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "fs"
+import { existsSync, readFileSync } from "fs"
 import { resolve } from "path"
 
 const prefix = process.env.NODE_ENV === "production" ? ".prod" : ".dev"
@@ -13,7 +13,7 @@ export class Envs {
     const exist = resolve(process.cwd(), `${prefix}.env`)
     if (existsSync(exist)) return { path: exist, data: readFileSync(exist, "utf-8") }
 
-    writeFileSync(resolve(process.cwd(), `${prefix}.env`), "")
+    throw new Error(`Не найден package-local env-файл: ${exist}`)
   }
 
   private static readEnvFile(data: string) {

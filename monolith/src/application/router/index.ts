@@ -28,19 +28,19 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/users',
     name: 'users',
-    meta: { requiresAuthorization: true },
+    meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
     component: () => import(/* webpackChunkName: "users" */ '@/views/users/UsersView.vue')
   },
   {
     path: "/logs",
     name: "logs",
-    meta: { requiresAuthorization: true },
+    meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
     component: () => import(/* webpackChunkName: "logs" */ "@/views/logs/LogsView.vue")
   },
   {
     path: "/system",
     name: "system",
-    meta: { requiresAuthorization: true },
+    meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
     component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemMetricsView.vue")
   },
   {
@@ -66,6 +66,10 @@ export function registerRouterGuards(
 
     try {
       await apiClient.authorization.state()
+      if (!hasAllowedRole(store, to.meta.allowedRoles)) {
+        return { name: "home" }
+      }
+
       return true
     } catch (error) {
       store.commit("authorization/clearUser")
@@ -77,5 +81,12 @@ export function registerRouterGuards(
       }
     }
   })
+}
+
+function hasAllowedRole(store: Store<iSharedState.RootState>, allowedRoles: unknown): boolean {
+  if (!Array.isArray(allowedRoles) || !allowedRoles.length) return true
+
+  const userRoles = store.state.authorization.user?.roles.map((role) => role.name) || []
+  return allowedRoles.some((roleName) => typeof roleName === "string" && userRoles.includes(roleName as iSharedUserRole.UserRoleName))
 }
 

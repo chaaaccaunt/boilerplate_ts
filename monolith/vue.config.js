@@ -3,7 +3,7 @@ const { defineConfig } = require('@vue/cli-service')
 function getExternalDevServerConfig() {
   const hostname = process.env.VUE_APP_HOSTNAME
 
-  if (!hostname) return {}
+  if (!hostname || hostname === "УкажитеЗначение") return {}
 
   const url = new URL(hostname)
   const isHttps = url.protocol === 'https:'

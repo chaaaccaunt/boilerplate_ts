@@ -141,10 +141,11 @@ function stopProcessTree(pid) {
 
 function run(command, args, cwd, env) {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, {
+    const spawnCommand = getSpawnCommand(command, args)
+    const child = spawn(spawnCommand.command, spawnCommand.args, {
       cwd,
-      env,
-      shell: true,
+      env: getSpawnEnv(env),
+      shell: false,
       stdio: "inherit"
     })
 
@@ -159,6 +160,33 @@ function run(command, args, cwd, env) {
 
     child.on("error", rejectPromise)
   })
+}
+
+function getSpawnCommand(command, args) {
+  if (process.platform !== "win32") {
+    return { command, args }
+  }
+
+  const commandLine = [getWindowsExecutableCommand(command), ...args].map(escapeCmdArgument).join(" ")
+
+  return {
+    command: "cmd.exe",
+    args: ["/d", "/s", "/c", commandLine]
+  }
+}
+
+function getWindowsExecutableCommand(command) {
+  if (command !== "npm") return command
+
+  return "npm.cmd"
+}
+
+function getSpawnEnv(env) {
+  return Object.fromEntries(
+    Object.entries(env || process.env)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, String(value)])
+  )
 }
 
 function getLocalBinaryPath(binaryName, config) {
@@ -183,8 +211,8 @@ function getCommandWindowTitle(command) {
 }
 
 function escapeCmdArgument(value) {
-  if (/^[A-Za-z0-9_./:=-]+$/.test(value)) return value
-  return `"${String(value).replace(/"/g, '\\"')}"`
+  if (/^[A-Za-z0-9_./:\\=-]+$/.test(value)) return value
+  return `"${String(value).replace(/"/g, '""')}"`
 }
 
 function escapeCmdTitle(value) {

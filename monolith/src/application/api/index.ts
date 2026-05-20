@@ -37,7 +37,7 @@ function createGatewayHttpClient(baseUrl: string): HttpClient {
 function getRequiredApiBaseUrl(key: string): string {
   const baseUrl = process.env[key]
 
-  if (!baseUrl) {
+  if (!baseUrl || baseUrl === "УкажитеЗначение") {
     throw new Error(`Не задана обязательная переменная окружения ${key}`)
   }
 
@@ -45,5 +45,8 @@ function getRequiredApiBaseUrl(key: string): string {
 }
 
 function getOptionalApiBaseUrl(key: string): string | undefined {
-  return process.env[key]
+  const value = process.env[key]
+  if (!value || value === "УкажитеЗначение") return undefined
+
+  return value
 }

@@ -6,7 +6,7 @@ Envs.assignEnv()
 const logger = new Logger()
 
 const setupService = new DatabaseSetupService({
-  databaseDialect: getOptionalEnv("VAR_DB_DIALECT") || "mysql",
+  databaseDialect: getRequiredEnv("VAR_DB_DIALECT"),
   databaseHost: getRequiredEnv("VAR_DB_HOST"),
   databasePort: getOptionalEnv("VAR_DB_PORT"),
   databaseName: getRequiredEnv("VAR_DB_NAME"),

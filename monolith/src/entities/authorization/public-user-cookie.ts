@@ -28,7 +28,7 @@ function readPublicUserCookie(): iSharedUser.PublicUserDto | null {
 function getRequiredPublicUserCookieName(): string {
   const cookieName = process.env.VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME
 
-  if (!cookieName) {
+  if (!cookieName || cookieName === "УкажитеЗначение") {
     throw new Error("Не задана обязательная переменная окружения VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME")
   }
 

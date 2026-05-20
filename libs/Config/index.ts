@@ -20,8 +20,10 @@ export interface iAppConfig {
   }
 }
 
+type EnvValues = Partial<Record<keyof NodeJS.ProcessEnv, string>>
+
 export class AppConfiguration {
-  private readonly requiredEnvKeys: NodeJS.ProcessEnv
+  private readonly requiredEnvKeys: EnvValues
   private readonly optionalEnvKeys: readonly (keyof NodeJS.ProcessEnv)[] = [
     "VAR_APP_LOG_LEVEL",
     "VAR_INTERNAL_SERVICE_TOKEN",
@@ -70,30 +72,37 @@ export class AppConfiguration {
     }
   }
 
-  private getRequiredEnvKeys(): NodeJS.ProcessEnv {
+  private getRequiredEnvKeys(): EnvValues {
     return {
-      VAR_DB_HOST: process.env.VAR_DB_HOST,
-      VAR_DB_DIALECT: process.env.VAR_DB_DIALECT,
-      VAR_DB_NAME: process.env.VAR_DB_NAME,
-      VAR_DB_PASSWORD: process.env.VAR_DB_PASSWORD,
-      VAR_DB_PORT: process.env.VAR_DB_PORT,
-      VAR_DB_USER: process.env.VAR_DB_USER,
-      VAR_HTTP_PORT: process.env.VAR_HTTP_PORT,
-      VAR_HTTP_ORIGIN: process.env.VAR_HTTP_ORIGIN,
-      VAR_HTTP_COOKIE_NAME: process.env.VAR_HTTP_COOKIE_NAME,
-      VAR_HTTP_PUBLIC_USER_COOKIE_NAME: process.env.VAR_HTTP_PUBLIC_USER_COOKIE_NAME,
-      VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: process.env.VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN,
-      VAR_HTTP_JWT_AUDIENCE: process.env.VAR_HTTP_JWT_AUDIENCE,
-      VAR_HTTP_JWT_ISSUER: process.env.VAR_HTTP_JWT_ISSUER,
-      VAR_HTTP_JWT_SECRET: process.env.VAR_HTTP_JWT_SECRET,
-      VAR_HTTP_ALLOW_HOST_ONLY_COOKIES: process.env.VAR_HTTP_ALLOW_HOST_ONLY_COOKIES,
-      VAR_HTTP_ENABLE_PREFLIGHT: process.env.VAR_HTTP_ENABLE_PREFLIGHT,
-      VAR_INTERNAL_SERVICE_TOKEN: process.env.VAR_INTERNAL_SERVICE_TOKEN,
-      VAR_APP_LOG_LEVEL: process.env.VAR_APP_LOG_LEVEL,
-      VAR_USERS_SERVICE_URL: process.env.VAR_USERS_SERVICE_URL,
-      VAR_CHAT_SERVICE_URL: process.env.VAR_CHAT_SERVICE_URL,
-      VAR_LOG_COLLECTOR_SERVICE_URL: process.env.VAR_LOG_COLLECTOR_SERVICE_URL
+      VAR_DB_HOST: this.getProcessEnvValue("VAR_DB_HOST"),
+      VAR_DB_DIALECT: this.getProcessEnvValue("VAR_DB_DIALECT"),
+      VAR_DB_NAME: this.getProcessEnvValue("VAR_DB_NAME"),
+      VAR_DB_PASSWORD: this.getProcessEnvValue("VAR_DB_PASSWORD"),
+      VAR_DB_PORT: this.getProcessEnvValue("VAR_DB_PORT"),
+      VAR_DB_USER: this.getProcessEnvValue("VAR_DB_USER"),
+      VAR_HTTP_PORT: this.getProcessEnvValue("VAR_HTTP_PORT"),
+      VAR_HTTP_ORIGIN: this.getProcessEnvValue("VAR_HTTP_ORIGIN"),
+      VAR_HTTP_COOKIE_NAME: this.getProcessEnvValue("VAR_HTTP_COOKIE_NAME"),
+      VAR_HTTP_PUBLIC_USER_COOKIE_NAME: this.getProcessEnvValue("VAR_HTTP_PUBLIC_USER_COOKIE_NAME"),
+      VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: this.getProcessEnvValue("VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN"),
+      VAR_HTTP_JWT_AUDIENCE: this.getProcessEnvValue("VAR_HTTP_JWT_AUDIENCE"),
+      VAR_HTTP_JWT_ISSUER: this.getProcessEnvValue("VAR_HTTP_JWT_ISSUER"),
+      VAR_HTTP_JWT_SECRET: this.getProcessEnvValue("VAR_HTTP_JWT_SECRET"),
+      VAR_HTTP_ALLOW_HOST_ONLY_COOKIES: this.getProcessEnvValue("VAR_HTTP_ALLOW_HOST_ONLY_COOKIES"),
+      VAR_HTTP_ENABLE_PREFLIGHT: this.getProcessEnvValue("VAR_HTTP_ENABLE_PREFLIGHT"),
+      VAR_INTERNAL_SERVICE_TOKEN: this.getProcessEnvValue("VAR_INTERNAL_SERVICE_TOKEN"),
+      VAR_APP_LOG_LEVEL: this.getProcessEnvValue("VAR_APP_LOG_LEVEL"),
+      VAR_USERS_SERVICE_URL: this.getProcessEnvValue("VAR_USERS_SERVICE_URL"),
+      VAR_CHAT_SERVICE_URL: this.getProcessEnvValue("VAR_CHAT_SERVICE_URL"),
+      VAR_LOG_COLLECTOR_SERVICE_URL: this.getProcessEnvValue("VAR_LOG_COLLECTOR_SERVICE_URL")
     }
+  }
+
+  private getProcessEnvValue(key: keyof NodeJS.ProcessEnv): string | undefined {
+    const value = process.env[key]
+    if (!value || value === "УкажитеЗначение") return undefined
+
+    return value
   }
 
   private validateEnv(): void {
@@ -102,26 +111,30 @@ export class AppConfiguration {
       if (!this.requiredEnvKeys[key] && !this.optionalEnvKeys.includes(key)) {
         missingKeys.push(key)
       }
+
+      if (this.requiredEnvKeys[key] === "УкажитеЗначение" && !this.optionalEnvKeys.includes(key)) {
+        missingKeys.push(key)
+      }
     }
     if (missingKeys.length > 0) {
-      throw new Error(`Отсутствуют обязательные переменные окружения: ${missingKeys.join(", ")}`)
+      throw new Error(`Отсутствуют обязательные переменные окружения: ${Array.from(new Set(missingKeys)).join(", ")}`)
     }
 
     this.validateDatabaseEnv()
   }
 
   private validateDatabaseEnv(): void {
-    const databaseKeys: (keyof NodeJS.ProcessEnv)[] = ["VAR_DB_HOST", "VAR_DB_NAME", "VAR_DB_PASSWORD", "VAR_DB_USER"]
-    const providedDatabaseKeys = databaseKeys.filter((key) => Boolean(this.requiredEnvKeys[key]))
+    const databaseKeys: (keyof NodeJS.ProcessEnv)[] = ["VAR_DB_DIALECT", "VAR_DB_HOST", "VAR_DB_NAME", "VAR_DB_PASSWORD", "VAR_DB_USER"]
+    const providedDatabaseKeys = databaseKeys.filter((key) => this.hasConfiguredEnvValue(this.requiredEnvKeys[key]))
 
     if (providedDatabaseKeys.length > 0 && providedDatabaseKeys.length < databaseKeys.length) {
-      const missingDatabaseKeys = databaseKeys.filter((key) => !this.requiredEnvKeys[key])
+      const missingDatabaseKeys = databaseKeys.filter((key) => !this.hasConfiguredEnvValue(this.requiredEnvKeys[key]))
       throw new Error(`Не полностью задана конфигурация БД: ${missingDatabaseKeys.join(", ")}`)
     }
   }
 
   private getDatabaseConfig(): Options | undefined {
-    if (!this.requiredEnvKeys.VAR_DB_HOST && !this.requiredEnvKeys.VAR_DB_NAME && !this.requiredEnvKeys.VAR_DB_PASSWORD && !this.requiredEnvKeys.VAR_DB_USER) {
+    if (!this.hasConfiguredEnvValue(this.requiredEnvKeys.VAR_DB_HOST) && !this.hasConfiguredEnvValue(this.requiredEnvKeys.VAR_DB_NAME) && !this.hasConfiguredEnvValue(this.requiredEnvKeys.VAR_DB_PASSWORD) && !this.hasConfiguredEnvValue(this.requiredEnvKeys.VAR_DB_USER)) {
       return undefined
     }
 
@@ -138,7 +151,7 @@ export class AppConfiguration {
   }
 
   private getDatabaseDialect(): Dialect {
-    const dialect = this.requiredEnvKeys.VAR_DB_DIALECT || "mysql"
+    const dialect = this.getRequiredEnv("VAR_DB_DIALECT")
 
     if (dialect !== "mysql" && dialect !== "postgres") {
       throw new Error(`Неподдерживаемый Sequelize dialect: ${dialect}`)
@@ -169,8 +182,12 @@ export class AppConfiguration {
 
   private getRequiredEnv(key: keyof NodeJS.ProcessEnv): string {
     const value = this.requiredEnvKeys[key]
-    if (!value) throw new Error(`Отсутствует обязательная переменная окружения: ${key}`)
+    if (!this.hasConfiguredEnvValue(value)) throw new Error(`Отсутствует обязательная переменная окружения: ${key}`)
     return value
+  }
+
+  private hasConfiguredEnvValue(value: string | undefined): value is string {
+    return Boolean(value && value !== "УкажитеЗначение")
   }
 
   private getBooleanEnv(key: keyof NodeJS.ProcessEnv): boolean {

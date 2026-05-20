@@ -212,15 +212,22 @@ export class HTTPResponseSender {
   }
 
   private getCookieDomain(): string | null {
-    const hostname = new URL(this.config.origin).hostname
-    const parts = hostname.split(".").filter(Boolean)
+    const domain = this.config.public_user_cookie_domain
 
-    if (parts.length < 2) {
-      if (this.config.allowHostOnlyCookies) return null
-      throw new Error("VAR_HTTP_ORIGIN должен содержать hostname, из которого можно вычислить cookie domain второго уровня")
+    if (!domain || domain === "УкажитеЗначение") {
+      throw new Error("Не задана обязательная переменная окружения VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN")
     }
 
-    return `.${parts.slice(-2).join(".")}`
+    if (domain === "host-only") {
+      if (this.config.allowHostOnlyCookies) return null
+      throw new Error("Host-only cookies разрешены только при VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true")
+    }
+
+    if (!/^\.[A-Za-z0-9.-]+$/.test(domain)) {
+      throw new Error("VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN должен быть domain с ведущей точкой или значением host-only")
+    }
+
+    return domain
   }
 
   private formatSameSite(value: iContracts.iCookieOptions["sameSite"]): string {

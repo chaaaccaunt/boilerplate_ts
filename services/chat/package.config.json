@@ -15,11 +15,11 @@
       },
       {
         "table": "chat_rooms",
-        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+        "operations": ["SELECT", "INSERT", "UPDATE"]
       },
       {
         "table": "chat_room_members",
-        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+        "operations": ["SELECT", "INSERT", "UPDATE"]
       },
       {
         "table": "chat_messages",
