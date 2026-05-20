@@ -98,7 +98,7 @@ Runtime packages работают с уже подготовленной schema.
 
 Корневой `index.js` — тонкая CLI-точка входа для разработки и сборки.
 
-Основная логика root runner находится в `scripts/project-runner`. Runner обнаруживает workspaces, запускает package-local scripts и готовит localhost окружение.
+Основная логика root runner находится в `scripts/project-runner`. Runner обнаруживает workspaces, запускает package-local scripts и готовит development окружение.
 
 ## Реализованные области
 
@@ -112,6 +112,6 @@ Runtime packages работают с уже подготовленной schema.
 - тема интерфейса;
 - сбор application logs через `log-collector`;
 - runtime metrics через `log-collector`;
-- development orchestration и localhost flow.
+- development orchestration и init-flow.
 
 Актуальный список реализованных фич находится в `docs/implemented-features.md`.

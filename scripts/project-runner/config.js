@@ -33,6 +33,8 @@ function createProjectConfig() {
     localhostDatabaseHost: getLocalhostDatabaseHost(developmentConfig),
     localhostDatabasePort: getLocalhostDatabasePort(developmentConfig),
     localhostDatabaseServiceHost: getLocalhostDatabaseServiceHost(developmentConfig),
+    localhostNoNginx: getLocalhostNoNginx(developmentConfig),
+    localhostDebug: getLocalhostDebug(developmentConfig),
     localhostPublicUserCookieDomain: developmentConfig.localhost.publicUserCookieDomain,
     localhostHttpOrigin: developmentConfig.localhost.httpOrigin,
     baseUrl: developmentConfig.localhost.baseUrl,
@@ -73,6 +75,8 @@ function getDevelopmentConfig() {
   validateRequiredDevelopmentConfigValue(localhost.publicUserCookieDomain, "localhost.publicUserCookieDomain", sourceConfigFileName)
   validateRequiredDevelopmentConfigValue(localhost.httpOrigin, "localhost.httpOrigin", sourceConfigFileName)
   validateRequiredDevelopmentConfigValue(localhost.baseUrl, "localhost.baseUrl", sourceConfigFileName)
+  validateOptionalDevelopmentConfigBoolean(localhost.noNginx, "localhost.noNginx", sourceConfigFileName)
+  validateOptionalDevelopmentConfigBoolean(localhost.debug, "localhost.debug", sourceConfigFileName)
   validateOptionalDatabaseConfig(localhost.database, sourceConfigFileName)
 
   return config
@@ -106,6 +110,12 @@ function validateOptionalDevelopmentConfigString(value, path, configFileName) {
   }
 }
 
+function validateOptionalDevelopmentConfigBoolean(value, path, configFileName) {
+  if (value !== undefined && typeof value !== "boolean") {
+    throw new Error(`В ${configFileName} должно быть задано boolean-значение ${path}`)
+  }
+}
+
 function getLocalhostDatabaseConfig(developmentConfig) {
   return developmentConfig.localhost.database || {}
 }
@@ -125,6 +135,14 @@ function getLocalhostDatabasePort(developmentConfig) {
 
 function getLocalhostDatabaseServiceHost(developmentConfig) {
   return getLocalhostDatabaseConfig(developmentConfig).serviceHost || defaultDatabaseServiceHost
+}
+
+function getLocalhostNoNginx(developmentConfig) {
+  return developmentConfig.localhost.noNginx === true
+}
+
+function getLocalhostDebug(developmentConfig) {
+  return developmentConfig.localhost.debug !== false
 }
 
 module.exports = {

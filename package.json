@@ -10,7 +10,7 @@
   "scripts": {
     "project": "node index.js",
     "dev": "node index.js dev",
-    "localhost": "node index.js localhost",
+    "init": "node index.js init",
     "install:all": "node index.js install",
     "build": "node index.js build",
     "typecheck": "node index.js typecheck",

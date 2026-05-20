@@ -7,7 +7,7 @@ README описывает только общие понятия и основн
 ## Требования
 
 - Node.js и npm;
-- MySQL/MariaDB или PostgreSQL для готового localhost-flow;
+- MySQL/MariaDB или PostgreSQL для готового init-flow;
 - установленные npm dependencies;
 - nginx для полного edge-flow;
 - FFmpeg LGPL binary для preview proxy файлов, если нужны превью изображений и видео.
@@ -35,7 +35,7 @@ README описывает только общие понятия и основн
 - `shared/@types` — JSON-safe contracts между frontend и backend.
 - `libs` — общая backend infrastructure.
 - `models` — общие Sequelize model declarations и factories.
-- `scripts/project-runner` — root runner для разработки, сборки и localhost-flow.
+- `scripts/project-runner` — root runner для разработки, сборки и инициализации development-окружения.
 
 Подробная карта директорий и реализованных областей находится в `docs/project-structure.md`.
 
@@ -47,26 +47,26 @@ README описывает только общие понятия и основн
 npm install
 ```
 
-`development.config.json` хранит локальные настройки localhost-flow и не коммитится.
+`development.config.json` хранит локальные настройки development-flow и не коммитится.
 Пример находится в `development.config.example.json`.
 
-Полный localhost-flow готовит локальное окружение разработки и запускает dev-режим.
-Последние два аргумента — admin credentials локальной СУБД, а не пользователь приложения.
+Полный init-flow готовит локальное окружение разработки и запускает dev-режим.
+Аргументы команды — host локальной СУБД и admin credentials локальной СУБД, а не пользователь приложения.
+Режим прямого запуска без nginx задается в `development.config.json` через `localhost.noNginx`, debug-логирование — через `localhost.debug`.
 
 ```bash
-npm run project -- localhost <db-admin-user> <db-admin-password>
+npm run project -- init <db-host> <db-admin-user> <db-admin-password>
 ```
 
 Примеры:
 
 ```bash
-npm run project -- localhost root <db-admin-password>
-npm run project -- localhost postgres <db-admin-password>
-npm run project -- localhost noNginx <db-admin-user> <db-admin-password>
+npm run project -- init localhost root <db-admin-password>
+npm run project -- init localhost postgres <db-admin-password>
 ```
 
-Готовый localhost-flow поддерживает `mysql` и `postgres`.
-Sequelize runtime может работать с другими dialects, но для них нужно отдельно добавить localhost-flow.
+Готовый init-flow поддерживает `mysql` и `postgres`.
+Sequelize runtime может работать с другими dialects, но для них нужно отдельно добавить development init-flow.
 Подробнее: `docs/runtime-requirements.md`.
 
 Обычный запуск разработки:
@@ -113,7 +113,7 @@ dev         запустить development
 build       собрать packages
 typecheck   проверить типы
 migrate     применить миграции
-localhost   подготовить localhost окружение и запустить dev
+init        подготовить development окружение и запустить dev
 start-dist  запустить production bundle backend package
 workspace   запустить package-local script
 ```

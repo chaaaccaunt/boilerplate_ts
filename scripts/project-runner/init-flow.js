@@ -4,18 +4,27 @@ const { getPackageDirectoryNames } = require("./workspaces")
 const { getDatabaseRuntimeUserConfigItems, getLocalhostPackagePort, getLocalhostPackagePorts } = require("./package-config")
 const { getPackageLocalEnv, parseEnvFile, updateEnvFile, writeDevelopmentEnvFile } = require("./env-files")
 
-function parseLocalhostOptions(args) {
-  const noNginxFlags = new Set(["noNginx", "--noNginx", "--no-nginx"])
-  const noNginx = args.some((arg) => noNginxFlags.has(arg))
-  const credentials = args.filter((arg) => !noNginxFlags.has(arg))
-
-  if (credentials.length !== 0 && credentials.length !== 2) {
-    throw new Error("Формат команды: localhost [noNginx] [db-admin-user db-admin-password]")
+function parseInitOptions(args, config) {
+  if (args.length !== 3) {
+    throw new Error("Формат команды: init <db-host> <db-admin-user> <db-admin-password>")
   }
 
+  const [databaseHost, databaseAdminUserName, databaseAdminPassword] = args
+
+  validateInitArgument(databaseHost, "db-host")
+  validateInitArgument(databaseAdminUserName, "db-admin-user")
+  validateInitArgument(databaseAdminPassword, "db-admin-password")
+
   return {
-    noNginx,
-    credentials
+    noNginx: config.localhostNoNginx,
+    databaseHost: databaseHost.trim(),
+    credentials: [databaseAdminUserName.trim(), databaseAdminPassword.trim()]
+  }
+}
+
+function validateInitArgument(value, name) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Аргумент ${name} должен быть непустой строкой`)
   }
 }
 
@@ -61,7 +70,7 @@ function getLocalhostDatabaseAdminCredentials(args, migrationWorkspaceDirectory)
   const password = migrationEnv.VAR_DB_ADMIN_PASSWORD || process.env.VAR_DB_ADMIN_PASSWORD
 
   if (!userName || !password || userName === "УкажитеЗначение" || password === "УкажитеЗначение") {
-    throw new Error("Укажите admin-доступ к database server: npm run project -- localhost <db-admin-user> <db-admin-password>")
+    throw new Error("Укажите admin-доступ к database server: npm run project -- init <db-host> <db-admin-user> <db-admin-password>")
   }
 
   return { userName, password }
@@ -78,7 +87,7 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
   }))
 
   writeDevelopmentEnvFile(join(config.servicesDirectory, "database-migration"), {
-    VAR_APP_LOG_LEVEL: "debug",
+    VAR_APP_LOG_LEVEL: getDevelopmentLogLevel(config),
     VAR_HTTP_PORT: "8094",
     VAR_HTTP_ORIGIN: getLocalhostHttpOrigin(config, options),
     VAR_HTTP_COOKIE_NAME: config.localhostCookieName,
@@ -90,7 +99,7 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
     ...createNoNginxHttpDevelopmentEnv(options),
     VAR_INTERNAL_SERVICE_TOKEN: config.localhostInternalServiceToken,
     VAR_DB_DIALECT: config.localhostDatabaseDialect,
-    VAR_DB_HOST: config.localhostDatabaseHost,
+    VAR_DB_HOST: getInitDatabaseHost(config, options),
     VAR_DB_PORT: config.localhostDatabasePort,
     VAR_DB_NAME: config.localhostDatabaseName,
     VAR_DB_USER: config.localhostMigrationUser.userName,
@@ -102,13 +111,13 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
     VAR_DB_RUNTIME_GRANTS: JSON.stringify(runtimeGrants)
   })
 
-  writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts)
+  writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts, options)
   writeLocalhostGatewayDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts, options)
 
   writeDevelopmentEnvFile(config.frontendPackageDirectory, createFrontendDevelopmentEnv(config, localhostPackagePorts, options))
 }
 
-function writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts) {
+function writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts, options) {
   getPackageDirectoryNames(config.servicesDirectory)
     .filter((packageName) => packageName !== "database-migration")
     .forEach((packageName) => {
@@ -118,7 +127,8 @@ function writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhos
         packageDirectory: join(config.servicesDirectory, packageName),
         port: getLocalhostPackagePort(localhostPackagePorts, "service", packageName),
         localhostPackagePorts,
-        runtimeUsers
+        runtimeUsers,
+        databaseHost: options.databaseHost
       })
     })
 }
@@ -133,7 +143,8 @@ function writeLocalhostGatewayDevelopmentEnvFiles(config, runtimeUsers, localhos
         port: getLocalhostPackagePort(localhostPackagePorts, "gateway", packageName),
         localhostPackagePorts,
         runtimeUsers,
-        noNginx: options.noNginx
+        noNginx: options.noNginx,
+        databaseHost: options.databaseHost
       })
     })
 }
@@ -143,23 +154,27 @@ function writeLocalhostBackendPackageDevelopmentEnvFile(config, options) {
 
   writeDevelopmentEnvFile(options.packageDirectory, {
     ...createHttpDevelopmentEnv(config, options.port, options),
-    ...createBackendDatabaseDevelopmentEnv(config, runtimeUser),
+    ...createBackendDatabaseDevelopmentEnv(config, runtimeUser, options),
     ...createBackendCommonDevelopmentEnv(config, options.packageKind, options.packageName),
     ...getLocalhostPackageSpecificDevelopmentEnv(config, options.packageKind, options.packageName, options.localhostPackagePorts)
   })
 }
 
-function createBackendDatabaseDevelopmentEnv(config, runtimeUser) {
+function createBackendDatabaseDevelopmentEnv(config, runtimeUser, options = {}) {
   if (!runtimeUser) return {}
 
   return {
     VAR_DB_DIALECT: config.localhostDatabaseDialect,
-    VAR_DB_HOST: config.localhostDatabaseHost,
+    VAR_DB_HOST: getInitDatabaseHost(config, options),
     VAR_DB_PORT: config.localhostDatabasePort,
     VAR_DB_NAME: config.localhostDatabaseName,
     VAR_DB_USER: runtimeUser.userName,
     VAR_DB_PASSWORD: runtimeUser.password
   }
+}
+
+function getInitDatabaseHost(config, options = {}) {
+  return options.databaseHost || config.localhostDatabaseHost
 }
 
 function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageName, localhostPackagePorts) {
@@ -193,7 +208,7 @@ function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageN
 
 function createHttpDevelopmentEnv(config, port, options = {}) {
   return {
-    VAR_APP_LOG_LEVEL: "debug",
+    VAR_APP_LOG_LEVEL: getDevelopmentLogLevel(config),
     VAR_HTTP_PORT: port,
     VAR_HTTP_ORIGIN: getLocalhostHttpOrigin(config, options),
     VAR_HTTP_COOKIE_NAME: config.localhostCookieName,
@@ -321,7 +336,11 @@ function resolvePackageDirectoryByName(packagesDirectory, rawPackageName) {
 
 module.exports = {
   getLocalhostDatabaseAdminCredentials,
-  parseLocalhostOptions,
+  parseInitOptions,
   updateRuntimeDevelopmentEnvFiles,
   writeLocalhostDevelopmentEnvFiles
+}
+
+function getDevelopmentLogLevel(config) {
+  return config.localhostDebug ? "debug" : "info"
 }

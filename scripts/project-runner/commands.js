@@ -1,6 +1,6 @@
 const { createProcessRunner } = require("./process-runner")
 const { getPackageLocalEnv } = require("./env-files")
-const { getLocalhostDatabaseAdminCredentials, parseLocalhostOptions, updateRuntimeDevelopmentEnvFiles, writeLocalhostDevelopmentEnvFiles } = require("./localhost-flow")
+const { getLocalhostDatabaseAdminCredentials, parseInitOptions, updateRuntimeDevelopmentEnvFiles, writeLocalhostDevelopmentEnvFiles } = require("./init-flow")
 const { showHelp } = require("./help")
 
 function createCommands(context) {
@@ -30,9 +30,9 @@ function createCommands(context) {
       description: "Выполнить миграции базы данных: migrate [dev|dist]",
       handler: (args) => handleMigrate(context, processRunner, args)
     },
-    localhost: {
-      description: "Инициализировать development env из package.config.json, пересоздать БД и запустить localhost: localhost [noNginx] [db-admin-user db-admin-password]",
-      handler: (args) => handleLocalhost(context, processRunner, args)
+    init: {
+      description: "Инициализировать development env, пересоздать БД и запустить dev: init <db-host> <db-admin-user> <db-admin-password>",
+      handler: (args) => handleInit(context, processRunner, args)
     },
     "start-dist": {
       description: "Запустить production bundle: start-dist [service <name>|gateway <name>]",
@@ -132,8 +132,8 @@ function handleMigrate(context, processRunner, args) {
   throw new Error("Формат команды: migrate [dev|dist]")
 }
 
-function handleLocalhost(context, processRunner, args) {
-  const options = parseLocalhostOptions(args)
+function handleInit(context, processRunner, args) {
+  const options = parseInitOptions(args, context.config)
 
   const migrationWorkspaceName = context.workspaces.getServiceWorkspaceName("database-migration")
   const migrationWorkspaceDirectory = context.workspaces.getWorkspaceDirectory(migrationWorkspaceName)

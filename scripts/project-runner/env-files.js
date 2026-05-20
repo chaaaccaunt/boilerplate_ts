@@ -50,7 +50,7 @@ function writeDevelopmentEnvFile(packageDirectory, values) {
     .join("\n")
 
   writeFileSync(envFilePath, `${data}\n`, "utf-8")
-  console.log(`Сгенерирован localhost env: ${envFilePath}`)
+  console.log(`Сгенерирован development env: ${envFilePath}`)
 }
 
 function updateEnvFile(data, nextValues) {
