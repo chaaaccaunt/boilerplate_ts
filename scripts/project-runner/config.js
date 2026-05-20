@@ -11,7 +11,7 @@ const rootDevelopmentConfigExampleFileName = "development.config.example.json"
 const localhostNoNginxHttpOrigin = "http://localhost:8080"
 const defaultDatabaseDialect = "mysql"
 const defaultDatabaseHost = "localhost"
-const defaultDatabaseServiceHost = "localhost"
+const defaultDatabaseServiceHost = "%"
 const defaultDatabasePorts = {
   mysql: "3306",
   postgres: "5432"

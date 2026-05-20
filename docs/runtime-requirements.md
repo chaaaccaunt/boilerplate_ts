@@ -79,7 +79,7 @@ const databaseConfig = {
       "dialect": "mysql",
       "host": "localhost",
       "port": "3306",
-      "serviceHost": "localhost"
+      "serviceHost": "%"
     }
   }
 }
@@ -103,11 +103,14 @@ npm run project -- localhost root <db-admin-password>
       "dialect": "postgres",
       "host": "localhost",
       "port": "5432",
-      "serviceHost": "localhost"
+      "serviceHost": "%"
     }
   }
 }
 ```
+
+`serviceHost` задает host-scope для создаваемых runtime database users. Для MySQL/MariaDB значение `%` означает wildcard-host в выражениях вида `'users_svc'@'%'`.
+Для PostgreSQL SQL role не привязана к host таким же образом; доступ по host настраивается на уровне `pg_hba.conf`, а `serviceHost` остается в config как единый параметр localhost-flow.
 
 Команда запуска:
 
@@ -229,19 +232,19 @@ npm run project -- localhost noNginx <db-admin-user> <db-admin-password>
 Стандартные hostname и cookie domain для localhost-flow задаются в локальном корневом `development.config.json`.
 Файл `development.config.json` не хранится в Git и предназначен для настроек конкретной машины.
 Если локальный файл отсутствует, root runner использует fallback `development.config.example.json`.
-Блок `localhost.database` необязателен; если он отсутствует, используется `mysql` на `localhost:3306`.
+Блок `localhost.database` необязателен; если он отсутствует, используется `mysql` на `localhost:3306` с `serviceHost` `%`.
 
 ```json
 {
   "localhost": {
-    "publicUserCookieDomain": ".gtrktuva.local",
-    "httpOrigin": "http://test.gtrktuva.local",
-    "baseUrl": "http://testapi.gtrktuva.local",
+    "publicUserCookieDomain": ".localhost",
+    "httpOrigin": "http://localhost:8080",
+    "baseUrl": "http://localhost:4200",
     "database": {
       "dialect": "postgres",
       "host": "localhost",
       "port": "5432",
-      "serviceHost": "localhost"
+      "serviceHost": "%"
     }
   }
 }
