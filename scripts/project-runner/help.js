@@ -11,8 +11,8 @@ function showHelp(commands) {
   console.log("  npm run project -- dev gateway public")
   console.log("  npm run project -- migrate")
   console.log("  npm run project -- migrate dist")
-  console.log("  npm run project -- localhost root password")
-  console.log("  npm run project -- localhost noNginx root password")
+  console.log("  npm run project -- localhost <db-admin-user> <db-admin-password>")
+  console.log("  npm run project -- localhost noNginx <db-admin-user> <db-admin-password>")
   console.log("  npm run project -- build frontend")
   console.log("  npm run project -- workspace service:users start")
 }

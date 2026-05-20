@@ -1,5 +1,6 @@
 import mysql2 from "mysql2"
-import { Options } from "sequelize"
+import * as postgresDriver from "pg"
+import { Dialect, Options } from "sequelize"
 import { iHTTPConfig } from "../HTTPServer"
 import { Envs } from "./env"
 
@@ -25,8 +26,10 @@ export class AppConfiguration {
     "VAR_APP_LOG_LEVEL",
     "VAR_INTERNAL_SERVICE_TOKEN",
     "VAR_DB_HOST",
+    "VAR_DB_DIALECT",
     "VAR_DB_NAME",
     "VAR_DB_PASSWORD",
+    "VAR_DB_PORT",
     "VAR_DB_USER",
     "VAR_HTTP_ALLOW_HOST_ONLY_COOKIES",
     "VAR_HTTP_ENABLE_PREFLIGHT",
@@ -70,8 +73,10 @@ export class AppConfiguration {
   private getRequiredEnvKeys(): NodeJS.ProcessEnv {
     return {
       VAR_DB_HOST: process.env.VAR_DB_HOST,
+      VAR_DB_DIALECT: process.env.VAR_DB_DIALECT,
       VAR_DB_NAME: process.env.VAR_DB_NAME,
       VAR_DB_PASSWORD: process.env.VAR_DB_PASSWORD,
+      VAR_DB_PORT: process.env.VAR_DB_PORT,
       VAR_DB_USER: process.env.VAR_DB_USER,
       VAR_HTTP_PORT: process.env.VAR_HTTP_PORT,
       VAR_HTTP_ORIGIN: process.env.VAR_HTTP_ORIGIN,
@@ -124,11 +129,42 @@ export class AppConfiguration {
       host: this.getRequiredEnv("VAR_DB_HOST"),
       database: this.getRequiredEnv("VAR_DB_NAME"),
       password: this.getRequiredEnv("VAR_DB_PASSWORD"),
+      port: this.getDatabasePort(),
       username: this.getRequiredEnv("VAR_DB_USER"),
-      dialect: "mysql",
-      dialectModule: mysql2,
+      dialect: this.getDatabaseDialect(),
+      dialectModule: this.getDatabaseDialectModule(),
       logging: false
     }
+  }
+
+  private getDatabaseDialect(): Dialect {
+    const dialect = this.requiredEnvKeys.VAR_DB_DIALECT || "mysql"
+
+    if (dialect !== "mysql" && dialect !== "postgres") {
+      throw new Error(`Неподдерживаемый Sequelize dialect: ${dialect}`)
+    }
+
+    return dialect
+  }
+
+  private getDatabaseDialectModule(): object {
+    const dialect = this.getDatabaseDialect()
+
+    if (dialect === "postgres") return postgresDriver
+
+    return mysql2
+  }
+
+  private getDatabasePort(): number | undefined {
+    const port = this.requiredEnvKeys.VAR_DB_PORT
+    if (!port) return undefined
+
+    const parsedPort = Number(port)
+    if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+      throw new Error("VAR_DB_PORT должен быть номером TCP-порта")
+    }
+
+    return parsedPort
   }
 
   private getRequiredEnv(key: keyof NodeJS.ProcessEnv): string {

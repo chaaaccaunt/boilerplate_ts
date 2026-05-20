@@ -289,8 +289,17 @@ Service controllers должны наследоваться от `MicroServiceCo
 ```
 
 Миграции должны храниться внутри `services/database-migration/src/database/migrations` в виде SQL-файлов и применяться в лексикографическом порядке.
+Если SQL-синтаксис отличается между поддерживаемыми database dialects, dialect-specific набор миграций должен храниться в поддиректории с именем Sequelize dialect, например:
+
+```text
+services/database-migration/src/database/migrations/postgres
+```
+
+Если такая директория существует для текущего dialect, migration service выполняет миграции из нее вместо корневого набора SQL-файлов.
+Корневой набор SQL-файлов сейчас является MySQL/MariaDB-compatible набором по умолчанию.
 Сервис миграций должен записывать примененные файлы в таблицу `database_migrations` и не должен вызывать `sequelize.sync()`.
 При добавлении или изменении Sequelize model агент обязан добавить соответствующий SQL-файл миграции в `services/database-migration/src/database/migrations` в той же задаче.
+Если поддерживается несколько dialects, соответствующее изменение schema должно быть внесено во все поддерживаемые наборы миграций.
 
 Миграции запускаются через root runner:
 

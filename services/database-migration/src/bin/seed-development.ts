@@ -24,7 +24,54 @@ function seedDevelopmentData(): Promise<void> {
   }
 
   return sequelize.authenticate()
-    .then(() => sequelize.transaction((transaction) => sequelize.query(`
+    .then(() => sequelize.transaction((transaction) => sequelize.query(getUpsertAdministratorUserSql(), {
+      replacements: [developmentAdministratorUserUid, developmentAdministratorPasswordHash],
+      transaction
+    })
+      .then(() => sequelize.query(getUpsertAdministratorUserRoleSql(), {
+        replacements: [developmentAdministratorUserRoleUid, developmentAdministratorUserUid, administratorRoleUid],
+        transaction
+      }))))
+    .then(() => sequelize.close())
+    .catch((error) => sequelize.close()
+      .catch(() => undefined)
+      .then(() => Promise.reject(error)))
+}
+
+function getUpsertAdministratorUserSql(): string {
+  if (sequelize.getDialect() === "postgres") {
+    return `
+      INSERT INTO "users" (
+        "uid",
+        "login",
+        "password",
+        "firstName",
+        "lastName",
+        "surname",
+        "createdAt",
+        "updatedAt"
+      )
+      VALUES (
+        ?,
+        'admin@example.com',
+        ?,
+        'Admin',
+        'User',
+        NULL,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("login") DO UPDATE SET
+        "password" = EXCLUDED."password",
+        "firstName" = EXCLUDED."firstName",
+        "lastName" = EXCLUDED."lastName",
+        "surname" = EXCLUDED."surname",
+        "deletedAt" = NULL,
+        "updatedAt" = CURRENT_TIMESTAMP
+    `
+  }
+
+  return `
       INSERT INTO \`users\` (
         \`uid\`,
         \`login\`,
@@ -52,11 +99,33 @@ function seedDevelopmentData(): Promise<void> {
         \`surname\` = VALUES(\`surname\`),
         \`deletedAt\` = NULL,
         \`updatedAt\` = CURRENT_TIMESTAMP
-    `, {
-      replacements: [developmentAdministratorUserUid, developmentAdministratorPasswordHash],
-      transaction
-    })
-      .then(() => sequelize.query(`
+    `
+}
+
+function getUpsertAdministratorUserRoleSql(): string {
+  if (sequelize.getDialect() === "postgres") {
+    return `
+      INSERT INTO "user_roles" (
+        "uid",
+        "userUid",
+        "roleUid",
+        "createdAt",
+        "updatedAt"
+      )
+      VALUES (
+        ?,
+        ?,
+        ?,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("userUid", "roleUid") DO UPDATE SET
+        "deletedAt" = NULL,
+        "updatedAt" = CURRENT_TIMESTAMP
+    `
+  }
+
+  return `
         INSERT INTO \`user_roles\` (
           \`uid\`,
           \`userUid\`,
@@ -74,12 +143,5 @@ function seedDevelopmentData(): Promise<void> {
         ON DUPLICATE KEY UPDATE
           \`deletedAt\` = NULL,
           \`updatedAt\` = CURRENT_TIMESTAMP
-      `, {
-        replacements: [developmentAdministratorUserRoleUid, developmentAdministratorUserUid, administratorRoleUid],
-        transaction
-      }))))
-    .then(() => sequelize.close())
-    .catch((error) => sequelize.close()
-      .catch(() => undefined)
-      .then(() => Promise.reject(error)))
+      `
 }

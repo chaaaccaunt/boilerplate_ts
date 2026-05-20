@@ -2,7 +2,13 @@
   "localhost": {
     "publicUserCookieDomain": ".localhost",
     "httpOrigin": "http://localhost:8080",
-    "baseUrl": "http://localhost:4200"
+    "baseUrl": "http://localhost:4200",
+    "database": {
+      "dialect": "mysql",
+      "host": "localhost",
+      "port": "3306",
+      "serviceHost": "localhost"
+    }
   }
 }
 

@@ -6,7 +6,9 @@ Envs.assignEnv()
 const logger = new Logger()
 
 const setupService = new DatabaseSetupService({
+  databaseDialect: getOptionalEnv("VAR_DB_DIALECT") || "mysql",
   databaseHost: getRequiredEnv("VAR_DB_HOST"),
+  databasePort: getOptionalEnv("VAR_DB_PORT"),
   databaseName: getRequiredEnv("VAR_DB_NAME"),
   serviceUserName: getRequiredEnv("VAR_DB_USER"),
   serviceUserPassword: getRequiredEnv("VAR_DB_PASSWORD"),
@@ -35,6 +37,13 @@ function getRequiredEnv(key: keyof NodeJS.ProcessEnv): string {
   if (!value || value === "УкажитеЗначение") {
     throw new Error(`Не задана обязательная переменная окружения: ${key}`)
   }
+
+  return value
+}
+
+function getOptionalEnv(key: keyof NodeJS.ProcessEnv): string | undefined {
+  const value = process.env[key]
+  if (!value || value === "УкажитеЗначение") return undefined
 
   return value
 }

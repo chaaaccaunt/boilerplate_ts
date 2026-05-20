@@ -31,7 +31,7 @@ function createCommands(context) {
       handler: (args) => handleMigrate(context, processRunner, args)
     },
     localhost: {
-      description: "Инициализировать development env из package.config.json, пересоздать БД и запустить localhost: localhost [noNginx] [db-root-user db-root-password]",
+      description: "Инициализировать development env из package.config.json, пересоздать БД и запустить localhost: localhost [noNginx] [db-admin-user db-admin-password]",
       handler: (args) => handleLocalhost(context, processRunner, args)
     },
     "start-dist": {

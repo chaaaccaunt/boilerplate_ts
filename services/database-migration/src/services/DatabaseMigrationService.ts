@@ -26,10 +26,12 @@ export class DatabaseMigrationService {
   }
 
   private ensureMigrationsTable(): Promise<unknown> {
+    const appliedAtType = this.sequelize.getDialect() === "postgres" ? "TIMESTAMP" : "DATETIME"
+
     return this.sequelize.query(`
       CREATE TABLE IF NOT EXISTS ${this.migrationsTableName} (
         name VARCHAR(255) NOT NULL PRIMARY KEY,
-        applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        applied_at ${appliedAtType} NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `)
   }
@@ -49,15 +51,23 @@ export class DatabaseMigrationService {
   }
 
   private getMigrationFiles(): MigrationFile[] {
-    if (!existsSync(this.migrationsDirectory)) return []
+    const migrationsDirectory = this.getDialectMigrationsDirectory()
+    if (!existsSync(migrationsDirectory)) return []
 
-    return readdirSync(this.migrationsDirectory)
+    return readdirSync(migrationsDirectory)
       .filter((fileName) => extname(fileName) === ".sql")
       .sort((left, right) => left.localeCompare(right))
       .map((fileName) => ({
         name: basename(fileName),
-        path: resolve(this.migrationsDirectory, fileName)
+        path: resolve(migrationsDirectory, fileName)
       }))
+  }
+
+  private getDialectMigrationsDirectory(): string {
+    const dialectDirectory = resolve(this.migrationsDirectory, this.sequelize.getDialect())
+    if (existsSync(dialectDirectory)) return dialectDirectory
+
+    return this.migrationsDirectory
   }
 
   private applyMigrations(migrations: MigrationFile[]): Promise<void> {

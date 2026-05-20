@@ -1,10 +1,10 @@
-import { resolve } from "path"
+﻿import { resolve } from "path"
 import TerserPlugin from "terser-webpack-plugin"
 import webpack from "webpack"
 import type { Configuration } from "webpack"
 
-const optionalRuntimeDependencies = /^(pg|pg-hstore|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk|bufferutil|utf-8-validate)$/
-const unusedSequelizeDialects = /sequelize[\\/]lib[\\/]dialects[\\/](mariadb|mssql|oracle|postgres|sqlite|db2|snowflake)/
+const optionalRuntimeDependencies = /^(pg-hstore|pg-native|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk|bufferutil|utf-8-validate)$/
+const unusedSequelizeDialects = /sequelize[\\/]lib[\\/]dialects[\\/](mariadb|mssql|oracle|sqlite|db2|snowflake)/
 const rootPath = resolve(__dirname, "../..")
 
 const config: Configuration = {

@@ -10,7 +10,7 @@ function parseLocalhostOptions(args) {
   const credentials = args.filter((arg) => !noNginxFlags.has(arg))
 
   if (credentials.length !== 0 && credentials.length !== 2) {
-    throw new Error("Формат команды: localhost [noNginx] [db-root-user db-root-password]")
+    throw new Error("Формат команды: localhost [noNginx] [db-admin-user db-admin-password]")
   }
 
   return {
@@ -31,7 +31,9 @@ function updateRuntimeDevelopmentEnvFiles(config, migrationWorkspaceDirectory) {
     if (!existsSync(envFilePath)) return
 
     const nextValues = {
+      VAR_DB_DIALECT: migrationEnv.VAR_DB_DIALECT,
       VAR_DB_HOST: migrationEnv.VAR_DB_HOST,
+      VAR_DB_PORT: migrationEnv.VAR_DB_PORT,
       VAR_DB_NAME: migrationEnv.VAR_DB_NAME,
       VAR_DB_USER: runtimeUser.userName,
       VAR_DB_PASSWORD: runtimeUser.password
@@ -59,7 +61,7 @@ function getLocalhostDatabaseAdminCredentials(args, migrationWorkspaceDirectory)
   const password = migrationEnv.VAR_DB_ADMIN_PASSWORD || process.env.VAR_DB_ADMIN_PASSWORD
 
   if (!userName || !password || userName === "УкажитеЗначение" || password === "УкажитеЗначение") {
-    throw new Error("Укажите root-доступ к MySQL: npm run project -- localhost <db-root-user> <db-root-password>")
+    throw new Error("Укажите admin-доступ к database server: npm run project -- localhost <db-admin-user> <db-admin-password>")
   }
 
   return { userName, password }
@@ -71,7 +73,7 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
   const runtimeGrants = runtimeUsers.map((runtimeUser) => ({
     userName: runtimeUser.userName,
     password: runtimeUser.password,
-    host: "localhost",
+    host: config.localhostDatabaseServiceHost,
     grants: runtimeUser.grants
   }))
 
@@ -87,13 +89,15 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
     VAR_HTTP_JWT_ISSUER: config.localhostJwtIssuer,
     ...createNoNginxHttpDevelopmentEnv(options),
     VAR_INTERNAL_SERVICE_TOKEN: config.localhostInternalServiceToken,
-    VAR_DB_HOST: "localhost",
+    VAR_DB_DIALECT: config.localhostDatabaseDialect,
+    VAR_DB_HOST: config.localhostDatabaseHost,
+    VAR_DB_PORT: config.localhostDatabasePort,
     VAR_DB_NAME: config.localhostDatabaseName,
     VAR_DB_USER: config.localhostMigrationUser.userName,
     VAR_DB_PASSWORD: config.localhostMigrationUser.password,
     VAR_DB_ADMIN_USER: databaseAdminUserName,
     VAR_DB_ADMIN_PASSWORD: databaseAdminPassword,
-    VAR_DB_SERVICE_HOST: "localhost",
+    VAR_DB_SERVICE_HOST: config.localhostDatabaseServiceHost,
     VAR_DB_SERVICE_GRANTS: "SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,DROP,INDEX,REFERENCES",
     VAR_DB_RUNTIME_GRANTS: JSON.stringify(runtimeGrants)
   })
@@ -149,7 +153,9 @@ function createBackendDatabaseDevelopmentEnv(config, runtimeUser) {
   if (!runtimeUser) return {}
 
   return {
-    VAR_DB_HOST: "localhost",
+    VAR_DB_DIALECT: config.localhostDatabaseDialect,
+    VAR_DB_HOST: config.localhostDatabaseHost,
+    VAR_DB_PORT: config.localhostDatabasePort,
     VAR_DB_NAME: config.localhostDatabaseName,
     VAR_DB_USER: runtimeUser.userName,
     VAR_DB_PASSWORD: runtimeUser.password

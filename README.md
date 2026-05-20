@@ -4,10 +4,10 @@ Fullstack boilerplate для проектов, где frontend остается 
 
 README описывает проект на уровне понятий. Детальные правила, conventions, checklist и сценарии разработки находятся в `./docs`.
 
-## Базовые требования
+## Требования
 
 - Node.js и npm;
-- MySQL-compatible database server;
+- MySQL/MariaDB или PostgreSQL для готового localhost-flow;
 - установленные npm dependencies;
 - nginx для полного edge-flow;
 - FFmpeg LGPL binary для preview proxy файлов, если нужны превью изображений и видео.
@@ -93,30 +93,17 @@ Service layer не знает HTTP status codes и не формирует HTTP 
 
 Прикладной backend-код использует публичную поверхность `@/libs`, а не внутренние файлы infrastructure напрямую.
 
-### Models
+### Database
 
 `models` содержит общие Sequelize model declarations и model factories.
-
-Изменение модели не заменяет миграцию. Если меняется schema, соответствующая SQL migration добавляется в `services/database-migration`.
-
-### Database migration
-
-`services/database-migration` — отдельный utility package для подготовки БД.
-
-Runtime services и gateways:
-
-- не вызывают `sequelize.sync()`;
-- не создают schema;
-- не выполняют seed;
-- работают под package-specific database user с минимальными runtime grants.
-
-Schema, grants и development seed готовятся отдельным migration/setup flow.
+`services/database-migration` подготавливает БД, миграции, начальные данные и права доступа.
+Runtime packages работают с уже подготовленной schema.
 
 ### Root runner
 
 Корневой `index.js` — тонкая CLI-точка входа для разработки и сборки.
 
-Основная логика root runner находится в `scripts/project-runner`. Она обнаруживает workspaces, запускает package-local scripts, генерирует localhost env и собирает package-local runtime database grants из `package.config.json`.
+Основная логика root runner находится в `scripts/project-runner`. Она обнаруживает workspaces, запускает package-local scripts и готовит localhost окружение.
 
 ## Структура
 
@@ -146,7 +133,7 @@ index.js      root runner entrypoint
 - тема интерфейса;
 - сбор application logs через `log-collector`;
 - runtime metrics через `log-collector`;
-- development orchestration, migrations, grants и localhost flow.
+- development orchestration и localhost flow.
 
 Актуальный список реализованных фич находится в `docs/implemented-features.md`.
 
@@ -158,17 +145,27 @@ index.js      root runner entrypoint
 npm install
 ```
 
-Полный localhost-flow:
+`development.config.json` хранит локальные настройки localhost-flow и не коммитится.
+Пример находится в `development.config.example.json`.
+
+Полный localhost-flow готовит локальное окружение разработки и запускает dev-режим.
+Последние два аргумента — admin credentials локальной СУБД, а не пользователь приложения.
 
 ```bash
-npm run project -- localhost root password
+npm run project -- localhost <db-admin-user> <db-admin-password>
 ```
 
-Development без локального nginx:
+Примеры:
 
 ```bash
-npm run project -- localhost noNginx root password
+npm run project -- localhost root <db-admin-password>
+npm run project -- localhost postgres <db-admin-password>
+npm run project -- localhost noNginx <db-admin-user> <db-admin-password>
 ```
+
+Готовый localhost-flow поддерживает `mysql` и `postgres`.
+Sequelize runtime может работать с другими dialects, но для них нужно отдельно добавить localhost-flow.
+Подробнее: `docs/runtime-requirements.md`.
 
 Обычный запуск разработки:
 
@@ -195,7 +192,7 @@ npm run project -- start-dist service users
 npm run project -- start-dist gateway public
 ```
 
-Runtime backend в production должен работать под отдельными database users с минимальными правами и не должен выполнять schema changes или seed.
+Runtime backend в production должен запускаться поверх заранее подготовленной database schema.
 
 ## Root CLI
 
@@ -214,7 +211,7 @@ dev         запустить development
 build       собрать packages
 typecheck   проверить типы
 migrate     применить миграции
-localhost   подготовить localhost env, БД, grants, seed и запустить dev
+localhost   подготовить localhost окружение и запустить dev
 start-dist  запустить production bundle backend package
 workspace   запустить package-local script
 ```

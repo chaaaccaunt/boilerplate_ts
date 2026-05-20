@@ -167,10 +167,13 @@ Webpack-конфигурация backend должна:
 - отключать browser polyfills для Node.js core modules;
 - собирать единый server entrypoint без frontend-oriented code splitting;
 - не включать optional database drivers, которые не используются проектом;
-- оставлять MySQL runtime совместимым с `sequelize` и `mysql2`;
+- оставлять runtime совместимым с выбранным Sequelize dialect и соответствующим driver package;
+- учитывать `dialectModule` из Sequelize config, чтобы выбранный driver попадал в bundle предсказуемо;
 - использовать production-оптимизации, подходящие для крупных production-приложений.
 
 Если проект меняет основной database dialect, список ignored optional database drivers в `./services/<service-name>/webpack.config.ts` должен быть пересмотрен явно.
+Одновременно нужно пересмотреть `AppConfiguration.getDatabaseConfig()`, package dependencies и migration/setup SQL, потому что Sequelize dialect меняет driver, синтаксис подключения и допустимые DDL/GRANT операции.
+В текущей конфигурации production bundle должен сохранять `mysql2`, `pg`, Sequelize dialects `mysql` и `postgres`, но игнорировать optional `pg-native`, если проект не принимает отдельное решение использовать native PostgreSQL driver.
 
 ## WebSocket gateways
 

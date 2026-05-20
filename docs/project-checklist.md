@@ -8,7 +8,9 @@
 - Проверить, что `.dev.env` и `.prod.env` указывают разные базы данных.
 - Проверить, что production database user не используется в `.dev.env`.
 - Проверить обязательные переменные:
+  - `VAR_DB_DIALECT`;
   - `VAR_DB_HOST`;
+  - `VAR_DB_PORT`;
   - `VAR_DB_NAME`;
   - `VAR_DB_USER`;
   - `VAR_DB_PASSWORD`;
@@ -21,6 +23,9 @@
   - `VAR_HTTP_JWT_AUDIENCE`;
   - `VAR_HTTP_JWT_ISSUER`.
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
+- Проверить, что `VAR_DB_DIALECT` равен поддерживаемому Sequelize dialect для проекта, например `mysql` или `postgres`.
+- Проверить, что `VAR_DB_PORT` соответствует выбранной СУБД.
+- Если менялась schema, проверить миграции для всех поддерживаемых dialects: корневой MySQL/MariaDB-compatible набор и `migrations/postgres`.
 - Проверить, что `VAR_HTTP_ORIGIN` содержит hostname, из которого runtime может вычислить cookie domain второго уровня с ведущей точкой, например `.gtrktuva.local`.
 - Для стандартного localhost-flow проверить, что `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` равен `.gtrktuva.local`, если используются hostnames `test.gtrktuva.local` и `testapi.gtrktuva.local`.
 - Для режима `localhost noNginx` проверить, что `VAR_HTTP_ENABLE_PREFLIGHT=true` и `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true` заданы только в development `.dev.env`.

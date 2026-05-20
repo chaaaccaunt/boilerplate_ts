@@ -9,6 +9,13 @@ const packageConfigFileName = "package.config.json"
 const rootDevelopmentConfigFileName = "development.config.json"
 const rootDevelopmentConfigExampleFileName = "development.config.example.json"
 const localhostNoNginxHttpOrigin = "http://localhost:8080"
+const defaultDatabaseDialect = "mysql"
+const defaultDatabaseHost = "localhost"
+const defaultDatabaseServiceHost = "localhost"
+const defaultDatabasePorts = {
+  mysql: "3306",
+  postgres: "5432"
+}
 
 function createProjectConfig() {
   const developmentConfig = getDevelopmentConfig()
@@ -22,6 +29,10 @@ function createProjectConfig() {
     rootDevelopmentConfigFileName,
     rootDevelopmentConfigExampleFileName,
     localhostDatabaseName: "boilerplate_dev",
+    localhostDatabaseDialect: getLocalhostDatabaseDialect(developmentConfig),
+    localhostDatabaseHost: getLocalhostDatabaseHost(developmentConfig),
+    localhostDatabasePort: getLocalhostDatabasePort(developmentConfig),
+    localhostDatabaseServiceHost: getLocalhostDatabaseServiceHost(developmentConfig),
     localhostPublicUserCookieDomain: developmentConfig.localhost.publicUserCookieDomain,
     localhostHttpOrigin: developmentConfig.localhost.httpOrigin,
     baseUrl: developmentConfig.localhost.baseUrl,
@@ -62,6 +73,7 @@ function getDevelopmentConfig() {
   validateRequiredDevelopmentConfigValue(localhost.publicUserCookieDomain, "localhost.publicUserCookieDomain", sourceConfigFileName)
   validateRequiredDevelopmentConfigValue(localhost.httpOrigin, "localhost.httpOrigin", sourceConfigFileName)
   validateRequiredDevelopmentConfigValue(localhost.baseUrl, "localhost.baseUrl", sourceConfigFileName)
+  validateOptionalDatabaseConfig(localhost.database, sourceConfigFileName)
 
   return config
 }
@@ -70,6 +82,49 @@ function validateRequiredDevelopmentConfigValue(value, path, configFileName) {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`В ${configFileName} должно быть задано строковое значение ${path}`)
   }
+}
+
+function validateOptionalDatabaseConfig(database, configFileName) {
+  if (database === undefined) return
+
+  if (!database || typeof database !== "object" || Array.isArray(database)) {
+    throw new Error(`В ${configFileName} localhost.database должен быть объектом`)
+  }
+
+  if (database.dialect !== undefined && database.dialect !== "mysql" && database.dialect !== "postgres") {
+    throw new Error(`В ${configFileName} localhost.database.dialect должен быть mysql или postgres`)
+  }
+
+  validateOptionalDevelopmentConfigString(database.host, "localhost.database.host", configFileName)
+  validateOptionalDevelopmentConfigString(database.port, "localhost.database.port", configFileName)
+  validateOptionalDevelopmentConfigString(database.serviceHost, "localhost.database.serviceHost", configFileName)
+}
+
+function validateOptionalDevelopmentConfigString(value, path, configFileName) {
+  if (value !== undefined && (typeof value !== "string" || !value.trim())) {
+    throw new Error(`В ${configFileName} должно быть задано строковое значение ${path}`)
+  }
+}
+
+function getLocalhostDatabaseConfig(developmentConfig) {
+  return developmentConfig.localhost.database || {}
+}
+
+function getLocalhostDatabaseDialect(developmentConfig) {
+  return getLocalhostDatabaseConfig(developmentConfig).dialect || defaultDatabaseDialect
+}
+
+function getLocalhostDatabaseHost(developmentConfig) {
+  return getLocalhostDatabaseConfig(developmentConfig).host || defaultDatabaseHost
+}
+
+function getLocalhostDatabasePort(developmentConfig) {
+  const dialect = getLocalhostDatabaseDialect(developmentConfig)
+  return getLocalhostDatabaseConfig(developmentConfig).port || defaultDatabasePorts[dialect]
+}
+
+function getLocalhostDatabaseServiceHost(developmentConfig) {
+  return getLocalhostDatabaseConfig(developmentConfig).serviceHost || defaultDatabaseServiceHost
 }
 
 module.exports = {
