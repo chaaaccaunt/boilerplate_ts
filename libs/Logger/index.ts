@@ -146,7 +146,7 @@ class LogCollectorClient {
 
     this.connecting = true
     this.connectionAttempts += 1
-    const socket = createConnection({ host: this.host, port })
+    const socket = createConnection({ host: this.host, port, family: 4 })
     let failed = false
     socket.setTimeout(this.connectTimeoutMs)
 

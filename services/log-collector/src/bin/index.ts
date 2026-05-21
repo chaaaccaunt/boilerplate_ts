@@ -1,8 +1,7 @@
 import { LogsController, SystemMetricsController } from "@/controllers"
 import { Database } from "@/database"
-import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
+import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, LogCollectorSocketServer, MicroServiceHTTPServer } from "@/libs"
 import { LogCollectorService } from "@/services/LogCollectorService"
-import { LogCollectorSocketServer } from "@/services/LogCollectorSocketServer"
 import { RuntimePackageEventGatewayClient } from "@/services/RuntimePackageEventGatewayClient"
 
 const logger = new Logger()

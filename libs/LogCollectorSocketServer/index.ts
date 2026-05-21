@@ -1,59 +1,28 @@
 import { randomUUID } from "crypto"
 import { createServer, Server, Socket } from "net"
-import { Logger } from "@/libs"
-import { LogCollectorService } from "./LogCollectorService"
-import { RuntimePackageEventGatewayClient } from "./RuntimePackageEventGatewayClient"
-
-interface CollectorConnectionState {
-  authenticated: boolean
-  authenticating: Promise<void> | null
-  packageUid: string | null
-  source: string | null
-  socket: Socket
-}
-
-interface OfflinePackageState {
-  packageUid: string
-  source: string
-  connectionIpAddress: string | null
-  disconnectedAt: string
-  reason: string
-}
-
-interface PackageAuthenticationMessage {
-  collectorMessageType: "package_authentication"
-  packageUid: string
-  source: string
-}
-
-interface MetricsResponseMessage {
-  collectorMessageType: "metrics_response"
-  requestId: string
-  source: string
-  metrics: iSharedSystem.RuntimeMetricsDto
-}
-
-interface PendingMetricsRequest {
-  resolve: (item: RuntimeMetricsItemWithoutLogs) => void
-  timeout: NodeJS.Timeout
-}
-
-type RuntimeMetricsItemWithoutLogs =
-  | ({ status: "online" } & iSharedSystem.RuntimeMetricsDto)
-  | iSharedSystem.RuntimeMetricsUnavailableDto
+import { Logger } from "../Logger"
+import { LogCollectorConnectionRegistry } from "./LogCollectorConnectionRegistry"
+import { LogCollectorProtocol } from "./LogCollectorProtocol"
+import type {
+  iLogCollectorConnectionState,
+  iLogCollectorPendingMetricsRequest,
+  iLogCollectorRuntimeMetricsItemWithoutLogs,
+  iLogCollectorRuntimePackageEventClient,
+  iLogCollectorService
+} from "./types"
 
 export class LogCollectorSocketServer {
   private readonly server: Server
   private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
-  private readonly connectionStates = new Set<CollectorConnectionState>()
-  private readonly offlinePackageStates = new Map<string, OfflinePackageState>()
-  private readonly pendingMetricsRequests = new Map<string, PendingMetricsRequest>()
+  private readonly connections = new LogCollectorConnectionRegistry()
+  private readonly protocol = new LogCollectorProtocol()
+  private readonly pendingMetricsRequests = new Map<string, iLogCollectorPendingMetricsRequest>()
   private readonly metricsTimeoutMs = 1500
 
   constructor(
     private readonly port: string,
-    private readonly service: LogCollectorService,
-    private readonly runtimePackageEventGatewayClient: RuntimePackageEventGatewayClient | null = null,
+    private readonly service: iLogCollectorService,
+    private readonly runtimePackageEventGatewayClient: iLogCollectorRuntimePackageEventClient | null = null,
     private readonly logger = new Logger()
   ) {
     this.server = createServer((socket) => this.handleConnection(socket))
@@ -69,17 +38,48 @@ export class LogCollectorSocketServer {
     })
   }
 
+  collectRuntimeMetrics(): Promise<iSharedSystem.RuntimeMetricsListResponseDto> {
+    const states = this.connections.getWritableAuthenticatedStates()
+    const onlinePackageUids = this.connections.getOnlinePackageUids()
+
+    return Promise.all(states.map((state) => this.requestRuntimeMetrics(state)))
+      .then((items) => items.concat(
+        this.connections.getOfflinePackageStatesExcluding(onlinePackageUids)
+          .map((state) => this.createOfflineMetricsItem(state.packageUid, state.source, state.reason, state.disconnectedAt))
+      ))
+      .then((items) => this.attachPackageLogSummaries(items))
+      .then((items) => ({ items }))
+  }
+
+  collectRuntimeMetric(packageUid: string): Promise<iSharedSystem.RuntimeMetricsItemResponseDto> {
+    const state = this.connections.findWritableByPackageUid(packageUid)
+
+    if (!state) {
+      const offlineState = this.connections.getOfflinePackageState(packageUid)
+
+      if (offlineState) {
+        return this.attachPackageLogSummary(this.createOfflineMetricsItem(offlineState.packageUid, offlineState.source, offlineState.reason, offlineState.disconnectedAt))
+          .then((item) => ({ item }))
+      }
+
+      return this.attachPackageLogSummary(this.createOfflineMetricsItem(
+        packageUid,
+        "unknown-source",
+        "Package не подключен к log collector",
+        new Date().toISOString()
+      ))
+        .then((item) => ({ item }))
+    }
+
+    return this.requestRuntimeMetrics(state)
+      .then((item) => this.attachPackageLogSummary(item))
+      .then((item) => ({ item }))
+  }
+
   private handleConnection(socket: Socket): void {
     socket.setEncoding("utf8")
     let buffer = ""
-    const state: CollectorConnectionState = {
-      authenticated: false,
-      authenticating: null,
-      packageUid: null,
-      source: null,
-      socket
-    }
-    this.connectionStates.add(state)
+    const state = this.connections.create(socket)
 
     socket.on("error", (error) => {
       this.logger.warn("Ошибка socket-соединения log collector", {
@@ -101,12 +101,12 @@ export class LogCollectorSocketServer {
     })
 
     socket.on("close", (hadError) => {
-      this.connectionStates.delete(state)
+      this.connections.delete(state)
       this.handleDisconnect(state, hadError, socket)
     })
   }
 
-  private handleLine(line: string, state: CollectorConnectionState): void {
+  private handleLine(line: string, state: iLogCollectorConnectionState): void {
     Promise.resolve()
       .then(() => JSON.parse(line))
       .then((payload) => {
@@ -119,7 +119,7 @@ export class LogCollectorSocketServer {
             }
 
             if (this.handleMetricsResponse(payload)) return null
-            return this.normalizePayload(payload, state)
+            return this.protocol.normalizePayload(payload, state)
           })
         }
         if (!state.authenticated) {
@@ -127,12 +127,13 @@ export class LogCollectorSocketServer {
           return null
         }
         if (this.handleMetricsResponse(payload)) return null
-        return this.normalizePayload(payload, state)
+        return this.protocol.normalizePayload(payload, state)
       })
       .then((payload) => {
         if (!payload) return null
         this.printCollectedLog(payload)
-        if (!this.shouldStorePayload(payload)) return null
+        if (!this.protocol.shouldStorePayload(payload)) return null
+
         return this.service.collect(payload)
           .then(() => this.collectConnectionEventIfNeeded(payload))
       })
@@ -145,8 +146,8 @@ export class LogCollectorSocketServer {
       })
   }
 
-  private handleAuthentication(payload: unknown, state: CollectorConnectionState): boolean {
-    if (!this.isAuthenticationMessage(payload)) return false
+  private handleAuthentication(payload: unknown, state: iLogCollectorConnectionState): boolean {
+    if (!this.protocol.isAuthenticationMessage(payload)) return false
 
     state.authenticating = this.service.findRuntimePackage(payload.packageUid)
       .then((runtimePackage) => {
@@ -155,10 +156,7 @@ export class LogCollectorSocketServer {
           return
         }
 
-        state.authenticated = true
-        state.packageUid = runtimePackage.uid
-        state.source = runtimePackage.name
-        this.offlinePackageStates.delete(runtimePackage.uid)
+        this.connections.markAuthenticated(state, runtimePackage)
       })
       .catch(() => state.socket.destroy())
       .then(() => {
@@ -168,55 +166,7 @@ export class LogCollectorSocketServer {
     return true
   }
 
-  private isAuthenticationMessage(value: unknown): value is PackageAuthenticationMessage {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) return false
-    const payload = value as Partial<PackageAuthenticationMessage>
-    return payload.collectorMessageType === "package_authentication" && typeof payload.packageUid === "string" && typeof payload.source === "string"
-  }
-
-  collectRuntimeMetrics(): Promise<iSharedSystem.RuntimeMetricsListResponseDto> {
-    const states = Array.from(this.connectionStates)
-      .filter((state) => state.source && state.socket.writable)
-    const onlinePackageUids = new Set(states.map((state) => state.packageUid).filter((value): value is string => Boolean(value)))
-
-    return Promise.all(states.map((state) => this.requestRuntimeMetrics(state)))
-      .then((items) => items.concat(
-          Array.from(this.offlinePackageStates.values())
-            .filter((state) => !onlinePackageUids.has(state.packageUid))
-            .map((state) => this.createOfflineMetricsItem(state))
-        ))
-      .then((items) => this.attachPackageLogSummaries(items))
-      .then((items) => ({ items }))
-  }
-
-  collectRuntimeMetric(packageUid: string): Promise<iSharedSystem.RuntimeMetricsItemResponseDto> {
-    const state = Array.from(this.connectionStates)
-      .find((item) => item.packageUid === packageUid && item.source && item.socket.writable)
-
-    if (!state) {
-      const offlineState = this.offlinePackageStates.get(packageUid)
-
-      if (offlineState) {
-        return this.attachPackageLogSummary(this.createOfflineMetricsItem(offlineState))
-          .then((item) => ({ item }))
-      }
-
-      return this.attachPackageLogSummary({
-          packageUid,
-          source: "unknown-source",
-          status: "unavailable",
-          reason: "Package не подключен к log collector",
-          checkedAt: new Date().toISOString()
-        })
-        .then((item) => ({ item }))
-    }
-
-    return this.requestRuntimeMetrics(state)
-      .then((item) => this.attachPackageLogSummary(item))
-      .then((item) => ({ item }))
-  }
-
-  private requestRuntimeMetrics(state: CollectorConnectionState): Promise<RuntimeMetricsItemWithoutLogs> {
+  private requestRuntimeMetrics(state: iLogCollectorConnectionState): Promise<iLogCollectorRuntimeMetricsItemWithoutLogs> {
     const requestId = randomUUID()
     const source = state.source || "unknown-source"
     const packageUid = state.packageUid || "unknown-package"
@@ -224,13 +174,7 @@ export class LogCollectorSocketServer {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         this.pendingMetricsRequests.delete(requestId)
-        resolve({
-          packageUid,
-          source,
-          status: "unavailable",
-          reason: "Сервис не ответил на запрос метрик",
-          checkedAt: new Date().toISOString()
-        })
+        resolve(this.createOfflineMetricsItem(packageUid, source, "Сервис не ответил на запрос метрик", new Date().toISOString()))
       }, this.metricsTimeoutMs)
 
       this.pendingMetricsRequests.set(requestId, {
@@ -246,7 +190,7 @@ export class LogCollectorSocketServer {
   }
 
   private handleMetricsResponse(payload: unknown): boolean {
-    if (!this.isMetricsResponse(payload)) return false
+    if (!this.protocol.isMetricsResponse(payload)) return false
 
     const pending = this.pendingMetricsRequests.get(payload.requestId)
     if (!pending) return true
@@ -263,45 +207,8 @@ export class LogCollectorSocketServer {
   }
 
   private getMetricsConnectionIpAddress(packageUid: string): string | null {
-    const state = Array.from(this.connectionStates).find((item) => item.packageUid === packageUid)
+    const state = this.connections.findByPackageUid(packageUid)
     return state?.socket.remoteAddress || null
-  }
-
-  private isMetricsResponse(value: unknown): value is MetricsResponseMessage {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) return false
-    const payload = value as Partial<MetricsResponseMessage>
-    return payload.collectorMessageType === "metrics_response" && typeof payload.requestId === "string" && typeof payload.source === "string" && typeof payload.metrics === "object" && payload.metrics !== null
-  }
-
-  private normalizePayload(value: unknown, state: CollectorConnectionState): iSharedLogs.CollectLogPayloadDto {
-    const payload = value as Partial<iSharedLogs.CollectLogPayloadDto>
-
-    return {
-      timestamp: payload.timestamp || new Date().toISOString(),
-      kind: payload.kind || "application",
-      level: payload.level || "info",
-      source: state.source || "unknown-source",
-      packageUid: state.packageUid || "",
-      message: payload.message || "Лог без сообщения",
-      context: payload.context ?? null
-    }
-  }
-
-  private shouldStorePayload(payload: iSharedLogs.CollectLogPayloadDto): boolean {
-    if (payload.kind === "collector_connection" || payload.kind === "collector_disconnection") return true
-    if (payload.level === "error" || payload.level === "warn") return true
-
-    const context = payload.context
-    if (!context || typeof context !== "object" || Array.isArray(context)) return false
-
-    const method = context.method
-    if (method === "POST" || method === "PATCH" || method === "DELETE") return true
-    if (context.mutation === true) return true
-
-    const serviceMethod = context.serviceMethod
-    if (typeof serviceMethod === "string" && /^(create|update|delete|send|leave|revoke|login)/.test(serviceMethod)) return true
-
-    return false
   }
 
   private collectConnectionEventIfNeeded(payload: iSharedLogs.CollectLogPayloadDto): Promise<void> {
@@ -323,16 +230,10 @@ export class LogCollectorSocketServer {
       }))
   }
 
-  private handleDisconnect(state: CollectorConnectionState, hadError: boolean, socket: Socket): void {
+  private handleDisconnect(state: iLogCollectorConnectionState, hadError: boolean, socket: Socket): void {
     if (!state.source || !state.packageUid) return
 
-    this.offlinePackageStates.set(state.packageUid, {
-      packageUid: state.packageUid,
-      source: state.source,
-      connectionIpAddress: socket.remoteAddress || null,
-      disconnectedAt: new Date().toISOString(),
-      reason: "Package отключился от log collector"
-    })
+    this.connections.rememberOffline(state, new Date().toISOString())
 
     const payload: iSharedLogs.CollectLogPayloadDto = {
       timestamp: new Date().toISOString(),
@@ -375,21 +276,21 @@ export class LogCollectorSocketServer {
       })
   }
 
-  private createOfflineMetricsItem(state: OfflinePackageState): RuntimeMetricsItemWithoutLogs {
+  private createOfflineMetricsItem(packageUid: string, source: string, reason: string, checkedAt: string): iLogCollectorRuntimeMetricsItemWithoutLogs {
     return {
-      packageUid: state.packageUid,
-      source: state.source,
+      packageUid,
+      source,
       status: "unavailable",
-      reason: state.reason,
-      checkedAt: state.disconnectedAt
+      reason,
+      checkedAt
     }
   }
 
-  private attachPackageLogSummaries(items: RuntimeMetricsItemWithoutLogs[]): Promise<iSharedSystem.RuntimeMetricsItemDto[]> {
+  private attachPackageLogSummaries(items: iLogCollectorRuntimeMetricsItemWithoutLogs[]): Promise<iSharedSystem.RuntimeMetricsItemDto[]> {
     return Promise.all(items.map((item) => this.attachPackageLogSummary(item)))
   }
 
-  private attachPackageLogSummary<TItem extends RuntimeMetricsItemWithoutLogs>(item: TItem): Promise<TItem & { logSummary: iSharedLogs.PackageLogSummaryDto }> {
+  private attachPackageLogSummary<TItem extends iLogCollectorRuntimeMetricsItemWithoutLogs>(item: TItem): Promise<TItem & { logSummary: iSharedLogs.PackageLogSummaryDto }> {
     return this.service.getPackageLogSummary(item.packageUid)
       .then((logSummary) => ({
         ...item,
@@ -442,3 +343,8 @@ export class LogCollectorSocketServer {
     return port
   }
 }
+
+export type {
+  iLogCollectorRuntimePackageEventClient,
+  iLogCollectorService
+} from "./types"

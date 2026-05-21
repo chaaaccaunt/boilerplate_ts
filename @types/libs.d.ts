@@ -5,6 +5,7 @@ import {
   HTTPController,
   HTTPServer,
   Logger,
+  LogCollectorSocketServer,
   MethodTracer,
   MicroServiceHTTPServer,
   PayloadValidator,
@@ -17,6 +18,8 @@ import type {
   iHTTPServerEnv as LibHTTPServerEnv,
   iLibsEnv as LibLibsEnv,
   iLoggerEnv as LibLoggerEnv,
+  iLogCollectorRuntimePackageEventClient as LibLogCollectorRuntimePackageEventClient,
+  iLogCollectorService as LibLogCollectorService,
   iMicroServiceHTTPConfig as LibMicroServiceHTTPConfig,
   iWebSocketConfig as LibWebSocketConfig,
   iWebSocketEvent as LibWebSocketEvent,
@@ -46,6 +49,8 @@ declare global {
     type WebSocketServerClass = typeof WebSocketServer
     type Logger = InstanceType<typeof Logger>
     type LoggerClass = typeof Logger
+    type LogCollectorSocketServer = InstanceType<typeof LogCollectorSocketServer>
+    type LogCollectorSocketServerClass = typeof LogCollectorSocketServer
     type MethodTracer = InstanceType<typeof MethodTracer>
     type MethodTracerClass = typeof MethodTracer
     type PayloadValidator = typeof PayloadValidator
@@ -57,6 +62,8 @@ declare global {
     type iHTTPServerEnv = LibHTTPServerEnv
     type iLibsEnv = LibLibsEnv
     type iLoggerEnv = LibLoggerEnv
+    type iLogCollectorRuntimePackageEventClient = LibLogCollectorRuntimePackageEventClient
+    type iLogCollectorService = LibLogCollectorService
     type iMicroServiceHTTPConfig = LibMicroServiceHTTPConfig
     type iWebSocketConfig = LibWebSocketConfig
     type iWebSocketEvent = LibWebSocketEvent

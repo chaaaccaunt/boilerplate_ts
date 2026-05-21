@@ -237,7 +237,7 @@
 
 - `libs/RuntimeMetrics`;
 - `libs/Logger`;
-- `services/log-collector/src/services/LogCollectorSocketServer.ts`;
+- `libs/LogCollectorSocketServer`;
 - `services/log-collector/src/controllers/SystemMetricsController.ts`;
 - `gateways/public/src/controllers/SystemMetricsGatewayController.ts`;
 - `shared/@types/system.d.ts`;

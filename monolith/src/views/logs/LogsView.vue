@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
+import { useRoute } from "vue-router"
 import { ChevronLeftIcon, ChevronRightIcon, RefreshCwIcon, SearchIcon, XIcon } from "@lucide/vue"
 import { useApiClient } from "@/application/api"
 import { useStore } from "@/application/store"
@@ -9,31 +10,31 @@ type LogLevelFilter = "all" | iSharedLogs.LogLevel
 type LogKindFilter = "all" | iSharedLogs.LogKind
 
 const apiClient = useApiClient()
+const route = useRoute()
 const store = useStore()
 
 const isLoading = ref(false)
 const errorMessage = ref("")
 const levelFilter = ref<LogLevelFilter>("all")
 const kindFilter = ref<LogKindFilter>("all")
-const sourceFilter = ref("all")
 const searchQuery = ref("")
 const pageLimit = ref(50)
 const currentPage = ref(1)
 
 const logs = computed(() => store.state.logs.logs)
+const packageUid = computed(() => typeof route.params.packageUid === "string" ? route.params.packageUid : "")
+const packageSource = computed(() => typeof route.query.source === "string" ? route.query.source : "package")
 const totalLogs = computed(() => store.state.logs.total)
 const totalPages = computed(() => Math.max(1, Math.ceil(totalLogs.value / pageLimit.value)))
 const pageOffset = computed(() => (currentPage.value - 1) * pageLimit.value)
 const pageStart = computed(() => totalLogs.value ? pageOffset.value + 1 : 0)
 const pageEnd = computed(() => Math.min(pageOffset.value + logs.value.length, totalLogs.value))
-const logSources = computed(() => Array.from(new Set(logs.value.map((log) => log.source))).sort())
 const filteredLogs = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
 
   return logs.value.filter((log) => {
     if (levelFilter.value !== "all" && log.level !== levelFilter.value) return false
     if (kindFilter.value !== "all" && log.kind !== kindFilter.value) return false
-    if (sourceFilter.value !== "all" && log.source !== sourceFilter.value) return false
     if (!query) return true
 
     return [
@@ -50,7 +51,17 @@ onMounted(() => {
   loadLogs()
 })
 
+watch(packageUid, () => {
+  currentPage.value = 1
+  loadLogs()
+})
+
 function loadLogs(): void {
+  if (!packageUid.value) {
+    errorMessage.value = "Не указан пакет для просмотра логов"
+    return
+  }
+
   if (currentPage.value > totalPages.value) {
     currentPage.value = totalPages.value
   }
@@ -62,7 +73,8 @@ function loadLogs(): void {
     limit: pageLimit.value,
     offset: pageOffset.value,
     level: levelFilter.value === "all" ? undefined : levelFilter.value,
-    kind: kindFilter.value === "all" ? undefined : kindFilter.value
+    kind: kindFilter.value === "all" ? undefined : kindFilter.value,
+    packageUid: packageUid.value
   })
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось загрузить логи"
@@ -75,7 +87,6 @@ function loadLogs(): void {
 function resetFilters(): void {
   levelFilter.value = "all"
   kindFilter.value = "all"
-  sourceFilter.value = "all"
   searchQuery.value = ""
   currentPage.value = 1
   loadLogs()
@@ -132,9 +143,15 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
 <template>
   <section class="p-4 lg:p-6">
     <div class="mb-5 flex items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Логи</h1>
+      <div class="min-w-0">
+        <router-link class="mb-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" :to="{ name: 'system' }">
+          Назад к системе
+        </router-link>
+        <h1 class="truncate text-2xl font-semibold text-slate-950 dark:text-slate-50">Логи пакета {{ packageSource }}</h1>
+        <div class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ packageUid }}</div>
+      </div>
       <button
-        class="inline-flex min-h-9 items-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
+        class="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
         type="button"
         :disabled="isLoading"
         @click="loadLogs"
@@ -148,7 +165,7 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
       {{ errorMessage }}
     </div>
 
-    <div class="mb-4 grid gap-3 lg:grid-cols-[11rem_14rem_14rem_minmax(16rem,1fr)_auto]">
+    <div class="mb-4 grid gap-3 lg:grid-cols-[11rem_14rem_minmax(16rem,1fr)_auto]">
       <select
         v-model="levelFilter"
         class="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
@@ -172,15 +189,6 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
         <option value="application">Прикладные</option>
         <option value="collector_connection">Подключения collector</option>
         <option value="collector_disconnection">Отключения collector</option>
-      </select>
-
-      <select
-        v-model="sourceFilter"
-        class="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-        aria-label="Источник логов"
-      >
-        <option value="all">Все источники</option>
-        <option v-for="source in logSources" :key="source" :value="source">{{ source }}</option>
       </select>
 
       <label class="relative block">

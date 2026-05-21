@@ -1,5 +1,4 @@
-import { MicroServiceController } from "@/libs"
-import { LogCollectorSocketServer } from "@/services/LogCollectorSocketServer"
+import { LogCollectorSocketServer, MicroServiceController } from "@/libs"
 
 export class SystemMetricsController extends MicroServiceController {
   constructor(private readonly socketServer: LogCollectorSocketServer) {

@@ -32,16 +32,21 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import(/* webpackChunkName: "users" */ '@/views/users/UsersView.vue')
   },
   {
-    path: "/logs",
-    name: "logs",
-    meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
-    component: () => import(/* webpackChunkName: "logs" */ "@/views/logs/LogsView.vue")
-  },
-  {
     path: "/system",
-    name: "system",
     meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
-    component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemMetricsView.vue")
+    component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemView.vue"),
+    children: [
+      {
+        path: "",
+        name: "system",
+        component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemMetricsView.vue")
+      },
+      {
+        path: "packages/:packageUid/logs",
+        name: "system-package-logs",
+        component: () => import(/* webpackChunkName: "logs" */ "@/views/logs/LogsView.vue")
+      }
+    ]
   },
   {
     path: '/settings',
