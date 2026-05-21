@@ -24,6 +24,22 @@ declare global {
       context: LogValue
     }
 
+    interface PackageLogSummaryDto {
+      logs: LogRecordDto[]
+      warnCount: number
+      errorCount: number
+      limit: number
+    }
+
+    interface RuntimePackageConnectionEventDto {
+      packageUid: string
+      source: string
+      event: RuntimePackageConnectionEvent
+      timestamp: string
+      level: LogLevel
+      message: string
+    }
+
     interface CollectLogPayloadDto {
       timestamp: string
       kind: LogKind
@@ -45,6 +61,7 @@ declare global {
       offset?: number
       level?: LogLevel
       kind?: LogKind
+      packageUid?: string
     }
 
     interface LogsListResponseDto {

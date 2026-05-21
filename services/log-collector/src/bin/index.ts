@@ -3,6 +3,7 @@ import { Database } from "@/database"
 import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer } from "@/libs"
 import { LogCollectorService } from "@/services/LogCollectorService"
 import { LogCollectorSocketServer } from "@/services/LogCollectorSocketServer"
+import { RuntimePackageEventGatewayClient } from "@/services/RuntimePackageEventGatewayClient"
 
 const logger = new Logger()
 const database = new Database(getRequiredDatabaseConfig())
@@ -18,7 +19,10 @@ if (!socketPort) {
   throw new Error("Не задан VAR_LOG_COLLECTOR_SOCKET_PORT для log collector")
 }
 
-const socketServer = new LogCollectorSocketServer(socketPort, service)
+const runtimePackageEventGatewayClient = config.internalServices.chatRealtimeGatewayUrl
+  ? new RuntimePackageEventGatewayClient(config.internalServices.chatRealtimeGatewayUrl, config.internalServices.token || "")
+  : null
+const socketServer = new LogCollectorSocketServer(socketPort, service, runtimePackageEventGatewayClient)
 
 httpServer.use([
   ...new LogsController(service).getRoutes(),

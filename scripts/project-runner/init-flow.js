@@ -181,7 +181,8 @@ function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageN
   if (packageKind === "service" && packageName === "log-collector") {
     return {
       VAR_LOG_COLLECTOR_CLIENT_ENABLED: "false",
-      VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort
+      VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort,
+      VAR_CHAT_REALTIME_GATEWAY_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "chat-realtime")}`
     }
   }
 

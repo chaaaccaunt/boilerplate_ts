@@ -15,6 +15,7 @@ type WebSocketServerEvent =
   | "chat:message:created"
   | "chat:room:updated"
   | "chat:room:deleted"
+  | "system:package-connection"
 
 export class WebSocketClient {
   private readonly socket: Socket

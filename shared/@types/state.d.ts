@@ -35,6 +35,7 @@
 
     interface SystemState {
       metrics: iSharedSystem.RuntimeMetricsItemDto[]
+      packageConnectionEvents: iSharedLogs.RuntimePackageConnectionEventDto[]
     }
 
     interface ChatState {

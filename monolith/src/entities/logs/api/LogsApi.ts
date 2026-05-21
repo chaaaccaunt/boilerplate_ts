@@ -17,6 +17,7 @@ export class LogsApi {
     if (payload.offset !== undefined) params.set("offset", String(payload.offset))
     if (payload.level) params.set("level", payload.level)
     if (payload.kind) params.set("kind", payload.kind)
+    if (payload.packageUid) params.set("packageUid", payload.packageUid)
 
     const query = params.toString()
     return query ? `/logs?${query}` : "/logs"

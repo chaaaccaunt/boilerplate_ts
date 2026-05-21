@@ -17,6 +17,7 @@ export interface iAppConfig {
     usersUrl?: string
     chatUrl?: string
     logCollectorUrl?: string
+    chatRealtimeGatewayUrl?: string
   }
 }
 
@@ -37,6 +38,7 @@ export class AppConfiguration {
     "VAR_HTTP_ENABLE_PREFLIGHT",
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
+    "VAR_CHAT_REALTIME_GATEWAY_URL",
     "VAR_LOG_COLLECTOR_SERVICE_URL"
   ] as const
 
@@ -67,7 +69,8 @@ export class AppConfiguration {
         token: this.requiredEnvKeys.VAR_INTERNAL_SERVICE_TOKEN,
         usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
         chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL,
-        logCollectorUrl: this.requiredEnvKeys.VAR_LOG_COLLECTOR_SERVICE_URL
+        logCollectorUrl: this.requiredEnvKeys.VAR_LOG_COLLECTOR_SERVICE_URL,
+        chatRealtimeGatewayUrl: this.requiredEnvKeys.VAR_CHAT_REALTIME_GATEWAY_URL
       }
     }
   }
@@ -94,6 +97,7 @@ export class AppConfiguration {
       VAR_APP_LOG_LEVEL: this.getProcessEnvValue("VAR_APP_LOG_LEVEL"),
       VAR_USERS_SERVICE_URL: this.getProcessEnvValue("VAR_USERS_SERVICE_URL"),
       VAR_CHAT_SERVICE_URL: this.getProcessEnvValue("VAR_CHAT_SERVICE_URL"),
+      VAR_CHAT_REALTIME_GATEWAY_URL: this.getProcessEnvValue("VAR_CHAT_REALTIME_GATEWAY_URL"),
       VAR_LOG_COLLECTOR_SERVICE_URL: this.getProcessEnvValue("VAR_LOG_COLLECTOR_SERVICE_URL")
     }
   }

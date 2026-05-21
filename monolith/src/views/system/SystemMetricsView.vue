@@ -1,11 +1,13 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref } from "vue"
 import { RefreshCwIcon } from "@lucide/vue"
 import { useApiClient } from "@/application/api"
+import { useWebSocketClient } from "@/application/realtime"
 import { useStore } from "@/application/store"
 import { ApiError } from "@/shared/api"
 
 const apiClient = useApiClient()
+const webSocketClient = useWebSocketClient()
 const store = useStore()
 
 const isLoading = ref(false)
@@ -14,8 +16,18 @@ const errorMessage = ref("")
 const metrics = computed(() => store.state.system.metrics)
 
 onMounted(() => {
+  webSocketClient.on<iSharedLogs.RuntimePackageConnectionEventDto>("system:package-connection", handlePackageConnectionEvent)
   loadMetrics()
 })
+
+onUnmounted(() => {
+  webSocketClient.off("system:package-connection")
+})
+
+function handlePackageConnectionEvent(event: iSharedLogs.RuntimePackageConnectionEventDto): void {
+  store.commit("system/applyPackageConnectionEvent", event)
+  loadMetric(event.packageUid)
+}
 
 function loadMetrics(): void {
   isLoading.value = true
@@ -70,6 +82,14 @@ function formatUptime(value: number): string {
   return `${seconds} с`
 }
 
+function formatTimestamp(value: string): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date(value))
+}
+
 function getMemoryPercent(item: iSharedSystem.RuntimeMetricsDto): number {
   return item.memory.systemTotalBytes
     ? Math.round(((item.memory.systemTotalBytes - item.memory.systemFreeBytes) / item.memory.systemTotalBytes) * 100)
@@ -103,13 +123,14 @@ function getDiskPercent(item: iSharedSystem.RuntimeMetricsDto): number {
     </div>
 
     <div class="overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div class="grid grid-cols-[12rem_7rem_9rem_12rem_12rem_minmax(16rem,1fr)_3rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+      <div class="grid grid-cols-[12rem_7rem_9rem_12rem_12rem_minmax(14rem,1fr)_minmax(18rem,1.1fr)_3rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
         <span>Источник</span>
         <span>Статус</span>
         <span>CPU</span>
         <span>Память</span>
         <span>Диск</span>
         <span>Runtime</span>
+        <span>Логи</span>
         <span></span>
       </div>
 
@@ -125,7 +146,7 @@ function getDiskPercent(item: iSharedSystem.RuntimeMetricsDto): number {
         <article
           v-for="item in metrics"
           :key="item.packageUid"
-          class="grid grid-cols-[12rem_7rem_9rem_12rem_12rem_minmax(16rem,1fr)_3rem] gap-3 px-4 py-3 text-sm"
+          class="grid grid-cols-[12rem_7rem_9rem_12rem_12rem_minmax(14rem,1fr)_minmax(18rem,1.1fr)_3rem] gap-3 px-4 py-3 text-sm"
         >
           <div class="min-w-0">
             <div class="truncate font-medium text-slate-950 dark:text-slate-50">{{ item.source }}</div>
@@ -173,6 +194,33 @@ function getDiskPercent(item: iSharedSystem.RuntimeMetricsDto): number {
             </div>
           </div>
           <div v-else></div>
+
+          <div class="min-w-0 text-slate-700 dark:text-slate-200">
+            <div class="mb-1 flex flex-wrap gap-2 text-xs">
+              <span class="rounded bg-amber-100 px-2 py-0.5 font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                предупреждения {{ item.logSummary.warnCount }}
+              </span>
+              <span class="rounded bg-red-100 px-2 py-0.5 font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                ошибки {{ item.logSummary.errorCount }}
+              </span>
+            </div>
+            <div v-if="item.logSummary.logs.length" class="space-y-1">
+              <div
+                v-for="log in item.logSummary.logs"
+                :key="log.uid"
+                class="flex min-w-0 gap-1 text-xs text-slate-500 dark:text-slate-400"
+              >
+                <span class="shrink-0 font-medium" :class="log.level === 'error' ? 'text-red-600 dark:text-red-300' : log.level === 'warn' ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'">
+                  {{ log.level }}
+                </span>
+                <span class="shrink-0">{{ formatTimestamp(log.timestamp) }}</span>
+                <span class="truncate text-slate-600 dark:text-slate-300">{{ log.message }}</span>
+              </div>
+            </div>
+            <div v-else class="text-xs text-slate-500 dark:text-slate-400">
+              Логов package пока нет
+            </div>
+          </div>
 
           <button
             class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-blue-200 text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"

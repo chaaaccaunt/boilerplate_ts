@@ -2,6 +2,7 @@ import { randomUUID } from "crypto"
 import { createServer, Server, Socket } from "net"
 import { Logger } from "@/libs"
 import { LogCollectorService } from "./LogCollectorService"
+import { RuntimePackageEventGatewayClient } from "./RuntimePackageEventGatewayClient"
 
 interface CollectorConnectionState {
   authenticated: boolean
@@ -33,9 +34,13 @@ interface MetricsResponseMessage {
 }
 
 interface PendingMetricsRequest {
-  resolve: (item: iSharedSystem.RuntimeMetricsItemDto) => void
+  resolve: (item: RuntimeMetricsItemWithoutLogs) => void
   timeout: NodeJS.Timeout
 }
+
+type RuntimeMetricsItemWithoutLogs =
+  | ({ status: "online" } & iSharedSystem.RuntimeMetricsDto)
+  | iSharedSystem.RuntimeMetricsUnavailableDto
 
 export class LogCollectorSocketServer {
   private readonly server: Server
@@ -48,6 +53,7 @@ export class LogCollectorSocketServer {
   constructor(
     private readonly port: string,
     private readonly service: LogCollectorService,
+    private readonly runtimePackageEventGatewayClient: RuntimePackageEventGatewayClient | null = null,
     private readonly logger = new Logger()
   ) {
     this.server = createServer((socket) => this.handleConnection(socket))
@@ -174,13 +180,13 @@ export class LogCollectorSocketServer {
     const onlinePackageUids = new Set(states.map((state) => state.packageUid).filter((value): value is string => Boolean(value)))
 
     return Promise.all(states.map((state) => this.requestRuntimeMetrics(state)))
-      .then((items) => ({
-        items: items.concat(
+      .then((items) => items.concat(
           Array.from(this.offlinePackageStates.values())
             .filter((state) => !onlinePackageUids.has(state.packageUid))
             .map((state) => this.createOfflineMetricsItem(state))
-        )
-      }))
+        ))
+      .then((items) => this.attachPackageLogSummaries(items))
+      .then((items) => ({ items }))
   }
 
   collectRuntimeMetric(packageUid: string): Promise<iSharedSystem.RuntimeMetricsItemResponseDto> {
@@ -191,27 +197,26 @@ export class LogCollectorSocketServer {
       const offlineState = this.offlinePackageStates.get(packageUid)
 
       if (offlineState) {
-        return Promise.resolve({
-          item: this.createOfflineMetricsItem(offlineState)
-        })
+        return this.attachPackageLogSummary(this.createOfflineMetricsItem(offlineState))
+          .then((item) => ({ item }))
       }
 
-      return Promise.resolve({
-        item: {
+      return this.attachPackageLogSummary({
           packageUid,
           source: "unknown-source",
           status: "unavailable",
           reason: "Package не подключен к log collector",
           checkedAt: new Date().toISOString()
-        }
-      })
+        })
+        .then((item) => ({ item }))
     }
 
     return this.requestRuntimeMetrics(state)
+      .then((item) => this.attachPackageLogSummary(item))
       .then((item) => ({ item }))
   }
 
-  private requestRuntimeMetrics(state: CollectorConnectionState): Promise<iSharedSystem.RuntimeMetricsItemDto> {
+  private requestRuntimeMetrics(state: CollectorConnectionState): Promise<RuntimeMetricsItemWithoutLogs> {
     const requestId = randomUUID()
     const source = state.source || "unknown-source"
     const packageUid = state.packageUid || "unknown-package"
@@ -308,6 +313,14 @@ export class LogCollectorSocketServer {
       timestamp: payload.timestamp,
       details: payload.context
     })
+      .then(() => this.notifyRuntimePackageConnectionEvent({
+        packageUid: payload.packageUid,
+        source: payload.source,
+        event: "connected",
+        timestamp: payload.timestamp,
+        level: payload.level,
+        message: payload.message
+      }))
   }
 
   private handleDisconnect(state: CollectorConnectionState, hadError: boolean, socket: Socket): void {
@@ -345,6 +358,14 @@ export class LogCollectorSocketServer {
         timestamp: payload.timestamp,
         details: payload.context
       }))
+      .then(() => this.notifyRuntimePackageConnectionEvent({
+        packageUid: payload.packageUid,
+        source: payload.source,
+        event: "disconnected",
+        timestamp: payload.timestamp,
+        level: payload.level,
+        message: payload.message
+      }))
       .catch((error) => {
         this.logger.warn("Не удалось сохранить тревогу об отключении от log collector", {
           serviceName: this.constructor.name,
@@ -354,7 +375,7 @@ export class LogCollectorSocketServer {
       })
   }
 
-  private createOfflineMetricsItem(state: OfflinePackageState): iSharedSystem.RuntimeMetricsUnavailableDto {
+  private createOfflineMetricsItem(state: OfflinePackageState): RuntimeMetricsItemWithoutLogs {
     return {
       packageUid: state.packageUid,
       source: state.source,
@@ -362,6 +383,41 @@ export class LogCollectorSocketServer {
       reason: state.reason,
       checkedAt: state.disconnectedAt
     }
+  }
+
+  private attachPackageLogSummaries(items: RuntimeMetricsItemWithoutLogs[]): Promise<iSharedSystem.RuntimeMetricsItemDto[]> {
+    return Promise.all(items.map((item) => this.attachPackageLogSummary(item)))
+  }
+
+  private attachPackageLogSummary<TItem extends RuntimeMetricsItemWithoutLogs>(item: TItem): Promise<TItem & { logSummary: iSharedLogs.PackageLogSummaryDto }> {
+    return this.service.getPackageLogSummary(item.packageUid)
+      .then((logSummary) => ({
+        ...item,
+        logSummary
+      }))
+      .catch(() => ({
+        ...item,
+        logSummary: {
+          logs: [],
+          warnCount: 0,
+          errorCount: 0,
+          limit: 3
+        }
+      }))
+  }
+
+  private notifyRuntimePackageConnectionEvent(payload: iSharedLogs.RuntimePackageConnectionEventDto): Promise<void> {
+    if (!this.runtimePackageEventGatewayClient) return Promise.resolve()
+
+    return this.runtimePackageEventGatewayClient.notify(payload)
+      .catch((error) => {
+        this.logger.warn("Не удалось отправить событие package lifecycle в chat realtime gateway", {
+          serviceName: this.constructor.name,
+          serviceMethod: "notifyRuntimePackageConnectionEvent",
+          event: payload.event,
+          error
+        })
+      })
   }
 
   private printCollectedLog(payload: iSharedLogs.CollectLogPayloadDto): void {

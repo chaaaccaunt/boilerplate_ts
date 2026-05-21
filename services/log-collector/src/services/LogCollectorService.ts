@@ -59,7 +59,8 @@ export class LogCollectorService {
     const offset = this.getOffset(payload.offset)
     const where = {
       ...(payload.level ? { level: payload.level } : {}),
-      ...(payload.kind ? { kind: payload.kind } : {})
+      ...(payload.kind ? { kind: payload.kind } : {}),
+      ...(payload.packageUid ? { packageUid: payload.packageUid as UUID } : {})
     }
 
     return this.models.LogRecord.findAndCountAll({
@@ -73,6 +74,39 @@ export class LogCollectorService {
         total: result.count,
         limit,
         offset
+      }))
+  }
+
+  getPackageLogSummary(packageUid: string, limit = 3): Promise<iSharedLogs.PackageLogSummaryDto> {
+    const normalizedLimit = this.getLimit(limit)
+    const where = {
+      packageUid: packageUid as UUID
+    }
+
+    return Promise.all([
+      this.models.LogRecord.findAll({
+        where,
+        limit: normalizedLimit,
+        order: [["timestamp", "DESC"]]
+      }),
+      this.models.LogRecord.count({
+        where: {
+          ...where,
+          level: "warn"
+        }
+      }),
+      this.models.LogRecord.count({
+        where: {
+          ...where,
+          level: "error"
+        }
+      })
+    ])
+      .then(([logs, warnCount, errorCount]) => ({
+        logs: logs.map((record) => this.toDto(record)),
+        warnCount,
+        errorCount,
+        limit: normalizedLimit
       }))
   }
 

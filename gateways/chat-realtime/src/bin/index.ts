@@ -1,4 +1,5 @@
 import { config, HTTPServer, WebSocketServer } from "@/libs"
+import { SystemPackageEventsController } from "@/controllers"
 import { ChatSocketGateway } from "@/realtime"
 import { InternalServiceClient } from "@/services/InternalServiceClient"
 
@@ -16,6 +17,9 @@ if (!config.internalServices.token) {
 webSocketServer.use([
   new ChatSocketGateway(new InternalServiceClient(config.internalServices.chatUrl, config.internalServices.token))
 ])
+httpServer.use([
+  new SystemPackageEventsController(webSocketServer, config.internalServices.token).getRoutes()
+].flat())
 
 httpServer.listen(config.http.port)
 webSocketServer.listen()

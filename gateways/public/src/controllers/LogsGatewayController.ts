@@ -31,7 +31,8 @@ export class LogsGatewayController extends HTTPController {
       limit: this.getOptionalNumber(payload?.limit),
       offset: this.getOptionalNumber(payload?.offset),
       level: this.getOptionalLevel(payload?.level),
-      kind: this.getOptionalKind(payload?.kind)
+      kind: this.getOptionalKind(payload?.kind),
+      packageUid: this.getOptionalString(payload?.packageUid)
     }
   }
 
@@ -49,5 +50,10 @@ export class LogsGatewayController extends HTTPController {
   private getOptionalKind(value: unknown): iSharedLogs.LogKind | undefined {
     if (value === "application" || value === "collector_connection" || value === "collector_disconnection") return value
     return undefined
+  }
+
+  private getOptionalString(value: unknown): string | undefined {
+    if (typeof value !== "string" || !value.trim()) return undefined
+    return value.trim()
   }
 }

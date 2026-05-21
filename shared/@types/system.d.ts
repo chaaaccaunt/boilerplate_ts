@@ -50,9 +50,12 @@ declare global {
       checkedAt: string
     }
 
-    type RuntimeMetricsItemDto =
+    type RuntimeMetricsItemDto = (
       | ({ status: "online" } & RuntimeMetricsDto)
       | RuntimeMetricsUnavailableDto
+    ) & {
+      logSummary: iSharedLogs.PackageLogSummaryDto
+    }
 
     interface RuntimeMetricsListResponseDto {
       items: RuntimeMetricsItemDto[]

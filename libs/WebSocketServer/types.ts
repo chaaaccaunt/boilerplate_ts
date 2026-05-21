@@ -26,6 +26,7 @@ export interface iWebSocketEventResult<TResult = unknown> {
 export interface iWebSocketBroadcastOptions {
   excludeSocketId?: string
   excludeUserUid?: iContracts.iUserToken["uid"]
+  allowedRoles?: readonly iSharedUserRole.UserRoleName[]
 }
 
 export interface iWebSocketEventHandler<TPayload = iContracts.iPayload, TResult = unknown> {

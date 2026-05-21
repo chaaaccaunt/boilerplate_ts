@@ -181,8 +181,19 @@ export class WebSocketServer {
 
     const user = socket.data.user as iContracts.iUserToken | undefined
     if (options.excludeUserUid && user?.uid === options.excludeUserUid) return true
+    if (!this.hasAllowedRole(user, options.allowedRoles)) return true
 
     return false
+  }
+
+  private hasAllowedRole(user: iContracts.iUserToken | undefined, allowedRoles: readonly iSharedUserRole.UserRoleName[] | undefined): boolean {
+    if (!allowedRoles?.length) return true
+    if (!user) return false
+
+    const roles = user.claims?.roles
+    if (!Array.isArray(roles)) return false
+
+    return allowedRoles.some((roleName) => roles.includes(roleName))
   }
 
   private createSuccessEnvelope<TResult>(result: TResult): iSharedApi.ResponseEnvelope<TResult> {
