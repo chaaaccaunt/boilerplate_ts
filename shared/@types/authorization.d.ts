@@ -14,6 +14,35 @@
     interface LogoutResponseDto {
       success: boolean
     }
+
+    interface UserSessionDto {
+      uid: string
+      userUid: string
+      ipAddress: string | null
+      userAgent: string
+      deviceType: string
+      operatingSystem: string
+      browser: string
+      lastSeenAt: string
+      createdAt: string
+      isCurrent: boolean
+    }
+
+    interface UserSessionsListResponseDto {
+      sessions: UserSessionDto[]
+    }
+
+    interface RevokeUserSessionPayloadDto {
+      sessionUid: string
+    }
+
+    interface RevokeUserSessionResponseDto {
+      success: boolean
+    }
+
+    interface RevokeOtherUserSessionsResponseDto {
+      success: boolean
+    }
   }
 }
 

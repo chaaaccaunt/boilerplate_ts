@@ -2,6 +2,7 @@ import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
 import { getRoleModel, RoleModel } from "@/models/users/RoleModel"
 import { getUserRoleModel, UserRoleModel } from "@/models/users/UserRoleModel"
 import { getUserModel, UserModel } from "@/models/users/UserModel"
+import { getUserSessionModel, UserSessionModel } from "@/models/users/UserSessionModel"
 
 export interface DataBaseInstance {
   Sequelize: typeof Sequelize
@@ -13,6 +14,7 @@ export interface iModels {
   User: typeof UserModel
   Role: typeof RoleModel
   UserRole: typeof UserRoleModel
+  UserSession: typeof UserSessionModel
 }
 
 export class Database {
@@ -25,7 +27,8 @@ export class Database {
     this.models = {
       User: getUserModel(this.sequelize),
       Role: getRoleModel(this.sequelize),
-      UserRole: getUserRoleModel(this.sequelize)
+      UserRole: getUserRoleModel(this.sequelize),
+      UserSession: getUserSessionModel(this.sequelize)
     }
 
     Object.keys(this.models).forEach((key) => {

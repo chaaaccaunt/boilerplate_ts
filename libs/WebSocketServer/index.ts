@@ -61,6 +61,22 @@ export class WebSocketServer {
       return
     }
 
+    this.logger.debug("WebSocket подключение установлено", {
+      userId: user.uid,
+      sessionUid: user.sessionUid,
+      socketId: socket.id,
+      userAgent: socket.handshake.headers["user-agent"] || null
+    })
+
+    socket.on("disconnect", (reason) => {
+      this.logger.debug("WebSocket подключение закрыто", {
+        userId: user.uid,
+        sessionUid: user.sessionUid,
+        socketId: socket.id,
+        reason
+      })
+    })
+
     for (const gateway of this.gateways) {
       this.registerGateway(socket, user, gateway)
     }

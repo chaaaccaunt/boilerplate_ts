@@ -1,8 +1,19 @@
 {
+  "runtime": {
+    "packageUid": "00000000-0000-4000-8000-000000000401"
+  },
   "database": {
     "runtimeGrants": [
       {
         "table": "log_records",
+        "operations": ["SELECT", "INSERT"]
+      },
+      {
+        "table": "runtime_packages",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "runtime_package_connections",
         "operations": ["SELECT", "INSERT"]
       }
     ]

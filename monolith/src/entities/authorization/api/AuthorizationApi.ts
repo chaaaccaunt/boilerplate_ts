@@ -24,5 +24,24 @@ export class AuthorizationApi {
       reportError: false
     })
   }
+
+  listSessions(): Promise<iSharedAuthorization.UserSessionsListResponseDto> {
+    return this.api.get<iSharedAuthorization.UserSessionsListResponseDto>({
+      path: "/authorization/sessions"
+    })
+  }
+
+  revokeSession(payload: iSharedAuthorization.RevokeUserSessionPayloadDto): Promise<iSharedAuthorization.RevokeUserSessionResponseDto> {
+    return this.api.post<iSharedAuthorization.RevokeUserSessionResponseDto, iSharedAuthorization.RevokeUserSessionPayloadDto>({
+      path: "/authorization/sessions/revoke",
+      payload
+    })
+  }
+
+  revokeOtherSessions(): Promise<iSharedAuthorization.RevokeOtherUserSessionsResponseDto> {
+    return this.api.post<iSharedAuthorization.RevokeOtherUserSessionsResponseDto>({
+      path: "/authorization/sessions/revoke-others"
+    })
+  }
 }
 

@@ -125,6 +125,21 @@ function readDatabaseGrantConfig(config, packageItem) {
   return runtimeGrants.map((grant) => normalizeDatabaseGrant(config, grant, configPath))
 }
 
+function getRuntimePackageUid(config, packageKind, packageName) {
+  const packageDirectory = packageKind === "gateway"
+    ? join(config.gatewaysDirectory, packageName)
+    : join(config.servicesDirectory, packageName)
+  const configPath = join(packageDirectory, config.packageConfigFileName)
+  const packageConfig = readRequiredPackageConfig(config, packageDirectory)
+  const packageUid = packageConfig.runtime?.packageUid
+
+  if (typeof packageUid !== "string" || !/^[0-9a-fA-F-]{36}$/.test(packageUid)) {
+    throw new Error(`В ${configPath} должен быть задан runtime.packageUid в формате UUID`)
+  }
+
+  return packageUid
+}
+
 function readRequiredPackageConfig(config, packageDirectory) {
   const configPath = join(packageDirectory, config.packageConfigFileName)
   if (!existsSync(configPath)) {
@@ -206,6 +221,7 @@ function normalizePackageNameForDatabaseUser(packageName) {
 
 module.exports = {
   getDatabaseRuntimeUserConfigItems,
+  getRuntimePackageUid,
   getLocalhostPackagePort,
   getLocalhostPackagePorts
 }

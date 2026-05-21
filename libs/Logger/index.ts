@@ -12,6 +12,7 @@ export interface iLoggerEnv {
   VAR_LOG_COLLECTOR_SOCKET_HOST?: string
   VAR_LOG_COLLECTOR_SOCKET_PORT?: string
   VAR_LOG_SOURCE?: string
+  VAR_PACKAGE_UID?: string
 }
 
 type LogValue =
@@ -27,6 +28,7 @@ type LogValue =
 interface LogContext {
   requestId?: string
   userId?: string | number
+  sessionUid?: string
   functionName?: string
   event?: string
   stack?: string[]
@@ -37,6 +39,13 @@ interface LogContext {
   payload?: LogValue
   result?: LogValue
   sql?: string
+  mutation?: boolean
+  ipAddress?: string | null
+  userAgent?: string | null
+  deviceType?: string
+  operatingSystem?: string
+  browser?: string
+  socketId?: string
   reason?: string
   error?: LogValue
   trace?: unknown
@@ -62,6 +71,12 @@ interface MetricsRequestMessage {
   requestId: string
 }
 
+interface PackageAuthenticationMessage {
+  collectorMessageType: "package_authentication"
+  packageUid: string
+  source: string
+}
+
 interface MetricsResponseMessage {
   collectorMessageType: "metrics_response"
   requestId: string
@@ -80,6 +95,7 @@ class LogCollectorClient {
   private connectionAttempts = 0
   private disabled = false
   private failureReported = false
+  private connectedOnce = false
   private inputBuffer = ""
   private readonly metrics = new RuntimeMetrics()
   private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
@@ -87,6 +103,7 @@ class LogCollectorClient {
   constructor(
     private readonly host: string | undefined,
     private readonly port: string | undefined,
+    private readonly packageUid: string | undefined,
     private readonly enabled: boolean
   ) { }
 
@@ -103,8 +120,6 @@ class LogCollectorClient {
   }
 
   private flush(): void {
-    if (!this.queue.length) return
-
     if (this.socket?.writable) {
       while (this.queue.length) {
         const payload = this.queue.shift()
@@ -118,10 +133,12 @@ class LogCollectorClient {
   }
 
   private connect(): void {
-    if (!this.queue.length) return
-
     const port = Number(this.port)
     if (!Number.isSafeInteger(port) || port <= 0) return
+    if (!this.packageUid) {
+      this.disable("Не задан VAR_PACKAGE_UID для подключения к log collector")
+      return
+    }
     if (this.connectionAttempts >= this.maxConnectionAttempts) {
       this.disable()
       return
@@ -138,9 +155,12 @@ class LogCollectorClient {
     socket.on("connect", () => {
       this.socket = socket
       this.connecting = false
+      this.connectedOnce = true
       this.connectionAttempts = 0
+      this.failureReported = false
       socket.setTimeout(0)
       this.queue.unshift(`${JSON.stringify(this.createLifecycleRecord("collector_connection", "info", "Подключение к log collector установлено"))}\n`)
+      this.queue.unshift(`${JSON.stringify(this.createAuthenticationMessage())}\n`)
       this.flush()
     })
 
@@ -160,13 +180,12 @@ class LogCollectorClient {
     socket.on("close", () => {
       if (this.socket === socket) this.socket = null
       this.connecting = false
-      if (failed) this.scheduleRetry()
+      if (failed || this.connectedOnce) this.scheduleRetry()
     })
   }
 
   private scheduleRetry(): void {
     if (this.disabled) return
-    if (!this.queue.length) return
 
     if (this.connectionAttempts >= this.maxConnectionAttempts) {
       this.disable()
@@ -177,13 +196,13 @@ class LogCollectorClient {
     retryTimer.unref?.()
   }
 
-  private disable(): void {
+  private disable(reason?: string): void {
     this.disabled = true
     this.queue.length = 0
 
     if (this.failureReported) return
     this.failureReported = true
-    console.warn(`Не удалось подключиться к log collector ${this.host}:${this.port} после ${this.maxConnectionAttempts} попыток. Приложение продолжит работу без отправки логов.`)
+    console.warn(reason || `Не удалось подключиться к log collector ${this.host}:${this.port} после ${this.maxConnectionAttempts} попыток. Приложение продолжит работу без отправки логов.`)
   }
 
   private handleData(socket: Socket, chunk: string): void {
@@ -212,7 +231,7 @@ class LogCollectorClient {
       collectorMessageType: "metrics_response",
       requestId: message.requestId,
       source: this.getSource(),
-      metrics: this.metrics.collect(this.getSource())
+      metrics: this.metrics.collect(this.getSource(), this.packageUid)
     }
 
     socket.write(`${JSON.stringify(response)}\n`)
@@ -232,6 +251,14 @@ class LogCollectorClient {
     }
   }
 
+  private createAuthenticationMessage(): PackageAuthenticationMessage {
+    return {
+      collectorMessageType: "package_authentication",
+      packageUid: this.packageUid || "",
+      source: this.getSource()
+    }
+  }
+
   private getSource(): string {
     return process.env.VAR_LOG_SOURCE || process.env.npm_package_name || basename(process.cwd())
   }
@@ -240,6 +267,7 @@ class LogCollectorClient {
 const sharedLogCollectorClient = new LogCollectorClient(
   process.env.VAR_LOG_COLLECTOR_SOCKET_HOST,
   process.env.VAR_LOG_COLLECTOR_SOCKET_PORT,
+  process.env.VAR_PACKAGE_UID,
   process.env.VAR_LOG_COLLECTOR_CLIENT_ENABLED !== "false"
 )
 
@@ -264,6 +292,7 @@ export class Logger {
       context: this.#sanitizeContext(context)
     }
 
+    this.#print(record)
     this.#collectorClient.send(record)
   }
 
@@ -358,6 +387,19 @@ export class Logger {
 
   #isLogObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
+  }
+
+  #print(record: LogRecord): void {
+    if (record.level === "debug" && !this.#debugEnabled) return
+
+    console.log({
+      timestamp: record.timestamp,
+      kind: record.kind,
+      level: record.level,
+      source: record.source,
+      message: record.message,
+      context: record.context
+    })
   }
 }
 

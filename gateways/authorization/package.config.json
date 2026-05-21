@@ -1,4 +1,7 @@
 {
+  "runtime": {
+    "packageUid": "00000000-0000-4000-8000-000000000404"
+  },
   "database": {
     "runtimeGrants": [
       {
@@ -12,6 +15,10 @@
       {
         "table": "user_roles",
         "operations": ["SELECT"]
+      },
+      {
+        "table": "user_sessions",
+        "operations": ["SELECT", "INSERT", "UPDATE"]
       }
     ]
   },

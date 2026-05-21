@@ -12,7 +12,17 @@ export class SystemMetricsGatewayController extends HTTPController {
       callback: this.handle("list", this.list.bind(this))
     }
 
-    this.addRoutes([listRoute])
+    const itemRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedSystem.RuntimeMetricsItemResponseDto>> = {
+      url: /^\/system\/metrics\/item\/?$/,
+      method: "GET",
+      requireAuthorization: true,
+      validator: {
+        packageUid: { isPrimitive: { string: { minLength: 1 } } }
+      },
+      callback: this.handle("item", this.item.bind(this))
+    }
+
+    this.addRoutes([listRoute, itemRoute])
   }
 
   private list(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedSystem.RuntimeMetricsListResponseDto>> {
@@ -21,6 +31,20 @@ export class SystemMetricsGatewayController extends HTTPController {
     return this.logCollectorServiceClient.request<iSharedSystem.RuntimeMetricsListResponseDto>({
       requestId: payload.requestId,
       path: "/system/metrics"
+      })
+      .then((data) => ({ data }))
+  }
+
+  private item(payload: iContracts.iRequestContextPayload<iSharedSystem.RuntimeMetricsItemPayloadDto>): Promise<iContracts.iControllerResult<iSharedSystem.RuntimeMetricsItemResponseDto>> {
+    this.access(payload, ["administrator"])
+    if (!payload.data?.packageUid) throw new Error("Не задан packageUid для запроса метрик package")
+
+    return this.logCollectorServiceClient.request<iSharedSystem.RuntimeMetricsItemResponseDto, iSharedSystem.RuntimeMetricsItemPayloadDto>({
+      requestId: payload.requestId,
+      path: "/system/metrics/item",
+      payload: {
+        packageUid: payload.data.packageUid
+      }
     })
       .then((data) => ({ data }))
   }

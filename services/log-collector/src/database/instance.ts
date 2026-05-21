@@ -1,5 +1,7 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
 import { getLogRecordModel, LogRecordModel } from "@/models/logs/LogRecordModel"
+import { getRuntimePackageModel, RuntimePackageModel } from "@/models/logs/RuntimePackageModel"
+import { getRuntimePackageConnectionModel, RuntimePackageConnectionModel } from "@/models/logs/RuntimePackageConnectionModel"
 
 export interface DataBaseInstance {
   Sequelize: typeof Sequelize
@@ -9,6 +11,8 @@ export interface DataBaseInstance {
 
 export interface iModels {
   LogRecord: typeof LogRecordModel
+  RuntimePackage: typeof RuntimePackageModel
+  RuntimePackageConnection: typeof RuntimePackageConnectionModel
 }
 
 export class Database {
@@ -19,6 +23,8 @@ export class Database {
   constructor(config: Options) {
     this.sequelize = new SequelizeClass(config)
     this.models = {
+      RuntimePackage: getRuntimePackageModel(this.sequelize),
+      RuntimePackageConnection: getRuntimePackageConnectionModel(this.sequelize),
       LogRecord: getLogRecordModel(this.sequelize)
     }
 

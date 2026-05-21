@@ -27,8 +27,10 @@ declare global {
     }
 
     interface RuntimeMetricsDto {
+      packageUid: string
       source: string
       packageKind: RuntimePackageKind
+      connectionIpAddress: string | null
       pid: number
       hostname: string
       platform: string
@@ -41,6 +43,7 @@ declare global {
     }
 
     interface RuntimeMetricsUnavailableDto {
+      packageUid: string
       source: string
       status: "unavailable"
       reason: string
@@ -53,6 +56,14 @@ declare global {
 
     interface RuntimeMetricsListResponseDto {
       items: RuntimeMetricsItemDto[]
+    }
+
+    interface RuntimeMetricsItemPayloadDto {
+      packageUid: string
+    }
+
+    interface RuntimeMetricsItemResponseDto {
+      item: RuntimeMetricsItemDto
     }
   }
 }

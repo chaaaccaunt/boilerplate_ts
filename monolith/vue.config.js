@@ -31,7 +31,7 @@ module.exports = defineConfig({
       new CopyWebpackPlugin({
         patterns: [
           {
-            from: resolve(__dirname, '.prod.env'),
+            from: resolve(__dirname, process.env.NODE_DEV == "production" ? ' .prod.env' : '.dev.env'),
             to: '.prod.env'
           }
         ]

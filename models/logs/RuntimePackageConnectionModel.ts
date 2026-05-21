@@ -3,14 +3,11 @@ import { CreationOptional, DataTypes, ForeignKey, InferAttributes, InferCreation
 import type { Association, NonAttribute } from "sequelize"
 import type { RuntimePackageModel } from "./RuntimePackageModel"
 
-export class LogRecordModel extends Model<InferAttributes<LogRecordModel>, InferCreationAttributes<LogRecordModel>> {
+export class RuntimePackageConnectionModel extends Model<InferAttributes<RuntimePackageConnectionModel>, InferCreationAttributes<RuntimePackageConnectionModel>> {
   declare uid: CreationOptional<UUID>
+  declare event: iSharedLogs.RuntimePackageConnectionEvent
   declare timestamp: Date
-  declare kind: iSharedLogs.LogKind
-  declare level: iSharedLogs.LogLevel
-  declare source: string
-  declare message: string
-  declare context: iSharedLogs.LogValue
+  declare details: iSharedLogs.LogValue
 
   declare packageUid: ForeignKey<RuntimePackageModel["uid"]>
 
@@ -22,54 +19,42 @@ export class LogRecordModel extends Model<InferAttributes<LogRecordModel>, Infer
   declare package: NonAttribute<RuntimePackageModel>
 
   declare static associations: {
-    package: Association<LogRecordModel, RuntimePackageModel>
+    package: Association<RuntimePackageConnectionModel, RuntimePackageModel>
   };
 }
 
-export function getLogRecordModel(sequelize: Sequelize) {
-  LogRecordModel.init(
+export function getRuntimePackageConnectionModel(sequelize: Sequelize) {
+  RuntimePackageConnectionModel.init(
     {
       uid: {
         type: DataTypes.UUID,
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4
       },
+      packageUid: {
+        type: DataTypes.UUID,
+        allowNull: false
+      },
+      event: {
+        type: DataTypes.ENUM("connected", "disconnected"),
+        allowNull: false
+      },
       timestamp: {
         type: DataTypes.DATE,
         allowNull: false
       },
-      kind: {
-        type: DataTypes.ENUM("application", "collector_connection", "collector_disconnection"),
-        allowNull: false
-      },
-      level: {
-        type: DataTypes.ENUM("debug", "info", "warn", "error"),
-        allowNull: false
-      },
-      source: {
-        type: DataTypes.STRING(120),
-        allowNull: false
-      },
-      message: {
-        type: DataTypes.STRING(500),
-        allowNull: false
-      },
-      context: {
+      details: {
         type: DataTypes.JSON,
-        allowNull: false
-      },
-      packageUid: {
-        type: DataTypes.UUID,
         allowNull: false
       }
     },
     {
       sequelize,
-      tableName: "log_records",
-      modelName: "LogRecordModel",
+      tableName: "runtime_package_connections",
+      modelName: "RuntimePackageConnectionModel",
       timestamps: false
     }
   )
 
-  return LogRecordModel
+  return RuntimePackageConnectionModel
 }

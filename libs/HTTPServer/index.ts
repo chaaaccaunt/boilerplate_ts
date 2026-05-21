@@ -205,7 +205,7 @@ export class HTTPServer {
       "controller",
       controllerMethod,
       "info",
-      () => route.callback({ requestId, user: request.user, headers: request.headers, data: request.body }),
+      () => route.callback({ requestId, user: request.user, headers: request.headers, remoteAddress: request.socket.remoteAddress, data: request.body }),
       {
         method: request.method,
         path: request.url,
@@ -264,9 +264,7 @@ export class HTTPServer {
   }
 
   private shouldLogRequest(request: IncomingMessage): boolean {
-    if (this.logger.isDebugEnabled()) return true
-
-    return request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
+    return request.method === "GET" || request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
   }
 
   private shouldHandlePreflight(request: IncomingMessage): boolean {

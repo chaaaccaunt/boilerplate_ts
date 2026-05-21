@@ -310,10 +310,12 @@ Runtime metrics для admin-панели собираются через `servi
 - запущенный `services/log-collector`;
 - включенный collector-client у services/gateways через `VAR_LOG_COLLECTOR_CLIENT_ENABLED=true`;
 - заданные `VAR_LOG_COLLECTOR_SOCKET_HOST` и `VAR_LOG_COLLECTOR_SOCKET_PORT` у packages, которые должны отвечать на metrics request;
+- заданный `VAR_PACKAGE_UID`, сгенерированный из package-local `runtime.packageUid`;
 - отключенный self-client у самого `services/log-collector` через `VAR_LOG_COLLECTOR_CLIENT_ENABLED=false`;
 - admin-пользователь для доступа к странице `/system`.
 
 Если package не подключен к socket-серверу `log-collector`, он не попадет в список online metrics.
+Если package подключается без валидного `VAR_PACKAGE_UID`, `log-collector` закрывает соединение и не принимает logs/metrics.
 Если package подключен, но не ответил на `metrics_request` за timeout, `log-collector` возвращает для него `status: unavailable`.
 
 Metrics не требуют отдельного database user и не создают отдельные таблицы.

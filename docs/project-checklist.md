@@ -22,6 +22,7 @@
   - `VAR_HTTP_JWT_SECRET`.
   - `VAR_HTTP_JWT_AUDIENCE`;
   - `VAR_HTTP_JWT_ISSUER`.
+  - `VAR_PACKAGE_UID`.
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
 - Проверить, что `VAR_DB_DIALECT` равен поддерживаемому Sequelize dialect для проекта, например `mysql` или `postgres`.
 - Проверить, что `VAR_DB_PORT` соответствует выбранной СУБД.
@@ -36,6 +37,7 @@
   - runtime-пользователь не имеет `CREATE`, `ALTER`, `DROP`, если package не является migration/setup process;
   - read-only package имеет только `SELECT`;
   - seed/setup данные не требуют расширения runtime-прав package сверх его реальных runtime-сценариев.
+- Проверить, что `VAR_PACKAGE_UID` совпадает с `runtime.packageUid` из package-local `package.config.json` и записью в `runtime_packages`.
 
 ## Перед первичной настройкой БД
 
@@ -83,6 +85,8 @@
   - при `VAR_APP_LOG_LEVEL=debug` services/gateways отправляют все записи, а `log-collector` печатает их в консоль и не пишет в `log_records`;
   - collector lifecycle использует `kind: collector_connection` и `kind: collector_disconnection`;
   - disconnect от `log-collector` фиксируется как тревога `level: error`;
+  - `log_records.packageUid` заполняется через установленное collector-соединение;
+  - `runtime_package_connections` получает события подключения и отключения package;
   - чувствительные данные не попадают в context.
 - Если задача меняла runtime metrics:
   - metrics доступны только администратору через `/system`;

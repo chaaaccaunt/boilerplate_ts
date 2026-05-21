@@ -2,6 +2,7 @@ declare global {
   namespace iSharedLogs {
     type LogLevel = "debug" | "info" | "warn" | "error"
     type LogKind = "application" | "collector_connection" | "collector_disconnection"
+    type RuntimePackageConnectionEvent = "connected" | "disconnected"
 
     type LogValue =
       | string
@@ -18,6 +19,7 @@ declare global {
       kind: LogKind
       level: LogLevel
       source: string
+      packageUid: string
       message: string
       context: LogValue
     }
@@ -27,8 +29,15 @@ declare global {
       kind: LogKind
       level: LogLevel
       source: string
+      packageUid: string
       message: string
       context: LogValue
+    }
+
+    interface CollectorAuthenticationMessageDto {
+      collectorMessageType: "package_authentication"
+      packageUid: string
+      source: string
     }
 
     interface LogsListPayloadDto {

@@ -1,4 +1,5 @@
 import { Exceptions } from "@/libs"
+import type { UUID } from "crypto"
 
 export class LogCollectorService {
   constructor(
@@ -9,6 +10,7 @@ export class LogCollectorService {
   collect(payload: iSharedLogs.CollectLogPayloadDto): Promise<iSharedLogs.LogRecordDto> {
     return this.models.LogRecord.create({
       timestamp: new Date(payload.timestamp),
+      packageUid: payload.packageUid as UUID,
       kind: payload.kind,
       level: payload.level,
       source: payload.source,
@@ -24,6 +26,32 @@ export class LogCollectorService {
       })
     })
       .then((record) => this.toDto(record))
+  }
+
+  findRuntimePackage(uid: string): Promise<iDatabase.Models["RuntimePackage"]["prototype"] | null> {
+    return this.models.RuntimePackage.findByPk(uid)
+  }
+
+  collectConnectionEvent(payload: {
+    packageUid: string
+    event: iSharedLogs.RuntimePackageConnectionEvent
+    timestamp: string
+    details: iSharedLogs.LogValue
+  }): Promise<void> {
+    return this.models.RuntimePackageConnection.create({
+      packageUid: payload.packageUid as UUID,
+      event: payload.event,
+      timestamp: new Date(payload.timestamp),
+      details: this.normalizeContext(payload.details)
+    }, {
+      logging: this.databaseTools.createDatabaseQueryLogger({
+        serviceName: this.constructor.name,
+        serviceMethod: "collectConnectionEvent",
+        event: "runtime_package_connections insert query",
+        mutation: true
+      })
+    })
+      .then(() => undefined)
   }
 
   list(payload: iSharedLogs.LogsListPayloadDto = {}): Promise<iSharedLogs.LogsListResponseDto> {
@@ -52,6 +80,7 @@ export class LogCollectorService {
     return {
       uid: record.uid,
       timestamp: record.timestamp.toISOString(),
+      packageUid: record.packageUid,
       kind: record.kind,
       level: record.level,
       source: record.source,

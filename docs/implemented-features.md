@@ -9,12 +9,17 @@
 Покрытый сценарий:
 
 - вход пользователя по логину и паролю;
+- создание отдельной `user_sessions` записи для каждого login/device;
+- запись `sessionUid` в защищенный JWT без добавления его в публичную user cookie;
+- логирование успешной авторизации с IP, user-agent, device type, OS и browser;
 - установка защищенной authorization cookie;
 - установка публичной user cookie для восстановления frontend state;
 - восстановление локального состояния авторизации после refresh;
 - проверка валидности сессии через `/v1/gateway/authorization/state`;
 - route guard для защищенных страниц;
 - выход из приложения через confirmation modal;
+- просмотр активных устройств на странице `/settings`;
+- выход с отдельного устройства или со всех остальных устройств;
 - очистка authorization state и realtime connection при logout.
 
 Основные зоны реализации:
@@ -24,6 +29,7 @@
 - `monolith/src/views/login`;
 - `monolith/src/application/router`;
 - `monolith/src/layouts/main/components/LogoutModal.vue`.
+- `monolith/src/views/settings/SettingsView.vue`.
 
 ## Управление темой
 
@@ -202,6 +208,7 @@
 - Node.js preflight responses для no-nginx development через `VAR_HTTP_ENABLE_PREFLIGHT`;
 - host-only authorization cookies для `localhost` через `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES`;
 - runtime database grants generation из `package.config.json`;
+- генерация `VAR_PACKAGE_UID` из `runtime.packageUid` в package-local `package.config.json`;
 - database setup/migrate/seed flow через `services/database-migration`;
 - исключение utility package из `dev all` через `boilerplate.runWithDevAll: false`.
 
@@ -218,6 +225,8 @@
 Покрытый сценарий:
 
 - `log-collector` держит двустороннее TCP-соединение с подключенными сервисами и шлюзами;
+- package проходит TCP-handshake через `VAR_PACKAGE_UID`, который проверяется по таблице `runtime_packages`;
+- `log_records` сохраняются с `packageUid`, а lifecycle подключения/отключения дополнительно пишется в `runtime_package_connections`;
 - администратор открывает страницу состояния системы;
 - public gateway запрашивает метрики только у `log-collector`;
 - `log-collector` отправляет подключенным packages `metrics_request`;

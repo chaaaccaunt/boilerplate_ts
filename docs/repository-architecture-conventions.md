@@ -89,10 +89,15 @@ gateways/<gateway-name>/package.config.json
 
 Этот файл является источником package-local настроек для root runner, включая runtime database grants и стабильный localhost port.
 Root runner должен завершаться ошибкой, если для backend-сервиса или gateway отсутствует `package.config.json` или поле `database.runtimeGrants`.
+Для backend-сервиса или gateway, который подключается к `log-collector`, в том же файле должен быть задан стабильный `runtime.packageUid`.
+Root runner переносит это значение в package-local env как `VAR_PACKAGE_UID`, а `log-collector` сверяет его с таблицей `runtime_packages` при TCP-handshake.
 Если package не обращается к БД напрямую, `database.runtimeGrants` должен быть пустым списком:
 
 ```json
 {
+  "runtime": {
+    "packageUid": "00000000-0000-4000-8000-000000000000"
+  },
   "database": {
     "runtimeGrants": []
   }
@@ -103,6 +108,9 @@ Root runner должен завершаться ошибкой, если для 
 
 ```json
 {
+  "runtime": {
+    "packageUid": "00000000-0000-4000-8000-000000000000"
+  },
   "database": {
     "runtimeGrants": [
       {
@@ -118,6 +126,9 @@ Root runner должен завершаться ошибкой, если для 
 
 ```json
 {
+  "runtime": {
+    "packageUid": "00000000-0000-4000-8000-000000000000"
+  },
   "database": {
     "runtimeGrants": []
   },
@@ -136,6 +147,9 @@ Root runner должен завершаться ошибкой, если для 
 
 ```json
 {
+  "runtime": {
+    "packageUid": "00000000-0000-4000-8000-000000000000"
+  },
   "database": {
     "runtimeGrants": [
       {

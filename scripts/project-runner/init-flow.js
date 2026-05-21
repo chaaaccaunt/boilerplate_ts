@@ -1,7 +1,7 @@
 const { existsSync, readFileSync, writeFileSync } = require("fs")
 const { join } = require("path")
 const { getPackageDirectoryNames } = require("./workspaces")
-const { getDatabaseRuntimeUserConfigItems, getLocalhostPackagePort, getLocalhostPackagePorts } = require("./package-config")
+const { getDatabaseRuntimeUserConfigItems, getRuntimePackageUid, getLocalhostPackagePort, getLocalhostPackagePorts } = require("./package-config")
 const { getPackageLocalEnv, parseEnvFile, updateEnvFile, writeDevelopmentEnvFile } = require("./env-files")
 
 function parseInitOptions(args, config) {
@@ -256,6 +256,7 @@ function createFrontendDevelopmentEnv(config, localhostPackagePorts, options = {
 function createBackendCommonDevelopmentEnv(config, packageKind, packageName) {
   return {
     VAR_INTERNAL_SERVICE_TOKEN: config.localhostInternalServiceToken,
+    VAR_PACKAGE_UID: getRuntimePackageUid(config, packageKind, packageName),
     VAR_LOG_COLLECTOR_CLIENT_ENABLED: "true",
     VAR_LOG_COLLECTOR_SOCKET_HOST: config.localhostLogCollectorSocketHost,
     VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort,

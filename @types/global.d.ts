@@ -6,6 +6,7 @@ declare global {
 
     interface iUserToken {
       uid: UUID,
+      sessionUid?: UUID,
       claims?: iPayload
     }
 
@@ -66,6 +67,7 @@ declare global {
       requestId: string
       user?: iContracts.iUserToken
       headers: IncomingHttpHeaders
+      remoteAddress?: string
       data?: TData
     }
 
@@ -160,6 +162,7 @@ declare global {
 
     interface iLoginResult {
       user: iSharedAuthorization.LoginResponseDto
+      session: iSharedAuthorization.UserSessionDto
       accessToken: string
     }
   }

@@ -9,15 +9,17 @@ interface CpuSnapshot {
 export class RuntimeMetrics {
   private previousCpuSnapshot: CpuSnapshot | null = null
 
-  collect(source: string): iSharedSystem.RuntimeMetricsDto {
+  collect(source: string, packageUid = "unknown-package", connectionIpAddress: string | null = null): iSharedSystem.RuntimeMetricsDto {
     const checkedAt = new Date().toISOString()
     const memory = process.memoryUsage()
     const disk = this.getDiskMetrics(process.cwd())
     const cpu = this.getCpuMetrics()
 
     return {
+      packageUid,
       source,
       packageKind: this.getPackageKind(source),
+      connectionIpAddress,
       pid: process.pid,
       hostname: hostname(),
       platform: platform(),
