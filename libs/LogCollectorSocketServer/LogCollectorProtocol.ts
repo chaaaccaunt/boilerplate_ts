@@ -9,7 +9,7 @@ export class LogCollectorProtocol {
     if (typeof value !== "object" || value === null || Array.isArray(value)) return false
 
     const payload = value as Partial<iLogCollectorPackageAuthenticationMessage>
-    return payload.collectorMessageType === "package_authentication" && typeof payload.packageUid === "string" && typeof payload.source === "string"
+    return payload.collectorMessageType === "package_authentication" && typeof payload.packageUid === "string"
   }
 
   isMetricsResponse(value: unknown): value is iLogCollectorMetricsResponseMessage {

@@ -1,9 +1,10 @@
 import type { Socket } from "net"
 
 export interface iLogCollectorConnectionState {
+  connectionId: string
   authenticated: boolean
-  authenticating: Promise<void> | null
   packageUid: string | null
+  skipDisconnectEvent: boolean
   source: string | null
   socket: Socket
 }
@@ -19,7 +20,6 @@ export interface iLogCollectorOfflinePackageState {
 export interface iLogCollectorPackageAuthenticationMessage {
   collectorMessageType: "package_authentication"
   packageUid: string
-  source: string
 }
 
 export interface iLogCollectorMetricsRequestMessage {
@@ -35,6 +35,8 @@ export interface iLogCollectorMetricsResponseMessage {
 }
 
 export interface iLogCollectorPendingMetricsRequest {
+  connectionId: string
+  packageUid: string
   resolve: (item: iLogCollectorRuntimeMetricsItemWithoutLogs) => void
   timeout: NodeJS.Timeout
 }
@@ -49,7 +51,7 @@ export interface iLogCollectorRuntimePackage {
 }
 
 export interface iLogCollectorService {
-  findRuntimePackage(uid: string): Promise<iLogCollectorRuntimePackage | null>
+  listRuntimePackages(): Promise<iLogCollectorRuntimePackage[]>
   collect(payload: iSharedLogs.CollectLogPayloadDto): Promise<unknown>
   collectConnectionEvent(payload: {
     packageUid: string

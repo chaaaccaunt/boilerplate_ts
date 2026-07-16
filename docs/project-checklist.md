@@ -70,9 +70,11 @@
 
 ## Пользователи и роли
 
-- Базовые роли `administrator` и `user` должны существовать в справочнике `roles`.
-- Development seed должен сохранять пароль администратора как bcrypt hash.
-- Создание пользователей должно быть доступно только пользователю с ролью `administrator`.
+- Базовая роль `superadministrator` должна существовать в справочнике `roles`.
+- Development seed должен сохранять пароль суперадминистратора как bcrypt hash.
+- Создание пользователей должно быть доступно по праву `users.create` или роли `superadministrator`.
+- Управление пользователями должно быть разделено по правам `users.read`, `users.create`, `users.update`, `users.delete`.
+- Управление ролями должно быть разделено по правам `roles.read`, `roles.create`, `roles.update`, `roles.delete`, `roles.permissions.manage`.
 - Frontend должен получать пользователей и роли через `monolith/src/entities/users/api`.
 
 ## Проверки перед завершением задачи
@@ -89,7 +91,7 @@
   - `runtime_package_connections` получает события подключения и отключения package;
   - чувствительные данные не попадают в context.
 - Если задача меняла runtime metrics:
-  - metrics доступны только администратору через `/system`;
+  - metrics доступны через право `system.metrics.read` или роль `superadministrator`;
   - public gateway обращается только к `services/log-collector`;
   - services/gateways не получают отдельные публичные metrics endpoints;
   - metrics DTO не содержит secrets, env values, tokens, cookies или database credentials;

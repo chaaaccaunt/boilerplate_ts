@@ -1,27 +1,26 @@
-import { config, HTTPServer, WebSocketServer } from "@/libs"
-import { SystemPackageEventsController } from "@/controllers"
+import { config, MicroServiceHTTPServer, WebSocketServer } from "@/libs"
+import { FileEventsController, SystemPackageEventsController } from "@/controllers"
 import { ChatSocketGateway } from "@/realtime"
 import { InternalServiceClient } from "@/services/InternalServiceClient"
-
-const httpServer = new HTTPServer(config.http)
-const webSocketServer = new WebSocketServer(httpServer.getNativeServer(), config.http)
 
 if (!config.internalServices.chatUrl) {
   throw new Error("Missing VAR_CHAT_SERVICE_URL for chat realtime gateway")
 }
 
-if (!config.internalServices.token) {
-  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for chat realtime gateway")
-}
+const internalEventServer = new MicroServiceHTTPServer({
+  port: config.http.port
+})
+const webSocketServer = new WebSocketServer(internalEventServer.getNativeServer(), config.http)
 
 webSocketServer.use([
-  new ChatSocketGateway(new InternalServiceClient(config.internalServices.chatUrl, config.internalServices.token))
+  new ChatSocketGateway(new InternalServiceClient(config.internalServices.chatUrl))
 ])
-httpServer.use([
-  new SystemPackageEventsController(webSocketServer, config.internalServices.token).getRoutes()
+internalEventServer.use([
+  new FileEventsController(webSocketServer).getRoutes(),
+  new SystemPackageEventsController(webSocketServer).getRoutes()
 ].flat())
 
-httpServer.listen(config.http.port)
+internalEventServer.listen(config.http.port)
 webSocketServer.listen()
 
 export interface iDefaultEnvs { }

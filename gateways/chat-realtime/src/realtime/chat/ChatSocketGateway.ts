@@ -16,6 +16,7 @@ import {
 
 export class ChatSocketGateway implements iWebSocketGateway {
   readonly name = "ChatSocketGateway"
+  private readonly removedLinkText = "Ссылка удалена из соображений безопасности"
 
   constructor(private readonly chatServiceClient: InternalServiceClient) { }
 
@@ -184,17 +185,19 @@ export class ChatSocketGateway implements iWebSocketGateway {
   }
 
   private sendMessage(context: iWebSocketEventContext, payload: iSharedChat.ChatMessageSendPayloadDto): Promise<iSharedChat.ChatMessageSendResponseDto> {
+    const safePayload = this.sanitizeMessagePayload(context, payload)
+
     return this.chatServiceClient.request<iSharedChat.ChatMessageSendResponseDto, iSharedChat.ChatMessageSendPayloadDto & { userUid: string }>({
       requestId: randomUUID(),
       path: "/chat/messages",
       payload: {
-        ...payload,
+        ...safePayload,
         userUid: context.user.uid
       }
     })
       .then((result) => {
         context.socket
-          .to(this.getRoomChannel(payload.roomUid))
+          .to(this.getRoomChannel(safePayload.roomUid))
           .emit("chat:message:created", {
             ok: true,
             result: {
@@ -211,11 +214,13 @@ export class ChatSocketGateway implements iWebSocketGateway {
   }
 
   private updateMessage(context: iWebSocketEventContext, payload: iSharedChat.ChatMessageUpdatePayloadDto): Promise<iSharedChat.ChatMessageUpdateResponseDto> {
+    const safePayload = this.sanitizeMessagePayload(context, payload)
+
     return this.chatServiceClient.request<iSharedChat.ChatMessageUpdateResponseDto, iSharedChat.ChatMessageUpdatePayloadDto & { userUid: string }>({
       requestId: randomUUID(),
       path: "/chat/messages/update",
       payload: {
-        ...payload,
+        ...safePayload,
         userUid: context.user.uid
       }
     })
@@ -288,5 +293,43 @@ export class ChatSocketGateway implements iWebSocketGateway {
 
   private getRoomChannel(roomUid: string): string {
     return `chat:room:${roomUid}`
+  }
+
+  private sanitizeMessagePayload<TPayload extends { text?: string }>(context: iWebSocketEventContext, payload: TPayload): TPayload {
+    if (typeof payload.text !== "string") return payload
+
+    return {
+      ...payload,
+      text: this.sanitizeMessageText(context, payload.text)
+    }
+  }
+
+  private sanitizeMessageText(context: iWebSocketEventContext, text: string): string {
+    return text.replace(/https?:\/\/[^\s]+/g, (url) => {
+      return this.isAllowedOwnLink(context, url) ? url : this.removedLinkText
+    })
+  }
+
+  private isAllowedOwnLink(context: iWebSocketEventContext, value: string): boolean {
+    try {
+      const url = new URL(value)
+      const requestHost = this.getRequestHost(context)
+
+      return (
+        Boolean(requestHost) &&
+        url.protocol === "https:" &&
+        url.host === requestHost &&
+        url.pathname.startsWith("/v1/")
+      )
+    } catch {
+      return false
+    }
+  }
+
+  private getRequestHost(context: iWebSocketEventContext): string | null {
+    const forwardedHost = context.socket.handshake.headers["x-forwarded-host"]
+    const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || context.socket.handshake.headers.host
+
+    return typeof host === "string" && host.trim() ? host.trim() : null
   }
 }

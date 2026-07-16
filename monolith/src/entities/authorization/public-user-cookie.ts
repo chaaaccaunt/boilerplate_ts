@@ -18,8 +18,9 @@ function readPublicUserCookie(): iSharedUser.PublicUserDto | null {
 
   try {
     const parsedValue: unknown = JSON.parse(cookieValue)
-    if (!isPublicUserDto(parsedValue)) return null
-    return parsedValue
+    if (isPublicUserDto(parsedValue)) return parsedValue
+    if (isPublicUserCookieDto(parsedValue)) return toPublicUserDto(parsedValue)
+    return null
   } catch {
     return null
   }
@@ -57,7 +58,9 @@ function isPublicUserDto(value: unknown): value is iSharedUser.PublicUserDto {
     (typeof value.surname === "string" || value.surname === null) &&
     typeof value.fullName === "string" &&
     Array.isArray(value.roles) &&
-    value.roles.every(isUserRoleDto)
+    value.roles.every(isUserRoleDto) &&
+    Array.isArray(value.permissions) &&
+    value.permissions.every(isPermissionDto)
   )
 }
 
@@ -66,7 +69,70 @@ function isUserRoleDto(value: unknown): value is iSharedUserRole.UserRoleDto {
 
   return (
     typeof value.uid === "string" &&
-    (value.name === "administrator" || value.name === "user")
+    typeof value.name === "string" &&
+    Array.isArray(value.permissions) &&
+    value.permissions.every(isPermissionDto)
+  )
+}
+
+function isPublicUserCookieDto(value: unknown): value is iSharedAuthorization.PublicUserCookieDto {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.uid === "string" &&
+    typeof value.login === "string" &&
+    typeof value.firstName === "string" &&
+    typeof value.lastName === "string" &&
+    (typeof value.surname === "string" || value.surname === null) &&
+    typeof value.fullName === "string" &&
+    Array.isArray(value.roles) &&
+    value.roles.every(isPublicUserCookieRoleDto) &&
+    Array.isArray(value.permissionKeys) &&
+    value.permissionKeys.every((permissionKey) => typeof permissionKey === "string")
+  )
+}
+
+function isPublicUserCookieRoleDto(value: unknown): value is iSharedAuthorization.PublicUserCookieRoleDto {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.uid === "string" &&
+    typeof value.name === "string"
+  )
+}
+
+function toPublicUserDto(value: iSharedAuthorization.PublicUserCookieDto): iSharedUser.PublicUserDto {
+  const permissions = value.permissionKeys.map((permissionKey) => ({
+    uid: permissionKey,
+    key: permissionKey,
+    title: permissionKey,
+    description: null
+  }))
+
+  return {
+    uid: value.uid,
+    login: value.login,
+    firstName: value.firstName,
+    lastName: value.lastName,
+    surname: value.surname,
+    fullName: value.fullName,
+    roles: value.roles.map((role) => ({
+      uid: role.uid,
+      name: role.name,
+      permissions: []
+    })),
+    permissions
+  }
+}
+
+function isPermissionDto(value: unknown): value is iSharedPermission.PermissionDto {
+  if (!isRecord(value)) return false
+
+  return (
+    typeof value.uid === "string" &&
+    typeof value.key === "string" &&
+    typeof value.title === "string" &&
+    (typeof value.description === "string" || value.description === null)
   )
 }
 

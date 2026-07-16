@@ -1,9 +1,10 @@
 import { Store } from "vuex"
-import { ApiError, HttpClient, UploadProgressCallback } from "@/shared/api"
+import { ApiError, DownloadProgressCallback, HttpClient, UploadProgressCallback } from "@/shared/api"
 import { AuthorizationApi } from "@/entities/authorization/api/AuthorizationApi"
 import { ChatApi } from "@/entities/chat/api/ChatApi"
 import { FilesApi } from "@/entities/files/api/FilesApi"
 import { LogsApi } from "@/entities/logs/api/LogsApi"
+import { ServiceTokensApi } from "@/entities/service-tokens/api/ServiceTokensApi"
 import { SystemApi } from "@/entities/system/api/SystemApi"
 import { UsersApi } from "@/entities/users/api/UsersApi"
 
@@ -28,6 +29,7 @@ export class ApiClient {
   readonly chat: ChatApi
   readonly files: FilesApi
   readonly logs: LogsApi
+  readonly serviceTokens: ServiceTokensApi
   readonly system: SystemApi
   readonly users: UsersApi
 
@@ -39,6 +41,7 @@ export class ApiClient {
     this.chat = new ChatApi(this)
     this.files = new FilesApi(this)
     this.logs = new LogsApi(this)
+    this.serviceTokens = new ServiceTokensApi(this)
     this.system = new SystemApi(this)
     this.users = new UsersApi(this)
   }
@@ -67,8 +70,30 @@ export class ApiClient {
     return this.uploadRequest<TResult>(path, formData, reportError, onProgress)
   }
 
+  download(path: ApiPath, reportError = true, onProgress?: DownloadProgressCallback): Promise<Blob> {
+    return this.downloadRequest(path, reportError, onProgress)
+  }
+
   resolvePublicUrl(path: ApiPath): string {
     return this.getHttpClient(path).resolvePublicUrl(path)
+  }
+
+  private async downloadRequest(path: ApiPath, reportError: boolean, onProgress?: DownloadProgressCallback): Promise<Blob> {
+    try {
+      return await this.getHttpClient(path).download(path, onProgress)
+    } catch (error) {
+      const apiError = this.normalizeError(error)
+
+      if (reportError) {
+        await this.store.dispatch("errors/add", {
+          code: apiError.code,
+          message: apiError.message,
+          status: apiError.status
+        })
+      }
+
+      throw apiError
+    }
   }
 
   private async uploadRequest<TResult>(path: ApiPath, formData: FormData, reportError: boolean, onProgress?: UploadProgressCallback): Promise<TResult> {
@@ -133,4 +158,3 @@ export class ApiClient {
     return this.http.default
   }
 }
-

@@ -4,10 +4,10 @@ import { getRequiredDatabaseConfig, Logger } from "@/libs"
 const logger = new Logger()
 const sequelize = new Sequelize(getRequiredDatabaseConfig())
 
-const administratorRoleUid = "00000000-0000-4000-8000-000000000101"
-const developmentAdministratorUserUid = "00000000-0000-4000-8000-000000000201"
-const developmentAdministratorUserRoleUid = "00000000-0000-4000-8000-000000000301"
-const developmentAdministratorPasswordHash = "$2b$10$9Srrg0qhRsHjC5YFbw8wYukfownKqxKgtF48VDErFBeXBpTfR9ixK"
+const superadministratorRoleUid = "00000000-0000-4000-8000-000000000101"
+const developmentSuperadministratorUserUid = "00000000-0000-4000-8000-000000000201"
+const developmentSuperadministratorUserRoleUid = "00000000-0000-4000-8000-000000000301"
+const developmentSuperadministratorPasswordHash = "$2b$10$9Srrg0qhRsHjC5YFbw8wYukfownKqxKgtF48VDErFBeXBpTfR9ixK"
 
 seedDevelopmentData()
   .then(() => {
@@ -24,12 +24,12 @@ function seedDevelopmentData(): Promise<void> {
   }
 
   return sequelize.authenticate()
-    .then(() => sequelize.transaction((transaction) => sequelize.query(getUpsertAdministratorUserSql(), {
-      replacements: [developmentAdministratorUserUid, developmentAdministratorPasswordHash],
+    .then(() => sequelize.transaction((transaction) => sequelize.query(getUpsertSuperadministratorUserSql(), {
+      replacements: [developmentSuperadministratorUserUid, developmentSuperadministratorPasswordHash],
       transaction
     })
-      .then(() => sequelize.query(getUpsertAdministratorUserRoleSql(), {
-        replacements: [developmentAdministratorUserRoleUid, developmentAdministratorUserUid, administratorRoleUid],
+      .then(() => sequelize.query(getUpsertSuperadministratorUserRoleSql(), {
+        replacements: [developmentSuperadministratorUserRoleUid, developmentSuperadministratorUserUid, superadministratorRoleUid],
         transaction
       }))))
     .then(() => sequelize.close())
@@ -38,7 +38,7 @@ function seedDevelopmentData(): Promise<void> {
       .then(() => Promise.reject(error)))
 }
 
-function getUpsertAdministratorUserSql(): string {
+function getUpsertSuperadministratorUserSql(): string {
   if (sequelize.getDialect() === "postgres") {
     return `
       INSERT INTO "users" (
@@ -102,7 +102,7 @@ function getUpsertAdministratorUserSql(): string {
     `
 }
 
-function getUpsertAdministratorUserRoleSql(): string {
+function getUpsertSuperadministratorUserRoleSql(): string {
   if (sequelize.getDialect() === "postgres") {
     return `
       INSERT INTO "user_roles" (

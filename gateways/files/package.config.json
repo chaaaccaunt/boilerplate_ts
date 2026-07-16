@@ -5,7 +5,19 @@
   "database": {
     "runtimeGrants": [
       {
+        "table": "users",
+        "operations": ["SELECT"]
+      },
+      {
         "table": "stored_files",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "stored_file_folders",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "stored_documents",
         "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
       },
       {

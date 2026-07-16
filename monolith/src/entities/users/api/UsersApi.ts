@@ -17,6 +17,13 @@ export class UsersApi {
     })
   }
 
+  listPermissions(): Promise<iSharedUser.ListPermissionsResponseDto> {
+    return this.api.get<iSharedUser.ListPermissionsResponseDto>({
+      path: "/users/permissions",
+      commit: "users/setPermissions"
+    })
+  }
+
   create(payload: iSharedUser.CreateUserPayloadDto): Promise<iSharedUser.CreateUserResponseDto> {
     return this.api.post<iSharedUser.CreateUserResponseDto, iSharedUser.CreateUserPayloadDto>({
       path: "/users",
@@ -62,6 +69,22 @@ export class UsersApi {
       path: "/users/roles",
       payload,
       commit: "users/deleteRole"
+    })
+  }
+
+  updateRolePermissions(payload: iSharedUserRole.UpdateRolePermissionsPayloadDto): Promise<iSharedUserRole.UpdateRolePermissionsResponseDto> {
+    return this.api.patch<iSharedUserRole.UpdateRolePermissionsResponseDto, iSharedUserRole.UpdateRolePermissionsPayloadDto>({
+      path: "/users/roles/permissions",
+      payload,
+      commit: "users/updateRole"
+    })
+  }
+
+  updateSuperadministratorUsers(payload: iSharedUser.UpdateSuperadministratorUsersPayloadDto): Promise<iSharedUser.UpdateSuperadministratorUsersResponseDto> {
+    return this.api.patch<iSharedUser.UpdateSuperadministratorUsersResponseDto, iSharedUser.UpdateSuperadministratorUsersPayloadDto>({
+      path: "/users/superadministrators",
+      payload,
+      commit: "users/setUsers"
     })
   }
 }

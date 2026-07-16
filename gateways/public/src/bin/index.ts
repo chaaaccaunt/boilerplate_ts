@@ -15,16 +15,11 @@ if (!config.internalServices.logCollectorUrl) {
   throw new Error("Не задан VAR_LOG_COLLECTOR_SERVICE_URL для public gateway")
 }
 
-if (!config.internalServices.token) {
-  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for public gateway")
-}
-
 new Controllers(
   httpServer,
   config.internalServices.usersUrl,
   config.internalServices.chatUrl,
-  config.internalServices.logCollectorUrl,
-  config.internalServices.token
+  config.internalServices.logCollectorUrl
 )
 
 httpServer.listen(config.http.port)

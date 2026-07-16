@@ -3,6 +3,8 @@ import { PencilIcon, Trash2Icon } from "@lucide/vue"
 
 defineProps<{
   users: iSharedUser.PublicUserDto[]
+  canUpdateUsers: boolean
+  canDeleteUsers: boolean
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +35,7 @@ const emit = defineEmits<{
             <td class="px-4 py-3 text-right">
               <div class="flex justify-end gap-1">
                 <button
+                  v-if="canUpdateUsers"
                   class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-50"
                   type="button"
                   :aria-label="`Редактировать пользователя ${user.fullName}`"
@@ -41,6 +44,7 @@ const emit = defineEmits<{
                   <PencilIcon class="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
+                  v-if="canDeleteUsers"
                   class="inline-flex h-9 w-9 items-center justify-center rounded-md text-red-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 dark:text-red-300 dark:hover:bg-red-950/40 dark:hover:text-red-200"
                   type="button"
                   :aria-label="`Удалить пользователя ${user.fullName}`"

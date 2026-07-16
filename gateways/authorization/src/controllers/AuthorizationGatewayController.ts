@@ -91,7 +91,7 @@ export class AuthorizationGatewayController extends HTTPController {
           },
           {
             name: this.publicUserCookieName,
-            value: JSON.stringify(result.user),
+            value: JSON.stringify(this.toPublicUserCookieDto(result.user)),
             options: {
               secure: process.env.NODE_ENV === "production",
               sameSite: "strict",
@@ -150,6 +150,22 @@ export class AuthorizationGatewayController extends HTTPController {
 
   private getAuthorizationCookieNames(): string[] {
     return [this.httpConfig.cookie_name, this.publicUserCookieName]
+  }
+
+  private toPublicUserCookieDto(user: iSharedAuthorization.LoginResponseDto): iSharedAuthorization.PublicUserCookieDto {
+    return {
+      uid: user.uid,
+      login: user.login,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      surname: user.surname,
+      fullName: user.fullName,
+      roles: user.roles.map((role) => ({
+        uid: role.uid,
+        name: role.name
+      })),
+      permissionKeys: user.permissions.map((permission) => permission.key)
+    }
   }
 
   private getRequiredPublicUserCookieName(): string {

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref } from "vue"
-import { DownloadIcon, EyeIcon, FileTextIcon, PencilIcon, SaveIcon, Trash2Icon, XIcon } from "@lucide/vue"
+import { nextTick, ref, watch } from "vue"
+import { ArrowDownIcon, DownloadIcon, EyeIcon, FileTextIcon, PencilIcon, SaveIcon, Trash2Icon, XIcon } from "@lucide/vue"
+import { useApiClient } from "@/application/api"
 import { MediaViewerModal } from "@/features/media-viewer"
 import type { MediaViewerFile } from "@/features/media-viewer"
 
@@ -17,9 +18,67 @@ const emit = defineEmits<{
   (event: "delete-message-file", payload: iSharedChat.ChatMessageFileDeletePayloadDto): void
 }>()
 
+const apiClient = useApiClient()
+const messagesContainer = ref<HTMLElement | null>(null)
 const viewedFile = ref<MediaViewerFile | null>(null)
 const editedMessageUid = ref<string | null>(null)
 const editedText = ref("")
+const linkedFiles = ref<Record<string, iSharedFiles.UploadedFileDto>>({})
+const loadingLinkedFileUids = new Set<string>()
+const isAutoScrollLocked = ref(false)
+const autoScrollBottomThreshold = 96
+
+type MessageTextSegment =
+  | { kind: "text", value: string }
+  | { kind: "file-link", value: string, fileName: string, href: string }
+
+watch(
+  () => props.messages,
+  (messages) => {
+    loadLinkedFileMetadata(messages)
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
+  () => props.activeRoomUid,
+  () => {
+    isAutoScrollLocked.value = false
+    scrollToLastMessage()
+  }
+)
+
+watch(
+  () => props.messages.length,
+  () => {
+    if (!isAutoScrollLocked.value) scrollToLastMessage()
+  }
+)
+
+function toggleAutoScrollLock(): void {
+  isAutoScrollLocked.value = false
+  scrollToLastMessage()
+}
+
+function scrollToLastMessage(): void {
+  nextTick(() => {
+    const container = messagesContainer.value
+    if (!container) return
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth"
+    })
+  })
+}
+
+function updateAutoScrollLock(): void {
+  const container = messagesContainer.value
+  if (!container) return
+
+  const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+  isAutoScrollLocked.value = distanceToBottom > autoScrollBottomThreshold
+}
 
 function openFile(file: iSharedChat.ChatFileDto): void {
   if (!file.viewUrl) return
@@ -63,10 +122,108 @@ function deleteMessageFile(message: iSharedChat.ChatMessageDto, file: iSharedCha
     fileUid: file.fileUid
   })
 }
+
+function parseMessageText(message: iSharedChat.ChatMessageDto): MessageTextSegment[] {
+  if (!message.text) return []
+
+  const segments: MessageTextSegment[] = []
+  const filesByUid = new Map(message.files.map((file) => [file.fileUid, file]))
+  const urlExpression = /(https?:\/\/[^\s]+|\/v1\/gateway\/files\/[^\s]+)/g
+  let lastIndex = 0
+  let match = urlExpression.exec(message.text)
+
+  while (match) {
+    const matchedUrl = match[0]
+    const fileUid = extractFileUid(matchedUrl)
+    const attachedFile = fileUid ? filesByUid.get(fileUid) : null
+    const linkedFile = fileUid ? linkedFiles.value[fileUid] : null
+
+    if (match.index > lastIndex) {
+      segments.push({
+        kind: "text",
+        value: message.text.slice(lastIndex, match.index)
+      })
+    }
+
+    if (attachedFile) {
+      segments.push({
+        kind: "file-link",
+        value: matchedUrl,
+        fileName: attachedFile.originalName,
+        href: props.resolveFileUrl(attachedFile.url)
+      })
+    } else if (linkedFile) {
+      segments.push({
+        kind: "file-link",
+        value: matchedUrl,
+        fileName: linkedFile.originalName,
+        href: props.resolveFileUrl(linkedFile.url)
+      })
+    } else {
+      segments.push({
+        kind: "text",
+        value: matchedUrl
+      })
+    }
+
+    lastIndex = match.index + matchedUrl.length
+    match = urlExpression.exec(message.text)
+  }
+
+  if (lastIndex < message.text.length) {
+    segments.push({
+      kind: "text",
+      value: message.text.slice(lastIndex)
+    })
+  }
+
+  return segments
+}
+
+function loadLinkedFileMetadata(messages: iSharedChat.ChatMessageDto[]): void {
+  collectTextFileUids(messages).forEach((fileUid) => {
+    if (linkedFiles.value[fileUid] || loadingLinkedFileUids.has(fileUid)) return
+
+    loadingLinkedFileUids.add(fileUid)
+    apiClient.files.getMetadata(fileUid)
+      .then((file) => {
+        linkedFiles.value = {
+          ...linkedFiles.value,
+          [file.fileUid]: file
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        loadingLinkedFileUids.delete(fileUid)
+      })
+  })
+}
+
+function collectTextFileUids(messages: iSharedChat.ChatMessageDto[]): string[] {
+  const fileUids = new Set<string>()
+
+  messages.forEach((message) => {
+    if (!message.text) return
+
+    Array.from(message.text.matchAll(/(?:https?:\/\/[^\s]+|\/v1\/gateway\/files\/[^\s]+)/g))
+      .forEach((match) => {
+        const fileUid = extractFileUid(match[0])
+        if (fileUid) fileUids.add(fileUid)
+      })
+  })
+
+  return Array.from(fileUids)
+}
+
+function extractFileUid(url: string): string | null {
+  const match = url.match(/[?&]fileUid=([0-9a-fA-F-]{36})/)
+
+  return match ? match[1] : null
+}
 </script>
 
 <template>
-  <div class="min-w-0 overflow-auto p-4">
+  <div ref="messagesContainer" class="relative min-h-0 min-w-0 overflow-auto p-4" @scroll="updateAutoScrollLock">
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>
@@ -130,7 +287,21 @@ function deleteMessageFile(message: iSharedChat.ChatMessageDto, file: iSharedCha
           v-model="editedText"
           class="min-h-24 w-full rounded-md border border-blue-300 px-3 py-2 text-sm text-slate-950 outline-none transition focus:ring-2 focus:ring-blue-100"
         ></textarea>
-        <div v-else-if="message.text" class="whitespace-pre-wrap text-sm">{{ message.text }}</div>
+        <div v-else-if="message.text" class="whitespace-pre-wrap break-words text-sm">
+          <template
+            v-for="(segment, segmentIndex) in parseMessageText(message)"
+            :key="`${message.uid}:${segmentIndex}`"
+          >
+            <span v-if="segment.kind === 'text'">{{ segment.value }}</span>
+            <a
+              v-else
+              class="font-medium underline decoration-current/50 underline-offset-2 transition hover:decoration-current"
+              :class="message.isOwn ? 'text-white' : 'text-blue-700 dark:text-blue-300'"
+              :href="segment.href"
+              :aria-label="`Скачать файл ${segment.fileName}`"
+            >{{ segment.fileName }}</a>
+          </template>
+        </div>
         <div v-if="message.files.length" class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <div
             v-for="file in message.files"
@@ -192,6 +363,17 @@ function deleteMessageFile(message: iSharedChat.ChatMessageDto, file: iSharedCha
     <div v-if="activeRoomUid && !messages.length" class="text-sm text-slate-500 dark:text-slate-400">
       Сообщений пока нет
     </div>
+
+    <button
+      v-if="isAutoScrollLocked"
+      class="sticky bottom-0 z-10 ml-auto flex h-10 items-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      type="button"
+      aria-label="Перейти к последнему сообщению"
+      @click="toggleAutoScrollLock"
+    >
+      <ArrowDownIcon class="h-4 w-4" aria-hidden="true" />
+      <span>К последнему</span>
+    </button>
 
     <MediaViewerModal
       :model-value="Boolean(viewedFile)"

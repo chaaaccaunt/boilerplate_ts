@@ -20,10 +20,17 @@
     interface UsersState {
       users: iSharedUser.PublicUserDto[]
       roles: iSharedUserRole.UserRoleDto[]
+      permissions: iSharedPermission.PermissionDto[]
     }
 
     interface FilesState {
+      owners: iSharedFiles.FileOwnerDto[]
       files: iSharedFiles.UploadedFileDto[]
+      folders: iSharedFiles.FileFolderDto[]
+      documents: iSharedFiles.StoredDocumentDto[]
+      currentOwner: iSharedFiles.FileOwnerDto | null
+      currentFolder: iSharedFiles.FileFolderDto | null
+      breadcrumbs: iSharedFiles.FileFolderDto[]
     }
 
     interface LogsState {
@@ -36,6 +43,10 @@
     interface SystemState {
       metrics: iSharedSystem.RuntimeMetricsItemDto[]
       packageConnectionEvents: iSharedLogs.RuntimePackageConnectionEventDto[]
+    }
+
+    interface ServiceTokensState {
+      tokens: iSharedServiceToken.ServiceTokenDto[]
     }
 
     interface ChatState {
@@ -51,10 +62,10 @@
       files: FilesState
       logs: LogsState
       system: SystemState
+      serviceTokens: ServiceTokensState
       errors: ErrorsState
     }
   }
 }
 
 export { }
-

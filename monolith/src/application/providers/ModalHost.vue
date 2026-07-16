@@ -6,10 +6,12 @@ const props = withDefaults(defineProps<{
   labelledBy?: string
   closeOnBackdrop?: boolean
   closeOnEscape?: boolean
+  panelClass?: string
 }>(), {
   labelledBy: undefined,
   closeOnBackdrop: true,
-  closeOnEscape: true
+  closeOnEscape: true,
+  panelClass: "max-w-md"
 })
 
 const emit = defineEmits<{
@@ -50,7 +52,8 @@ function close(): void {
       @click.self="closeByBackdrop"
     >
       <section
-        class="w-full max-w-md rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+        class="w-full rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+        :class="panelClass"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="labelledBy"

@@ -13,7 +13,6 @@ export interface iAppConfig {
   http: iHTTPConfig
   db?: Options
   internalServices: {
-    token?: string
     usersUrl?: string
     chatUrl?: string
     logCollectorUrl?: string
@@ -27,7 +26,6 @@ export class AppConfiguration {
   private readonly requiredEnvKeys: EnvValues
   private readonly optionalEnvKeys: readonly (keyof NodeJS.ProcessEnv)[] = [
     "VAR_APP_LOG_LEVEL",
-    "VAR_INTERNAL_SERVICE_TOKEN",
     "VAR_DB_HOST",
     "VAR_DB_DIALECT",
     "VAR_DB_NAME",
@@ -66,7 +64,6 @@ export class AppConfiguration {
       },
       db: this.getDatabaseConfig(),
       internalServices: {
-        token: this.requiredEnvKeys.VAR_INTERNAL_SERVICE_TOKEN,
         usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
         chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL,
         logCollectorUrl: this.requiredEnvKeys.VAR_LOG_COLLECTOR_SERVICE_URL,
@@ -93,7 +90,6 @@ export class AppConfiguration {
       VAR_HTTP_JWT_SECRET: this.getProcessEnvValue("VAR_HTTP_JWT_SECRET"),
       VAR_HTTP_ALLOW_HOST_ONLY_COOKIES: this.getProcessEnvValue("VAR_HTTP_ALLOW_HOST_ONLY_COOKIES"),
       VAR_HTTP_ENABLE_PREFLIGHT: this.getProcessEnvValue("VAR_HTTP_ENABLE_PREFLIGHT"),
-      VAR_INTERNAL_SERVICE_TOKEN: this.getProcessEnvValue("VAR_INTERNAL_SERVICE_TOKEN"),
       VAR_APP_LOG_LEVEL: this.getProcessEnvValue("VAR_APP_LOG_LEVEL"),
       VAR_USERS_SERVICE_URL: this.getProcessEnvValue("VAR_USERS_SERVICE_URL"),
       VAR_CHAT_SERVICE_URL: this.getProcessEnvValue("VAR_CHAT_SERVICE_URL"),

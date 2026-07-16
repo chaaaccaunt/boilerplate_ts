@@ -4,7 +4,7 @@ import webpack from "webpack"
 import type { Configuration, EntryObject } from "webpack"
 
 const CopyWebpackPlugin = require("copy-webpack-plugin")
-const optionalRuntimeDependencies = /^(pg-hstore|pg-native|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk|bufferutil|utf-8-validate)$/
+const optionalRuntimeDependencies = /^(pg-hstore|pg-native|mariadb|tedious|sqlite3|oracledb|ibm_db|snowflake-sdk|bufferutil|utf-8-validate|encoding)$/
 const unusedSequelizeDialects = /sequelize[\\/]lib[\\/]dialects[\\/](mariadb|mssql|oracle|sqlite|db2|snowflake)/
 
 interface BackendPackageWebpackConfigOptions {

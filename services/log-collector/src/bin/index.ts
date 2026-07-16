@@ -4,12 +4,9 @@ import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, LogCol
 import { LogCollectorService } from "@/services/LogCollectorService"
 import { RuntimePackageEventGatewayClient } from "@/services/RuntimePackageEventGatewayClient"
 
-const logger = new Logger()
+const logger = Logger.createLocal()
 const database = new Database(getRequiredDatabaseConfig())
-if (!config.internalServices.token) {
-  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for log collector service")
-}
-const httpServer = new MicroServiceHTTPServer({ port: config.http.port, internalServiceToken: config.internalServices.token })
+const httpServer = new MicroServiceHTTPServer({ port: config.http.port }, logger)
 const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
 const service = new LogCollectorService(database.models, databaseTools)
 const socketPort = process.env.VAR_LOG_COLLECTOR_SOCKET_PORT
@@ -18,15 +15,10 @@ if (!socketPort) {
   throw new Error("Не задан VAR_LOG_COLLECTOR_SOCKET_PORT для log collector")
 }
 
+const socketPortValue = socketPort
 const runtimePackageEventGatewayClient = config.internalServices.chatRealtimeGatewayUrl
-  ? new RuntimePackageEventGatewayClient(config.internalServices.chatRealtimeGatewayUrl, config.internalServices.token || "")
+  ? new RuntimePackageEventGatewayClient(config.internalServices.chatRealtimeGatewayUrl)
   : null
-const socketServer = new LogCollectorSocketServer(socketPort, service, runtimePackageEventGatewayClient)
-
-httpServer.use([
-  ...new LogsController(service).getRoutes(),
-  ...new SystemMetricsController(socketServer).getRoutes()
-])
 
 start().catch((error) => {
   logger.error("Не удалось запустить log collector service", { error })
@@ -35,7 +27,19 @@ start().catch((error) => {
 
 function start(): Promise<void> {
   return database.sequelize.authenticate()
-    .then(() => {
+    .then(() => service.listRuntimePackages())
+    .then((runtimePackages) => {
+      if (!runtimePackages.length) {
+        throw new Error("Не найдены разрешенные runtime packages в таблице runtime_packages")
+      }
+
+      const socketServer = new LogCollectorSocketServer(socketPortValue, service, runtimePackages, runtimePackageEventGatewayClient, logger)
+
+      httpServer.use([
+        ...new LogsController(service).getRoutes(),
+        ...new SystemMetricsController(socketServer).getRoutes()
+      ])
+
       httpServer.listen(config.http.port)
       socketServer.listen()
     })

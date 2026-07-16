@@ -289,17 +289,12 @@ npm run project -- start-dist gateway public
 
 ## Внутренний transport между gateway и service
 
-Backend-сервисы, которые запускаются через `MicroServiceHTTPServer`, должны требовать заголовок `x-internal-service-token`.
+Backend-сервисы, которые запускаются через `MicroServiceHTTPServer`, должны требовать заголовок `x-request-id`.
 Gateway, который вызывает backend-сервис через `InternalServiceClient`, должен передавать этот заголовок.
 
-Для всех packages, которые запускают backend-сервис или вызывают backend-сервис, должен быть задан package-local env:
-
-```text
-VAR_INTERNAL_SERVICE_TOKEN=...
-```
-
-Значение токена должно совпадать у вызывающего gateway и вызываемого service в рамках одного окружения.
-Токен не заменяет сетевую изоляцию internal ports: service ports все равно не должны быть публичной external boundary.
+`MicroServiceHTTPServer` не использует shared secret header для авторизации внутренних запросов.
+Безопасность внутреннего transport обеспечивается изоляцией internal ports/process/network boundary.
+Service ports не должны быть публичной external boundary.
 
 ## Runtime metrics через log-collector
 
@@ -308,10 +303,9 @@ Runtime metrics для admin-панели собираются через `servi
 Для работы metrics нужны:
 
 - запущенный `services/log-collector`;
-- включенный collector-client у services/gateways через `VAR_LOG_COLLECTOR_CLIENT_ENABLED=true`;
 - заданные `VAR_LOG_COLLECTOR_SOCKET_HOST` и `VAR_LOG_COLLECTOR_SOCKET_PORT` у packages, которые должны отвечать на metrics request;
 - заданный `VAR_PACKAGE_UID`, сгенерированный из package-local `runtime.packageUid`;
-- отключенный self-client у самого `services/log-collector` через `VAR_LOG_COLLECTOR_CLIENT_ENABLED=false`;
+- local logger без self-client у самого `services/log-collector`;
 - admin-пользователь для доступа к странице `/system`.
 
 Если package не подключен к socket-серверу `log-collector`, он не попадет в список online metrics.
@@ -320,3 +314,15 @@ Runtime metrics для admin-панели собираются через `servi
 
 Metrics не требуют отдельного database user и не создают отдельные таблицы.
 Регулярные snapshots metrics не сохраняются в БД.
+
+## Шифрование токенов внешних сервисов
+
+`services/users` хранит токены внешних сервисов, мессенджеров и социальных сетей только в зашифрованном виде.
+
+Для запуска users service должна быть задана обязательная переменная:
+
+```env
+VAR_SERVICE_TOKEN_ENCRYPTION_KEY=<base64-ключ-32-байта>
+```
+
+Ключ не хранится в БД и не должен попадать в SQL-логи. Development init-flow генерирует значение из `development.config.json` или использует стандартный localhost-ключ. Для production нужно задать отдельный production secret в package-local `.prod.env`.

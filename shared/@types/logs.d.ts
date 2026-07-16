@@ -53,7 +53,6 @@ declare global {
     interface CollectorAuthenticationMessageDto {
       collectorMessageType: "package_authentication"
       packageUid: string
-      source: string
     }
 
     interface LogsListPayloadDto {

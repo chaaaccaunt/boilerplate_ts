@@ -89,7 +89,7 @@ class Validator {
     for (let i = 0; i < types.length; i++) {
       const [key, type] = types[i]
 
-      if (type.optional && typeof payload[key] === "undefined") continue
+      if (type.optional && (typeof payload[key] === "undefined" || payload[key] === null)) continue
       if (typeof payload[key] === "undefined" && !type.optional) return { error: true, message: this.missingMessage(key) }
 
       if (type.isPrimitive) {

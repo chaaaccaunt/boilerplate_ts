@@ -3,10 +3,12 @@ import { createServer, Server, Socket } from "net"
 import { Logger } from "../Logger"
 import { LogCollectorConnectionRegistry } from "./LogCollectorConnectionRegistry"
 import { LogCollectorProtocol } from "./LogCollectorProtocol"
+import { RuntimeMetrics } from "../RuntimeMetrics"
 import type {
   iLogCollectorConnectionState,
   iLogCollectorPendingMetricsRequest,
   iLogCollectorRuntimeMetricsItemWithoutLogs,
+  iLogCollectorRuntimePackage,
   iLogCollectorRuntimePackageEventClient,
   iLogCollectorService
 } from "./types"
@@ -16,17 +18,22 @@ export class LogCollectorSocketServer {
   private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
   private readonly connections = new LogCollectorConnectionRegistry()
   private readonly protocol = new LogCollectorProtocol()
+  private readonly runtimeMetrics = new RuntimeMetrics()
   private readonly pendingMetricsRequests = new Map<string, iLogCollectorPendingMetricsRequest>()
   private readonly metricsTimeoutMs = 1500
 
   constructor(
     private readonly port: string,
     private readonly service: iLogCollectorService,
+    runtimePackages: iLogCollectorRuntimePackage[],
     private readonly runtimePackageEventGatewayClient: iLogCollectorRuntimePackageEventClient | null = null,
     private readonly logger = new Logger()
   ) {
+    this.runtimePackages = new Map(runtimePackages.map((runtimePackage) => [runtimePackage.uid, runtimePackage]))
     this.server = createServer((socket) => this.handleConnection(socket))
   }
+
+  private readonly runtimePackages: Map<string, iLogCollectorRuntimePackage>
 
   listen(): void {
     this.server.listen(this.normalizePort(this.port), () => {
@@ -40,18 +47,22 @@ export class LogCollectorSocketServer {
 
   collectRuntimeMetrics(): Promise<iSharedSystem.RuntimeMetricsListResponseDto> {
     const states = this.connections.getWritableAuthenticatedStates()
-    const onlinePackageUids = this.connections.getOnlinePackageUids()
 
     return Promise.all(states.map((state) => this.requestRuntimeMetrics(state)))
-      .then((items) => items.concat(
-        this.connections.getOfflinePackageStatesExcluding(onlinePackageUids)
-          .map((state) => this.createOfflineMetricsItem(state.packageUid, state.source, state.reason, state.disconnectedAt))
-      ))
+      .then((items) => this.appendLogCollectorRuntimeMetrics(items))
+      .then((items) => this.appendUnavailableRuntimePackages(items))
       .then((items) => this.attachPackageLogSummaries(items))
       .then((items) => ({ items }))
   }
 
   collectRuntimeMetric(packageUid: string): Promise<iSharedSystem.RuntimeMetricsItemResponseDto> {
+    const logCollectorRuntimePackage = this.getLogCollectorRuntimePackage()
+
+    if (logCollectorRuntimePackage?.uid === packageUid) {
+      return this.attachPackageLogSummary(this.createLogCollectorRuntimeMetricsItem(logCollectorRuntimePackage))
+        .then((item) => ({ item }))
+    }
+
     const state = this.connections.findWritableByPackageUid(packageUid)
 
     if (!state) {
@@ -79,12 +90,13 @@ export class LogCollectorSocketServer {
   private handleConnection(socket: Socket): void {
     socket.setEncoding("utf8")
     let buffer = ""
-    const state = this.connections.create(socket)
+    const state = this.connections.create(socket, randomUUID())
 
     socket.on("error", (error) => {
       this.logger.warn("Ошибка socket-соединения log collector", {
         serviceName: this.constructor.name,
         serviceMethod: "handleConnection",
+        connectionId: state.connectionId,
         error
       })
     })
@@ -111,22 +123,11 @@ export class LogCollectorSocketServer {
       .then(() => JSON.parse(line))
       .then((payload) => {
         if (this.handleAuthentication(payload, state)) return null
-        if (state.authenticating) {
-          return state.authenticating.then(() => {
-            if (!state.authenticated) {
-              state.socket.destroy()
-              return null
-            }
-
-            if (this.handleMetricsResponse(payload)) return null
-            return this.protocol.normalizePayload(payload, state)
-          })
-        }
         if (!state.authenticated) {
           state.socket.destroy()
           return null
         }
-        if (this.handleMetricsResponse(payload)) return null
+        if (this.handleMetricsResponse(payload, state)) return null
         return this.protocol.normalizePayload(payload, state)
       })
       .then((payload) => {
@@ -141,6 +142,7 @@ export class LogCollectorSocketServer {
         this.logger.warn("Не удалось сохранить log record", {
           serviceName: this.constructor.name,
           serviceMethod: "handleLine",
+          connectionId: state.connectionId,
           error
         })
       })
@@ -149,21 +151,51 @@ export class LogCollectorSocketServer {
   private handleAuthentication(payload: unknown, state: iLogCollectorConnectionState): boolean {
     if (!this.protocol.isAuthenticationMessage(payload)) return false
 
-    state.authenticating = this.service.findRuntimePackage(payload.packageUid)
-      .then((runtimePackage) => {
-        if (!runtimePackage || runtimePackage.name !== payload.source) {
-          state.socket.destroy()
-          return
-        }
+    if (state.authenticated) {
+      this.logger.warn("Повторная authentication в log collector socket отклонена", {
+        serviceName: this.constructor.name,
+        serviceMethod: "handleAuthentication",
+        connectionId: state.connectionId,
+        packageUid: state.packageUid || payload.packageUid,
+        source: state.source || undefined
+      })
+      state.socket.destroy()
+      return true
+    }
 
-        this.connections.markAuthenticated(state, runtimePackage)
+    const runtimePackage = this.runtimePackages.get(payload.packageUid)
+    if (!runtimePackage) {
+      this.rejectAuthentication(state, payload.packageUid, "package_not_registered")
+      return true
+    }
+
+    const duplicateStates = this.connections.closeDuplicatePackageConnections(runtimePackage.uid, state)
+    if (duplicateStates.length) {
+      this.logger.warn("Закрыты дублирующие соединения package с log collector", {
+        serviceName: this.constructor.name,
+        serviceMethod: "handleAuthentication",
+        connectionId: state.connectionId,
+        packageUid: runtimePackage.uid,
+        source: runtimePackage.name,
+        result: duplicateStates.map((duplicateState) => duplicateState.connectionId)
       })
-      .catch(() => state.socket.destroy())
-      .then(() => {
-        state.authenticating = null
-      })
+    }
+
+    this.connections.markAuthenticated(state, runtimePackage)
 
     return true
+  }
+
+  private rejectAuthentication(state: iLogCollectorConnectionState, packageUid: string, reason: string): void {
+    this.logger.warn("Package не прошел authentication в log collector socket", {
+      serviceName: this.constructor.name,
+      serviceMethod: "handleAuthentication",
+      connectionId: state.connectionId,
+      packageUid,
+      reason,
+      ipAddress: state.socket.remoteAddress || null
+    })
+    state.socket.destroy()
   }
 
   private requestRuntimeMetrics(state: iLogCollectorConnectionState): Promise<iLogCollectorRuntimeMetricsItemWithoutLogs> {
@@ -178,6 +210,8 @@ export class LogCollectorSocketServer {
       }, this.metricsTimeoutMs)
 
       this.pendingMetricsRequests.set(requestId, {
+        connectionId: state.connectionId,
+        packageUid,
         resolve,
         timeout
       })
@@ -189,19 +223,23 @@ export class LogCollectorSocketServer {
     })
   }
 
-  private handleMetricsResponse(payload: unknown): boolean {
+  private handleMetricsResponse(payload: unknown, state: iLogCollectorConnectionState): boolean {
     if (!this.protocol.isMetricsResponse(payload)) return false
 
     const pending = this.pendingMetricsRequests.get(payload.requestId)
     if (!pending) return true
+    if (pending.connectionId !== state.connectionId || pending.packageUid !== state.packageUid) return true
+    const source = state.source || "unknown-source"
 
     clearTimeout(pending.timeout)
     this.pendingMetricsRequests.delete(payload.requestId)
     pending.resolve({
       status: "online",
       ...payload.metrics,
-      packageUid: payload.metrics.packageUid || "unknown-package",
-      connectionIpAddress: this.getMetricsConnectionIpAddress(payload.metrics.packageUid)
+      packageUid: pending.packageUid,
+      source,
+      packageKind: this.getPackageKind(source),
+      connectionIpAddress: this.getMetricsConnectionIpAddress(pending.packageUid)
     })
     return true
   }
@@ -209,6 +247,59 @@ export class LogCollectorSocketServer {
   private getMetricsConnectionIpAddress(packageUid: string): string | null {
     const state = this.connections.findByPackageUid(packageUid)
     return state?.socket.remoteAddress || null
+  }
+
+  private appendUnavailableRuntimePackages(items: iLogCollectorRuntimeMetricsItemWithoutLogs[]): iLogCollectorRuntimeMetricsItemWithoutLogs[] {
+    const itemPackageUids = new Set(items.map((item) => item.packageUid))
+    const checkedAt = new Date().toISOString()
+    const unavailableItems = Array.from(this.runtimePackages.values())
+      .filter((runtimePackage) => !itemPackageUids.has(runtimePackage.uid))
+      .map((runtimePackage) => {
+        const offlineState = this.connections.getOfflinePackageState(runtimePackage.uid)
+
+        if (offlineState) {
+          return this.createOfflineMetricsItem(offlineState.packageUid, offlineState.source, offlineState.reason, offlineState.disconnectedAt)
+        }
+
+        return this.createOfflineMetricsItem(
+          runtimePackage.uid,
+          runtimePackage.name,
+          "Package не подключен к log collector",
+          checkedAt
+        )
+      })
+
+    return items.concat(unavailableItems)
+  }
+
+  private appendLogCollectorRuntimeMetrics(items: iLogCollectorRuntimeMetricsItemWithoutLogs[]): iLogCollectorRuntimeMetricsItemWithoutLogs[] {
+    const logCollectorRuntimePackage = this.getLogCollectorRuntimePackage()
+
+    if (!logCollectorRuntimePackage) return items
+    if (items.some((item) => item.packageUid === logCollectorRuntimePackage.uid)) return items
+
+    return items.concat(this.createLogCollectorRuntimeMetricsItem(logCollectorRuntimePackage))
+  }
+
+  private createLogCollectorRuntimeMetricsItem(runtimePackage: iLogCollectorRuntimePackage): iLogCollectorRuntimeMetricsItemWithoutLogs {
+    return {
+      status: "online",
+      ...this.runtimeMetrics.collect(runtimePackage.name, runtimePackage.uid, null)
+    }
+  }
+
+  private getLogCollectorRuntimePackage(): iLogCollectorRuntimePackage | null {
+    const packageUid = process.env.VAR_PACKAGE_UID
+
+    if (!packageUid) return null
+
+    return this.runtimePackages.get(packageUid) || null
+  }
+
+  private getPackageKind(source: string): iSharedSystem.RuntimePackageKind {
+    if (source.endsWith("-service")) return "service"
+    if (source.endsWith("-gateway")) return "gateway"
+    return "unknown"
   }
 
   private collectConnectionEventIfNeeded(payload: iSharedLogs.CollectLogPayloadDto): Promise<void> {
@@ -231,6 +322,7 @@ export class LogCollectorSocketServer {
   }
 
   private handleDisconnect(state: iLogCollectorConnectionState, hadError: boolean, socket: Socket): void {
+    if (state.skipDisconnectEvent) return
     if (!state.source || !state.packageUid) return
 
     this.connections.rememberOffline(state, new Date().toISOString())

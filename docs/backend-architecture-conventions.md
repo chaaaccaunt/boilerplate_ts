@@ -207,6 +207,8 @@ Controller является слоем, который преобразует о
 Backend-микросервисы должны использовать `MicroServiceHTTPServer` из `./libs/MicroServiceHTTPServer`.
 
 `MicroServiceHTTPServer` предназначен только для internal requests от gateway и не является публичным HTTP boundary.
+Если package принимает только внутренние package-to-package события, включая realtime gateway, он тоже должен использовать `MicroServiceHTTPServer`, а не `HTTPServer`.
+Внутренние endpoints внутри gateway package не должны создаваться через `HTTPServer`, если они не являются публичной REST/API boundary.
 
 `MicroServiceHTTPServer` обязан:
 
@@ -262,6 +264,39 @@ Gateway остается владельцем внешней authentication, aut
 Если gateway создан как самостоятельная публичная boundary в обход `gateways/public`, он должен быть автономным и не должен проксировать базовую domain logic в одноименный backend-микросервис.
 Такой gateway использует `HTTPServer`, собственный service layer и собственный database bootstrap внутри package.
 Отдельный backend-микросервис для него создается только по явному архитектурному решению проекта, а не как обязательное продолжение факта существования gateway.
+
+## Разделение REST и realtime
+
+REST/API boundary и realtime boundary должны быть разделены.
+
+Публичные REST endpoints для домена должны проходить через `gateways/public` и обращаться к отдельному backend-сервису домена через internal transport.
+Для чата это означает:
+
+```text
+frontend
+  -> gateways/public
+  -> services/chat
+```
+
+Realtime gateway не должен быть владельцем REST API домена и не должен принимать публичные HTTP CRUD/list requests.
+Realtime gateway отвечает только за WebSocket transport и доставку realtime events онлайн-клиентам.
+
+Для чата realtime поток должен быть отдельным:
+
+```text
+frontend WebSocket
+  -> gateways/chat-realtime
+  -> services/chat для команд/чтения, если это нужно realtime-сценарию
+```
+
+Внутренние события от других packages к realtime gateway должны приниматься через `MicroServiceHTTPServer`.
+Такой internal endpoint является package-to-package event ingress, а не REST endpoint.
+Он обязан использовать `POST`, JSON body и `x-request-id` по правилам `MicroServiceHTTPServer`.
+Безопасность internal transport обеспечивается изоляцией внутренних ports/process/network boundary, а не shared secret header на каждом internal HTTP request.
+
+`gateways/chat-realtime` не должен поднимать `HTTPServer` только ради internal event endpoints.
+Если realtime gateway нужен HTTP native server для WebSocket transport, он может использовать native server, предоставленный `MicroServiceHTTPServer`, либо отдельный минимальный server без публичных REST routes.
+Добавление REST controllers в realtime gateway запрещено без отдельного архитектурного решения и обновления этой документации.
 
 ## Формат API-ответа
 
@@ -459,12 +494,14 @@ nginx не включается в logging map.
 - `collector_connection` — backend-сервис или gateway подключился к `log-collector`;
 - `collector_disconnection` — backend-сервис или gateway потерял подключение к `log-collector`.
 
-Для package `services/log-collector` collector-client должен быть отключен через `VAR_LOG_COLLECTOR_CLIENT_ENABLED=false`, чтобы сервис не подключался к собственному socket-серверу и не создавал ложные тревоги о self-disconnect.
+Для package `services/log-collector` должен использоваться local logger без collector-client, чтобы сервис не подключался к собственному socket-серверу и не создавал ложные тревоги о self-disconnect.
 
 Каждый backend package, который подключается к `log-collector`, обязан иметь стабильный `runtime.packageUid` в package-local `package.config.json`.
 Root runner прокидывает это значение в package-local env как `VAR_PACKAGE_UID`.
-Первым сообщением TCP-клиент обязан отправить `package_authentication` с `packageUid` и `source`.
-`log-collector` принимает logs и metrics только после проверки `packageUid` по таблице `runtime_packages`; соединение без валидного package token закрывается.
+При старте `log-collector` загружает список разрешенных runtime packages из таблицы `runtime_packages` и хранит его в памяти процесса.
+Первым сообщением TCP-клиент обязан отправить `package_authentication` с `packageUid`.
+`source` для logs и metrics определяется `log-collector` по загруженной записи `runtime_packages`, а не передается package через env.
+`log-collector` принимает logs и metrics только после проверки `packageUid` по загруженному списку runtime packages; соединение без валидного package token закрывается.
 Все записи `log_records` должны сохраняться с `packageUid`, который collector берет из установленного соединения, а не доверяет payload лога.
 События подключения и отключения packages дополнительно фиксируются в таблице `runtime_package_connections`.
 
@@ -508,7 +545,7 @@ admin UI
 `GET /v1/gateway/system/metrics` должен:
 
 - требовать authorization;
-- проверять роль `administrator` на уровне controller;
+- проверять право `system.metrics.read` на уровне controller с fallback на роль `superadministrator`;
 - обращаться только к `services/log-collector`;
 - не проксировать запросы напрямую к остальным services/gateways.
 
@@ -713,4 +750,3 @@ nginx
 - Во время разработки агент обязан соблюдать logging map по месту возникновения события и его уровню.
 - Агент не должен вручную дублировать расширенный контекст в сообщении лога без необходимости.
 - Временные диагностические логи, не соответствующие logging map, должны удаляться перед завершением задачи.
-

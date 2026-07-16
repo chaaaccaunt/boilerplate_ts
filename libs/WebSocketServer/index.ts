@@ -181,13 +181,33 @@ export class WebSocketServer {
 
     const user = socket.data.user as iContracts.iUserToken | undefined
     if (options.excludeUserUid && user?.uid === options.excludeUserUid) return true
-    if (!this.hasAllowedRole(user, options.allowedRoles)) return true
+    if (!this.hasAllowedAccess(user, options.allowedPermissions, options.allowedRoles)) return true
 
     return false
   }
 
+  private hasAllowedAccess(
+    user: iContracts.iUserToken | undefined,
+    allowedPermissions: readonly iSharedPermission.PermissionKey[] | undefined,
+    allowedRoles: readonly iSharedUserRole.UserRoleName[] | undefined
+  ): boolean {
+    if (!allowedPermissions?.length && !allowedRoles?.length) return true
+    if (this.hasAllowedPermission(user, allowedPermissions)) return true
+    return this.hasAllowedRole(user, allowedRoles)
+  }
+
+  private hasAllowedPermission(user: iContracts.iUserToken | undefined, allowedPermissions: readonly iSharedPermission.PermissionKey[] | undefined): boolean {
+    if (!allowedPermissions?.length) return false
+    if (!user) return false
+
+    const permissions = user.claims?.permissions
+    if (!Array.isArray(permissions)) return false
+
+    return allowedPermissions.some((permissionKey) => permissions.includes(permissionKey))
+  }
+
   private hasAllowedRole(user: iContracts.iUserToken | undefined, allowedRoles: readonly iSharedUserRole.UserRoleName[] | undefined): boolean {
-    if (!allowedRoles?.length) return true
+    if (!allowedRoles?.length) return false
     if (!user) return false
 
     const roles = user.claims?.roles

@@ -9,6 +9,7 @@ import {
   Sequelize
 } from "sequelize"
 import type { Association, NonAttribute } from "sequelize"
+import type { StoredFileFolderModel } from "./StoredFileFolderModel"
 import type { UserModel } from "../users/UserModel"
 
 export class StoredFileModel extends Model<InferAttributes<StoredFileModel>, InferCreationAttributes<StoredFileModel>> {
@@ -18,19 +19,24 @@ export class StoredFileModel extends Model<InferAttributes<StoredFileModel>, Inf
   declare size: number
   declare description: string | null
   declare storagePath: string
+  declare visibility: iSharedFiles.FileVisibility
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
+  declare folderUid: ForeignKey<UUID> | null
   declare createdByUserUid: ForeignKey<UUID>
 
   static associate(models: iDatabase.Models) {
     this.belongsTo(models.User, { foreignKey: "createdByUserUid", as: "creator" })
+    this.belongsTo(models.StoredFileFolder, { foreignKey: "folderUid", as: "folder" })
   }
 
   declare creator: NonAttribute<UserModel>
+  declare folder: NonAttribute<StoredFileFolderModel | null>
 
   declare static associations: {
     creator: Association<StoredFileModel, UserModel>
+    folder: Association<StoredFileModel, StoredFileFolderModel>
   };
 }
 
@@ -61,6 +67,15 @@ export function getStoredFileModel(sequelize: Sequelize) {
       storagePath: {
         type: DataTypes.STRING(128),
         allowNull: false
+      },
+      folderUid: {
+        type: DataTypes.UUID,
+        allowNull: true
+      },
+      visibility: {
+        type: DataTypes.ENUM("public", "private"),
+        allowNull: false,
+        defaultValue: "public"
       },
       createdByUserUid: {
         type: DataTypes.UUID,

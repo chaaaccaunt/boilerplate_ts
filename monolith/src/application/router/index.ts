@@ -26,14 +26,44 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import(/* webpackChunkName: "chat" */ '@/views/chat/ChatView.vue')
   },
   {
+    path: "/files",
+    name: "files",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "files" */ "@/views/files/FilesView.vue")
+  },
+  {
+    path: "/media",
+    name: "media",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "media" */ "@/views/media/MediaView.vue")
+  },
+  {
+    path: "/files/my",
+    name: "files-my",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "files" */ "@/views/files/FilesView.vue")
+  },
+  {
+    path: "/files/users/:userUid",
+    name: "files-user",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "files" */ "@/views/files/FilesView.vue")
+  },
+  {
+    path: "/files/documents/:documentUid",
+    name: "files-document",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "files" */ "@/views/files/DocumentEditorView.vue")
+  },
+  {
     path: '/users',
     name: 'users',
-    meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
+    meta: { requiresAuthorization: true, allowedPermissions: ["users.read", "users.create", "users.update", "users.delete", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage"], allowedRoles: ["superadministrator"] },
     component: () => import(/* webpackChunkName: "users" */ '@/views/users/UsersView.vue')
   },
   {
     path: "/system",
-    meta: { requiresAuthorization: true, allowedRoles: ["administrator"] },
+    meta: { requiresAuthorization: true, allowedPermissions: ["system.metrics.read", "logs.read"], allowedRoles: ["superadministrator"] },
     component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemView.vue"),
     children: [
       {
@@ -53,6 +83,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'settings',
     meta: { requiresAuthorization: true },
     component: () => import(/* webpackChunkName: "settings" */ '@/views/settings/SettingsView.vue')
+  },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "not-found" */ "@/views/not-found/NotFoundView.vue")
   }
 ]
 
@@ -71,7 +107,7 @@ export function registerRouterGuards(
 
     try {
       await apiClient.authorization.state()
-      if (!hasAllowedRole(store, to.meta.allowedRoles)) {
+      if (!hasAllowedAccess(store, to.meta.allowedPermissions, to.meta.allowedRoles)) {
         return { name: "home" }
       }
 
@@ -88,10 +124,21 @@ export function registerRouterGuards(
   })
 }
 
+function hasAllowedAccess(store: Store<iSharedState.RootState>, allowedPermissions: unknown, allowedRoles: unknown): boolean {
+  if (hasAllowedPermission(store, allowedPermissions)) return true
+  return hasAllowedRole(store, allowedRoles)
+}
+
+function hasAllowedPermission(store: Store<iSharedState.RootState>, allowedPermissions: unknown): boolean {
+  if (!Array.isArray(allowedPermissions) || !allowedPermissions.length) return false
+
+  const userPermissions = store.state.authorization.user?.permissions.map((permission) => permission.key) || []
+  return allowedPermissions.some((permissionKey) => typeof permissionKey === "string" && userPermissions.includes(permissionKey))
+}
+
 function hasAllowedRole(store: Store<iSharedState.RootState>, allowedRoles: unknown): boolean {
   if (!Array.isArray(allowedRoles) || !allowedRoles.length) return true
 
   const userRoles = store.state.authorization.user?.roles.map((role) => role.name) || []
   return allowedRoles.some((roleName) => typeof roleName === "string" && userRoles.includes(roleName as iSharedUserRole.UserRoleName))
 }
-

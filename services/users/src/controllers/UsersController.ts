@@ -53,7 +53,49 @@ export class UsersController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "deleteRole", this.deleteRole.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute])
+    const permissionsRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListPermissionsResponseDto> = {
+      url: /^POST:\/users\/permissions\/list\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "listPermissions", this.listPermissions.bind(this))
+    }
+
+    const updateRolePermissionsRoute: iContracts.iMicroServiceRoute<iSharedUserRole.UpdateRolePermissionsPayloadDto, iSharedUserRole.UpdateRolePermissionsResponseDto> = {
+      url: /^POST:\/users\/roles\/permissions\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "updateRolePermissions", this.updateRolePermissions.bind(this))
+    }
+
+    const updateSuperadministratorUsersRoute: iContracts.iMicroServiceRoute<iSharedUser.UpdateSuperadministratorUsersPayloadDto, iSharedUser.UpdateSuperadministratorUsersResponseDto> = {
+      url: /^POST:\/users\/superadministrators\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "updateSuperadministratorUsers", this.updateSuperadministratorUsers.bind(this))
+    }
+
+    const listServiceTokensRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedServiceToken.ListServiceTokensResponseDto> = {
+      url: /^POST:\/service-tokens\/list\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "listServiceTokens", this.listServiceTokens.bind(this))
+    }
+
+    const createServiceTokenRoute: iContracts.iMicroServiceRoute<iSharedServiceToken.CreateServiceTokenPayloadDto, iSharedServiceToken.CreateServiceTokenResponseDto> = {
+      url: /^POST:\/service-tokens\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "createServiceToken", this.createServiceToken.bind(this))
+    }
+
+    const updateServiceTokenRoute: iContracts.iMicroServiceRoute<iSharedServiceToken.UpdateServiceTokenPayloadDto, iSharedServiceToken.UpdateServiceTokenResponseDto> = {
+      url: /^POST:\/service-tokens\/update\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "updateServiceToken", this.updateServiceToken.bind(this))
+    }
+
+    const deleteServiceTokenRoute: iContracts.iMicroServiceRoute<iSharedServiceToken.DeleteServiceTokenPayloadDto, iSharedServiceToken.DeleteServiceTokenResponseDto> = {
+      url: /^POST:\/service-tokens\/delete\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "deleteServiceToken", this.deleteServiceToken.bind(this))
+    }
+
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute, listServiceTokensRoute, createServiceTokenRoute, updateServiceTokenRoute, deleteServiceTokenRoute])
   }
 
   private list(): Promise<iSharedUser.ListUsersResponseDto> {
@@ -90,6 +132,11 @@ export class UsersController extends MicroServiceController {
       .then((roles) => ({ roles }))
   }
 
+  private listPermissions(): Promise<iSharedUser.ListPermissionsResponseDto> {
+    return this.service.listPermissions()
+      .then((permissions) => ({ permissions }))
+  }
+
   private createRole(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.CreateRolePayloadDto>): Promise<iSharedUserRole.CreateRoleResponseDto> {
     if (!payload.data) {
       return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.createRole"))
@@ -112,5 +159,51 @@ export class UsersController extends MicroServiceController {
     }
 
     return this.service.deleteRole(payload.data, payload.requestId)
+  }
+
+  private updateRolePermissions(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.UpdateRolePermissionsPayloadDto>): Promise<iSharedUserRole.UpdateRolePermissionsResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateRolePermissions"))
+    }
+
+    return this.service.updateRolePermissions(payload.data, payload.requestId)
+  }
+
+  private updateSuperadministratorUsers(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.UpdateSuperadministratorUsersPayloadDto>): Promise<iSharedUser.UpdateSuperadministratorUsersResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateSuperadministratorUsers"))
+    }
+
+    return this.service.updateSuperadministratorUsers(payload.data, payload.requestId)
+      .then((users) => ({ users }))
+  }
+
+  private listServiceTokens(): Promise<iSharedServiceToken.ListServiceTokensResponseDto> {
+    return this.service.listServiceTokens()
+      .then((tokens) => ({ tokens }))
+  }
+
+  private createServiceToken(payload: iContracts.iMicroServiceRequestPayload<iSharedServiceToken.CreateServiceTokenPayloadDto>): Promise<iSharedServiceToken.CreateServiceTokenResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.createServiceToken"))
+    }
+
+    return this.service.createServiceToken(payload.data, payload.requestId)
+  }
+
+  private updateServiceToken(payload: iContracts.iMicroServiceRequestPayload<iSharedServiceToken.UpdateServiceTokenPayloadDto>): Promise<iSharedServiceToken.UpdateServiceTokenResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateServiceToken"))
+    }
+
+    return this.service.updateServiceToken(payload.data, payload.requestId)
+  }
+
+  private deleteServiceToken(payload: iContracts.iMicroServiceRequestPayload<iSharedServiceToken.DeleteServiceTokenPayloadDto>): Promise<iSharedServiceToken.DeleteServiceTokenResponseDto> {
+    if (!payload.data) {
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.deleteServiceToken"))
+    }
+
+    return this.service.deleteServiceToken(payload.data, payload.requestId)
   }
 }

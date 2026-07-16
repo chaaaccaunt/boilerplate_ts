@@ -509,8 +509,10 @@ export class ChatService {
       fullName: user.fullName,
       roles: user.roles.map((userRole) => ({
         uid: userRole.role.uid,
-        name: userRole.role.name
-      }))
+        name: userRole.role.name,
+        permissions: []
+      })),
+      permissions: []
     }
   }
 

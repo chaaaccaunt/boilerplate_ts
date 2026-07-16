@@ -5,10 +5,7 @@ import { ChatService } from "@/services/ChatService"
 
 const logger = new Logger()
 const database = new Database(getRequiredDatabaseConfig())
-if (!config.internalServices.token) {
-  throw new Error("Missing VAR_INTERNAL_SERVICE_TOKEN for chat service")
-}
-const httpServer = new MicroServiceHTTPServer({ port: config.http.port, internalServiceToken: config.internalServices.token })
+const httpServer = new MicroServiceHTTPServer({ port: config.http.port })
 const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
 const service = new ChatService(database.models, databaseTools)
 

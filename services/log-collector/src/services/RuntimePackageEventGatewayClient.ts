@@ -2,28 +2,20 @@ import { randomUUID } from "crypto"
 import { Exceptions } from "@/libs"
 
 export class RuntimePackageEventGatewayClient {
-  constructor(
-    private readonly baseUrl: string,
-    private readonly internalServiceToken: string
-  ) {
+  constructor(private readonly baseUrl: string) {
     if (!this.baseUrl) {
       throw new Error("RuntimePackageEventGatewayClient требует URL chat realtime gateway")
-    }
-
-    if (!this.internalServiceToken) {
-      throw new Error("RuntimePackageEventGatewayClient требует x-internal-service-token")
     }
   }
 
   notify(payload: iSharedLogs.RuntimePackageConnectionEventDto): Promise<void> {
-    const url = new URL("/v1/gateway/system/package-connection-event", this.baseUrl)
+    const url = new URL("/system/package-connection-event", this.baseUrl)
 
     return fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "x-request-id": randomUUID(),
-        "x-internal-service-token": this.internalServiceToken
+        "x-request-id": randomUUID()
       },
       body: JSON.stringify(payload)
     })

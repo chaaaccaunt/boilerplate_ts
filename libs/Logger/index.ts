@@ -1,6 +1,5 @@
 import { Exceptions } from "../Exceptions"
 import { Socket, createConnection } from "net"
-import { basename } from "path"
 import { RuntimeMetrics } from "../RuntimeMetrics"
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -8,10 +7,8 @@ export type TraceLayer = 'httpServer' | 'webSocketServer' | 'controller' | 'gate
 
 export interface iLoggerEnv {
   VAR_APP_LOG_LEVEL?: LogLevel
-  VAR_LOG_COLLECTOR_CLIENT_ENABLED?: string
   VAR_LOG_COLLECTOR_SOCKET_HOST?: string
   VAR_LOG_COLLECTOR_SOCKET_PORT?: string
-  VAR_LOG_SOURCE?: string
   VAR_PACKAGE_UID?: string
 }
 
@@ -26,6 +23,9 @@ type LogValue =
   | Error
 
 interface LogContext {
+  connectionId?: string
+  packageUid?: string
+  source?: string
   requestId?: string
   userId?: string | number
   sessionUid?: string
@@ -46,6 +46,8 @@ interface LogContext {
   operatingSystem?: string
   browser?: string
   socketId?: string
+  remoteAddress?: string | null
+  remotePort?: number | null
   reason?: string
   error?: LogValue
   trace?: unknown
@@ -74,7 +76,6 @@ interface MetricsRequestMessage {
 interface PackageAuthenticationMessage {
   collectorMessageType: "package_authentication"
   packageUid: string
-  source: string
 }
 
 interface MetricsResponseMessage {
@@ -84,7 +85,43 @@ interface MetricsResponseMessage {
   metrics: iSharedSystem.RuntimeMetricsDto
 }
 
-class LogCollectorClient {
+interface LogSink {
+  send(record: LogRecord): void
+}
+
+class NoopLogSink implements LogSink {
+  send(): void {}
+}
+
+class ConsoleLogSink implements LogSink {
+  send(record: LogRecord): void {
+    console.log({
+      timestamp: record.timestamp,
+      kind: record.kind,
+      level: record.level,
+      source: record.source,
+      message: record.message,
+      context: record.context
+    })
+  }
+}
+
+class CompositeLogSink implements LogSink {
+  constructor(private readonly sinks: LogSink[]) {}
+
+  send(record: LogRecord): void {
+    this.sinks.forEach((sink) => sink.send(record))
+  }
+}
+
+interface LoggerOptions {
+  sink?: LogSink
+  source?: string
+}
+
+type LogWriter = (message: string, context?: LogContext) => void
+
+class LogCollectorClient implements LogSink {
   private readonly maxConnectionAttempts = 10
   private readonly retryDelayMs = 5000
   private readonly connectTimeoutMs = 1000
@@ -98,25 +135,30 @@ class LogCollectorClient {
   private connectedOnce = false
   private inputBuffer = ""
   private readonly metrics = new RuntimeMetrics()
-  private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
+  send: (record: LogRecord) => void = this.enqueue.bind(this)
 
   constructor(
-    private readonly host: string | undefined,
-    private readonly port: string | undefined,
-    private readonly packageUid: string | undefined,
-    private readonly enabled: boolean
-  ) { }
+    private readonly host: string,
+    private readonly port: string,
+    private readonly packageUid: string
+  ) {
+    this.assertConfigured()
+  }
 
-  send(record: LogRecord): void {
-    if (!this.enabled || !this.host || !this.port || this.disabled) return
-    if (record.level === "debug" && !this.debugEnabled) return
-
+  private enqueue(record: LogRecord): void {
     this.queue.push(`${JSON.stringify(record)}\n`)
     if (this.queue.length > this.maxQueueSize) {
       this.queue.shift()
     }
 
     this.flush()
+  }
+
+  private assertConfigured(): void {
+    const port = Number(this.port)
+    if (!this.host) throw new Error("Не задан VAR_LOG_COLLECTOR_SOCKET_HOST для подключения к log collector")
+    if (!Number.isSafeInteger(port) || port <= 0) throw new Error("VAR_LOG_COLLECTOR_SOCKET_PORT должен быть положительным числом")
+    if (!this.packageUid) throw new Error("VAR_PACKAGE_UID обязателен для подключения к log collector")
   }
 
   private flush(): void {
@@ -134,11 +176,6 @@ class LogCollectorClient {
 
   private connect(): void {
     const port = Number(this.port)
-    if (!Number.isSafeInteger(port) || port <= 0) return
-    if (!this.packageUid) {
-      this.disable("Не задан VAR_PACKAGE_UID для подключения к log collector")
-      return
-    }
     if (this.connectionAttempts >= this.maxConnectionAttempts) {
       this.disable()
       return
@@ -198,6 +235,7 @@ class LogCollectorClient {
 
   private disable(reason?: string): void {
     this.disabled = true
+    this.send = () => {}
     this.queue.length = 0
 
     if (this.failureReported) return
@@ -254,46 +292,35 @@ class LogCollectorClient {
   private createAuthenticationMessage(): PackageAuthenticationMessage {
     return {
       collectorMessageType: "package_authentication",
-      packageUid: this.packageUid || "",
-      source: this.getSource()
+      packageUid: this.packageUid || ""
     }
   }
 
   private getSource(): string {
-    return process.env.VAR_LOG_SOURCE || process.env.npm_package_name || basename(process.cwd())
+    return this.packageUid || "unknown-package"
   }
 }
 
-const sharedLogCollectorClient = new LogCollectorClient(
-  process.env.VAR_LOG_COLLECTOR_SOCKET_HOST,
-  process.env.VAR_LOG_COLLECTOR_SOCKET_PORT,
-  process.env.VAR_PACKAGE_UID,
-  process.env.VAR_LOG_COLLECTOR_CLIENT_ENABLED !== "false"
-)
+let sharedLogSink: LogSink | null = null
 
 export class Logger {
-  #debugEnabled = process.env.VAR_APP_LOG_LEVEL === 'debug'
-  #source = process.env.VAR_LOG_SOURCE || process.env.npm_package_name || basename(process.cwd())
-  #collectorClient = sharedLogCollectorClient
+  #debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
+  #source: string
+  #writers: Record<LogLevel, LogWriter>
+  #sink: LogSink
 
-  constructor() { }
+  constructor(options: LoggerOptions = {}) {
+    this.#source = options.source || process.env.VAR_PACKAGE_UID || "unknown-package"
+    this.#sink = options.sink || getSharedLogSink()
+    this.#writers = this.createWriters()
+  }
+
+  static createLocal(): Logger {
+    return new Logger({ sink: new ConsoleLogSink() })
+  }
 
   log(level: LogLevel, message: string, context: LogContext = {}): void {
-    if (level === 'debug' && !this.#debugEnabled) {
-      return
-    }
-
-    const record: LogRecord = {
-      timestamp: new Date().toISOString(),
-      kind: "application",
-      level,
-      source: this.#source,
-      message,
-      context: this.#sanitizeContext(context)
-    }
-
-    this.#print(record)
-    this.#collectorClient.send(record)
+    this.#writers[level](message, context)
   }
 
   debug(message: string, context: LogContext = {}): void {
@@ -314,6 +341,28 @@ export class Logger {
 
   isDebugEnabled(): boolean {
     return this.#debugEnabled
+  }
+
+  private createWriters(): Record<LogLevel, LogWriter> {
+    const writeDebug = this.#debugEnabled ? this.write.bind(this, "debug") : () => undefined
+
+    return {
+      debug: writeDebug,
+      info: this.write.bind(this, "info"),
+      warn: this.write.bind(this, "warn"),
+      error: this.write.bind(this, "error")
+    }
+  }
+
+  private write(level: LogLevel, message: string, context: LogContext = {}): void {
+    this.#sink.send({
+      timestamp: new Date().toISOString(),
+      kind: "application",
+      level,
+      source: this.#source,
+      message,
+      context: this.#sanitizeContext(context)
+    })
   }
 
   #sanitizeContext(context: LogContext): LogContext {
@@ -389,18 +438,33 @@ export class Logger {
     return typeof value === 'object' && value !== null
   }
 
-  #print(record: LogRecord): void {
-    if (record.level === "debug" && !this.#debugEnabled) return
+}
 
-    console.log({
-      timestamp: record.timestamp,
-      kind: record.kind,
-      level: record.level,
-      source: record.source,
-      message: record.message,
-      context: record.context
-    })
+function createDefaultLogSink(): LogSink {
+  const consoleSink = new ConsoleLogSink()
+  const collectorSink = createCollectorSinkFromEnv()
+
+  if (collectorSink instanceof NoopLogSink) return consoleSink
+
+  return new CompositeLogSink([consoleSink, collectorSink])
+}
+
+function getSharedLogSink(): LogSink {
+  if (!sharedLogSink) {
+    sharedLogSink = createDefaultLogSink()
   }
+
+  return sharedLogSink
+}
+
+function createCollectorSinkFromEnv(): LogSink {
+  const host = process.env.VAR_LOG_COLLECTOR_SOCKET_HOST
+  const port = process.env.VAR_LOG_COLLECTOR_SOCKET_PORT
+
+  if (!host && !port) return new NoopLogSink()
+  if (!host || !port) throw new Error("Для подключения к log collector должны быть заданы VAR_LOG_COLLECTOR_SOCKET_HOST и VAR_LOG_COLLECTOR_SOCKET_PORT")
+
+  return new LogCollectorClient(host, port, process.env.VAR_PACKAGE_UID || "")
 }
 
 interface TraceStep {

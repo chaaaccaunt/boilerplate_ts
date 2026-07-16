@@ -24,7 +24,13 @@ export class AuthorizationService {
       where: { login: payload.login },
       include: [{
         association: this.model.associations.roles,
-        include: [{ association: "role" }]
+        include: [{
+          association: "role",
+          include: [{
+            association: "rolePermissions",
+            include: [{ association: "permission" }]
+          }]
+        }]
       }]
     })
       .then((user) => {
@@ -141,10 +147,8 @@ export class AuthorizationService {
     if (this.httpConfig.jwt_audience) signOptions.audience = this.httpConfig.jwt_audience
     if (this.httpConfig.jwt_issuer) signOptions.issuer = this.httpConfig.jwt_issuer
 
-    const roles = user.roles.map((userRole) => ({
-      uid: userRole.role.uid,
-      name: userRole.role.name
-    } satisfies iSharedUserRole.UserRoleDto))
+    const roles = user.roles.map((userRole) => this.toRoleDto(userRole.role))
+    const permissions = this.getUniquePermissions(roles)
 
     const userDto = {
       uid: user.uid,
@@ -153,14 +157,16 @@ export class AuthorizationService {
       lastName: user.lastName,
       surname: user.surname,
       fullName: user.fullName,
-      roles
+      roles,
+      permissions
     } satisfies iSharedAuthorization.LoginResponseDto
 
     const tokenPayload: iContracts.iUserToken = {
       uid: user.uid,
       sessionUid: session.uid,
       claims: {
-        roles: roles.map((role) => role.name)
+        roles: roles.map((role) => role.name),
+        permissions: permissions.map((permission) => permission.key)
       }
     }
 
@@ -208,6 +214,31 @@ export class AuthorizationService {
       createdAt: session.createdAt.toISOString(),
       isCurrent: Boolean(currentSessionUid && session.uid === currentSessionUid)
     }
+  }
+
+  private toRoleDto(role: iDatabase.Models["Role"]["prototype"]): iSharedUserRole.UserRoleDto {
+    return {
+      uid: role.uid,
+      name: role.name,
+      permissions: (role.rolePermissions || []).map((rolePermission) => ({
+        uid: rolePermission.permission.uid,
+        key: rolePermission.permission.key,
+        title: rolePermission.permission.title,
+        description: rolePermission.permission.description
+      }))
+    }
+  }
+
+  private getUniquePermissions(roles: iSharedUserRole.UserRoleDto[]): iSharedPermission.PermissionDto[] {
+    const permissions = new Map<string, iSharedPermission.PermissionDto>()
+
+    roles.forEach((role) => {
+      role.permissions.forEach((permission) => {
+        permissions.set(permission.key, permission)
+      })
+    })
+
+    return Array.from(permissions.values()).sort((left, right) => left.key.localeCompare(right.key))
   }
 
   private getIpAddress(context: LoginContext): string | null {

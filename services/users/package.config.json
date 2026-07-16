@@ -13,7 +13,19 @@
         "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
       },
       {
+        "table": "permissions",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "role_permissions",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
         "table": "user_roles",
+        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "service_tokens",
         "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
       }
     ]

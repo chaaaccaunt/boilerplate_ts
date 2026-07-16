@@ -26,6 +26,22 @@ export abstract class HTTPController {
     return payload.user
   }
 
+  protected accessPermissions(
+    payload: { user?: iContracts.iUserToken },
+    allowedPermissions: readonly iSharedPermission.PermissionKey[] = [],
+    fallbackAllowedRoles: readonly iSharedUserRole.UserRoleName[] = []
+  ): iContracts.iUserToken {
+    if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
+    if (!allowedPermissions.length) return this.access(payload, fallbackAllowedRoles)
+
+    const permissionKeys = this.getUserPermissionKeys(payload.user)
+    const hasAllowedPermission = allowedPermissions.some((permissionKey) => permissionKeys.includes(permissionKey))
+
+    if (hasAllowedPermission) return payload.user
+    if (!fallbackAllowedRoles.length) throw new Exceptions.ControllerError.AccessDeniedError()
+    return this.access(payload, fallbackAllowedRoles)
+  }
+
   protected handle<TPayload, TResult>(
     controllerMethod: string,
     handler: (payload: TPayload) => Promise<TResult>
@@ -63,5 +79,13 @@ export abstract class HTTPController {
     if (!Array.isArray(roles)) return []
 
     return roles.filter((role): role is iSharedUserRole.UserRoleName => typeof role === "string")
+  }
+
+  private getUserPermissionKeys(user: iContracts.iUserToken): iSharedPermission.PermissionKey[] {
+    const permissions = user.claims?.permissions
+
+    if (!Array.isArray(permissions)) return []
+
+    return permissions.filter((permission): permission is iSharedPermission.PermissionKey => typeof permission === "string")
   }
 }

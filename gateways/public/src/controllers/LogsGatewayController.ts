@@ -16,7 +16,7 @@ export class LogsGatewayController extends HTTPController {
   }
 
   private list(payload: iContracts.iRequestContextPayload<iSharedLogs.LogsListPayloadDto>): Promise<iContracts.iControllerResult<iSharedLogs.LogsListResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["logs.read"], ["superadministrator"])
 
     return this.logCollectorServiceClient.request<iSharedLogs.LogsListResponseDto, iSharedLogs.LogsListPayloadDto>({
       requestId: payload.requestId,

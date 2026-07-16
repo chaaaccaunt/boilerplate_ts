@@ -97,7 +97,6 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
     VAR_HTTP_JWT_AUDIENCE: config.localhostJwtAudience,
     VAR_HTTP_JWT_ISSUER: config.localhostJwtIssuer,
     ...createNoNginxHttpDevelopmentEnv(options),
-    VAR_INTERNAL_SERVICE_TOKEN: config.localhostInternalServiceToken,
     VAR_DB_DIALECT: config.localhostDatabaseDialect,
     VAR_DB_HOST: getInitDatabaseHost(config, options),
     VAR_DB_PORT: config.localhostDatabasePort,
@@ -178,9 +177,14 @@ function getInitDatabaseHost(config, options = {}) {
 }
 
 function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageName, localhostPackagePorts) {
+  if (packageKind === "service" && packageName === "users") {
+    return {
+      VAR_SERVICE_TOKEN_ENCRYPTION_KEY: config.localhostServiceTokenEncryptionKey
+    }
+  }
+
   if (packageKind === "service" && packageName === "log-collector") {
     return {
-      VAR_LOG_COLLECTOR_CLIENT_ENABLED: "false",
       VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort,
       VAR_CHAT_REALTIME_GATEWAY_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "chat-realtime")}`
     }
@@ -201,6 +205,12 @@ function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageN
   if (packageKind === "gateway" && packageName === "chat-realtime") {
     return {
       VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`
+    }
+  }
+
+  if (packageKind === "gateway" && packageName === "files") {
+    return {
+      VAR_CHAT_REALTIME_GATEWAY_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "chat-realtime")}`
     }
   }
 
@@ -255,13 +265,16 @@ function createFrontendDevelopmentEnv(config, localhostPackagePorts, options = {
 }
 
 function createBackendCommonDevelopmentEnv(config, packageKind, packageName) {
+  if (packageKind === "service" && packageName === "log-collector") {
+    return {
+      VAR_PACKAGE_UID: getRuntimePackageUid(config, packageKind, packageName)
+    }
+  }
+
   return {
-    VAR_INTERNAL_SERVICE_TOKEN: config.localhostInternalServiceToken,
     VAR_PACKAGE_UID: getRuntimePackageUid(config, packageKind, packageName),
-    VAR_LOG_COLLECTOR_CLIENT_ENABLED: "true",
     VAR_LOG_COLLECTOR_SOCKET_HOST: config.localhostLogCollectorSocketHost,
-    VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort,
-    VAR_LOG_SOURCE: `${packageName}-${packageKind}`
+    VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort
   }
 }
 

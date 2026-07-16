@@ -80,7 +80,7 @@ function handleBuild(context, processRunner, args) {
   const target = getTarget(args, "all")
 
   if (target.kind === "all") {
-    return processRunner.runSequential([
+    return processRunner.runParallel([
       ...context.workspaces.getAllServiceWorkspaceNames().map((workspaceName) => createWorkspaceCommand(context, workspaceName, "build")),
       ...context.workspaces.getAllGatewayWorkspaceNames().map((workspaceName) => createWorkspaceCommand(context, workspaceName, "build")),
       createWorkspaceCommand(context, context.workspaces.frontendWorkspaceName, "build")
@@ -98,7 +98,7 @@ function handleTypecheck(context, processRunner, args) {
   const target = getTarget(args, "all")
 
   if (target.kind === "all") {
-    return processRunner.runSequential([
+    return processRunner.runParallel([
       createSharedTypecheckCommand(processRunner),
       ...context.workspaces.getAllServiceWorkspaceNames().map((workspaceName) => createWorkspaceCommand(context, workspaceName, "typecheck")),
       ...context.workspaces.getAllGatewayWorkspaceNames().map((workspaceName) => createWorkspaceCommand(context, workspaceName, "typecheck")),

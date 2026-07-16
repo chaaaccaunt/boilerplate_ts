@@ -26,7 +26,7 @@ export class SystemMetricsGatewayController extends HTTPController {
   }
 
   private list(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedSystem.RuntimeMetricsListResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["system.metrics.read"], ["superadministrator"])
 
     return this.logCollectorServiceClient.request<iSharedSystem.RuntimeMetricsListResponseDto>({
       requestId: payload.requestId,
@@ -36,7 +36,7 @@ export class SystemMetricsGatewayController extends HTTPController {
   }
 
   private item(payload: iContracts.iRequestContextPayload<iSharedSystem.RuntimeMetricsItemPayloadDto>): Promise<iContracts.iControllerResult<iSharedSystem.RuntimeMetricsItemResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["system.metrics.read"], ["superadministrator"])
     if (!payload.data?.packageUid) throw new Error("Не задан packageUid для запроса метрик package")
 
     return this.logCollectorServiceClient.request<iSharedSystem.RuntimeMetricsItemResponseDto, iSharedSystem.RuntimeMetricsItemPayloadDto>({
@@ -49,4 +49,3 @@ export class SystemMetricsGatewayController extends HTTPController {
       .then((data) => ({ data }))
   }
 }
-

@@ -14,6 +14,7 @@ interface RequestOptions<TPayload> {
 
 type RequestInitOptions = Pick<RequestInit, "body" | "headers" | "method" | "credentials">
 export type UploadProgressCallback = (progress: number) => void
+export type DownloadProgressCallback = (progress: number | null) => void
 
 interface ApiErrorPayload {
   code: string
@@ -53,6 +54,18 @@ export class HttpClient {
     return envelope.result
   }
 
+  async download(path: `/${string}`, onProgress?: DownloadProgressCallback): Promise<Blob> {
+    const response = await this.fetchResponse({ method: "GET", path })
+
+    if (!response.ok) {
+      const envelope = await this.parseEnvelope<never>(response)
+      if (envelope.ok) throw new ApiError("API_DOWNLOAD_FAILED", "Не удалось скачать файл", response.status)
+      throw new ApiError(envelope.error.code, envelope.error.message, response.status)
+    }
+
+    return this.readBlobResponse(response, onProgress)
+  }
+
   upload<TResult>(path: `/${string}`, formData: FormData, onProgress?: UploadProgressCallback): Promise<TResult> {
     return this.fetchUploadResponse(path, formData, onProgress)
       .then((response) => this.parseEnvelope<TResult>(response)
@@ -75,6 +88,36 @@ export class HttpClient {
     } catch (error) {
       throw new ApiError("API_NETWORK_ERROR", this.getNetworkErrorMessage(error), 0)
     }
+  }
+
+  private async readBlobResponse(response: Response, onProgress?: DownloadProgressCallback): Promise<Blob> {
+    const contentLength = Number(response.headers.get("Content-Length") || 0)
+
+    if (!response.body || !Number.isFinite(contentLength) || contentLength <= 0) {
+      onProgress?.(null)
+      const blob = await response.blob()
+      onProgress?.(100)
+      return blob
+    }
+
+    const reader = response.body.getReader()
+    const chunks: BlobPart[] = []
+    let receivedLength = 0
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value) continue
+
+      chunks.push(new Uint8Array(value).buffer)
+      receivedLength += value.length
+      onProgress?.(Math.min(100, Math.round((receivedLength / contentLength) * 100)))
+    }
+
+    onProgress?.(100)
+    return new Blob(chunks, {
+      type: response.headers.get("Content-Type") || undefined
+    })
   }
 
   private fetchUploadResponse(path: `/${string}`, formData: FormData, onProgress?: UploadProgressCallback): Promise<Response> {

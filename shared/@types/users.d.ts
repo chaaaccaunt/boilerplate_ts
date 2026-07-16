@@ -1,11 +1,23 @@
 declare global {
+  namespace iSharedPermission {
+    type PermissionKey = string
+
+    interface PermissionDto {
+      uid: string
+      key: PermissionKey
+      title: string
+      description: string | null
+    }
+  }
+
   namespace iSharedUserRole {
     type UserRoleName = string
-    type SystemUserRoleName = "administrator" | "user"
+    type SystemUserRoleName = "superadministrator"
 
     interface UserRoleDto {
       uid: string
       name: UserRoleName
+      permissions: iSharedPermission.PermissionDto[]
     }
 
     interface CreateRolePayloadDto {
@@ -28,6 +40,13 @@ declare global {
     interface DeleteRoleResponseDto {
       uid: string
     }
+
+    interface UpdateRolePermissionsPayloadDto {
+      uid: string
+      permissionKeys: iSharedPermission.PermissionKey[]
+    }
+
+    type UpdateRolePermissionsResponseDto = UserRoleDto
   }
 
   namespace iSharedUser {
@@ -39,6 +58,7 @@ declare global {
       surname: string | null
       fullName: string
       roles: iSharedUserRole.UserRoleDto[]
+      permissions: iSharedPermission.PermissionDto[]
     }
 
     interface CreateUserPayloadDto {
@@ -71,6 +91,14 @@ declare global {
       uid: string
     }
 
+    interface UpdateSuperadministratorUsersPayloadDto {
+      userUids: string[]
+    }
+
+    interface UpdateSuperadministratorUsersResponseDto {
+      users: PublicUserDto[]
+    }
+
     interface UserCreatedEventDto {
       user: PublicUserDto
     }
@@ -81,6 +109,10 @@ declare global {
 
     interface ListRolesResponseDto {
       roles: iSharedUserRole.UserRoleDto[]
+    }
+
+    interface ListPermissionsResponseDto {
+      permissions: iSharedPermission.PermissionDto[]
     }
   }
 }

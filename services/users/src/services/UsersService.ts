@@ -1,13 +1,18 @@
 import { hashSync } from "bcryptjs"
 import type { UUID } from "crypto"
 import { Exceptions } from "@/libs"
+import { ServiceTokenEncryptionService } from "./ServiceTokenEncryptionService"
 
 export class UsersService {
   constructor(
     private readonly userModel: iDatabase.Models["User"],
     private readonly roleModel: iDatabase.Models["Role"],
+    private readonly permissionModel: iDatabase.Models["Permission"],
+    private readonly rolePermissionModel: iDatabase.Models["RolePermission"],
     private readonly userRoleModel: iDatabase.Models["UserRole"],
-    private readonly databaseTools: iLibs.DatabaseServiceTools
+    private readonly serviceTokenModel: iDatabase.Models["ServiceToken"],
+    private readonly databaseTools: iLibs.DatabaseServiceTools,
+    private readonly serviceTokenEncryptionService: ServiceTokenEncryptionService
   ) { }
 
   list(): Promise<iSharedUser.PublicUserDto[]> {
@@ -15,15 +20,23 @@ export class UsersService {
       order: [["createdAt", "DESC"]],
       include: [{
         association: this.userModel.associations.roles,
-        include: [{ association: "role" }]
+        include: [this.createUserRoleRoleInclude()]
       }]
     })
       .then((users) => users.map((user) => this.toPublicUserDto(user)))
   }
 
   listRoles(): Promise<iSharedUserRole.UserRoleDto[]> {
-    return this.roleModel.findAll({ order: [["name", "ASC"]] })
+    return this.roleModel.findAll({
+      order: [["name", "ASC"]],
+      include: [this.createRolePermissionsInclude()]
+    })
       .then((roles) => roles.map((role) => this.toRoleDto(role)))
+  }
+
+  listPermissions(): Promise<iSharedPermission.PermissionDto[]> {
+    return this.permissionModel.findAll({ order: [["key", "ASC"]] })
+      .then((permissions) => permissions.map((permission) => this.toPermissionDto(permission)))
   }
 
   createRole(payload: iSharedUserRole.CreateRolePayloadDto, requestId?: string): Promise<iSharedUserRole.CreateRoleResponseDto> {
@@ -33,6 +46,7 @@ export class UsersService {
       .then(() => this.roleModel.create({ name }, {
         logging: this.createMutationQueryLogger("createRole", "roles insert query", requestId)
       }))
+      .then((role) => this.findRoleWithPermissions(role.uid))
       .then((role) => this.toRoleDto(role))
   }
 
@@ -48,6 +62,7 @@ export class UsersService {
           .then(() => role.update({ name }, {
             logging: this.createMutationQueryLogger("updateRole", "roles update query", requestId)
           }))
+          .then((updatedRole) => this.findRoleWithPermissions(updatedRole.uid))
           .then((updatedRole) => this.toRoleDto(updatedRole))
       })
   }
@@ -70,6 +85,19 @@ export class UsersService {
           })
       })
       .then(() => ({ uid: payload.uid }))
+  }
+
+  updateRolePermissions(payload: iSharedUserRole.UpdateRolePermissionsPayloadDto, requestId?: string): Promise<iSharedUserRole.UpdateRolePermissionsResponseDto> {
+    return this.roleModel.findByPk(payload.uid)
+      .then((role) => {
+        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль не найдена")
+        this.assertRoleCanBeChanged(role.name)
+
+        return this.getPermissionsByKeys(payload.permissionKeys)
+          .then((permissions) => this.updateRolePermissionLinks(role.uid, permissions, requestId))
+          .then(() => this.findRoleWithPermissions(role.uid))
+          .then((updatedRole) => this.toRoleDto(updatedRole))
+      })
   }
 
   create(payload: iSharedUser.CreateUserPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
@@ -96,7 +124,7 @@ export class UsersService {
               return userRole
             })
 
-            return this.toPublicUserDto(user)
+            return this.findPublicUser(user.uid)
           })))
   }
 
@@ -107,7 +135,8 @@ export class UsersService {
 
         return this.assertLoginAvailable(payload.login, user.uid)
           .then(() => this.getRolesByNames(payload.roleNames))
-          .then((roles) => user.update({
+          .then((roles) => this.assertSuperadministratorRoleCanBeUpdated(user.uid, roles)
+            .then(() => user.update({
             login: payload.login,
             firstName: payload.firstName,
             lastName: payload.lastName,
@@ -116,7 +145,7 @@ export class UsersService {
             logging: this.createMutationQueryLogger("update", "users update query", requestId)
           })
             .then(() => this.updateUserRoles(user.uid, roles, requestId))
-            .then(() => this.findPublicUser(user.uid)))
+            .then(() => this.findPublicUser(user.uid))))
       })
   }
 
@@ -126,7 +155,116 @@ export class UsersService {
         .then(() => user.destroy({
           logging: this.createMutationQueryLogger("delete", "users delete query", requestId)
         }))
-        .then(() => ({ uid: payload.uid })))
+      .then(() => ({ uid: payload.uid })))
+  }
+
+  updateSuperadministratorUsers(payload: iSharedUser.UpdateSuperadministratorUsersPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto[]> {
+    const uniqueUserUids = Array.from(new Set(payload.userUids))
+
+    if (!uniqueUserUids.length) {
+      throw new Exceptions.ServiceError.ConflictError("Нужен хотя бы один суперадминистратор")
+    }
+
+    return this.roleModel.findOne({ where: { name: "superadministrator" } })
+      .then((role) => {
+        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль superadministrator не найдена")
+
+        return this.userModel.findAll({ where: { uid: uniqueUserUids } })
+          .then((users) => {
+            const existingUserUids = users.map((user) => String(user.uid))
+            const missingUserUids = uniqueUserUids.filter((userUid) => !existingUserUids.includes(userUid))
+
+            if (missingUserUids.length) {
+              throw new Exceptions.ServiceError.ConflictError(`Не найдены пользователи: ${missingUserUids.join(", ")}`)
+            }
+
+            return this.updateRoleUsers(role.uid, uniqueUserUids, requestId)
+          })
+      })
+      .then(() => this.list())
+  }
+
+  listServiceTokens(): Promise<iSharedServiceToken.ServiceTokenDto[]> {
+    return this.serviceTokenModel.findAll({
+      order: [["type", "ASC"], ["displayName", "ASC"]]
+    })
+      .then((tokens) => tokens.map((token) => this.toServiceTokenDto(token)))
+  }
+
+  getServiceTokenSecret(type: iSharedServiceToken.ServiceTokenType, serviceName: string): Promise<string> {
+    return this.serviceTokenModel.findOne({
+      where: {
+        type,
+        serviceName: serviceName.trim().toLowerCase(),
+        isEnabled: true
+      }
+    })
+      .then((token) => {
+        if (!token) throw new Exceptions.ServiceError.NotFoundError("Активный токен сервиса не найден")
+
+        return this.serviceTokenEncryptionService.decrypt({
+          encryptedToken: token.encryptedToken,
+          tokenIv: token.tokenIv,
+          tokenAuthTag: token.tokenAuthTag
+        })
+      })
+  }
+
+  createServiceToken(payload: iSharedServiceToken.CreateServiceTokenPayloadDto, requestId?: string): Promise<iSharedServiceToken.CreateServiceTokenResponseDto> {
+    const normalizedPayload = this.normalizeServiceTokenPayload(payload)
+    const rawToken = this.normalizeServiceTokenSecret(payload.token)
+    const encryptedPayload = this.serviceTokenEncryptionService.encrypt(rawToken)
+
+    return this.assertServiceTokenNameAvailable(normalizedPayload.type, normalizedPayload.serviceName)
+      .then(() => this.serviceTokenModel.create({
+        ...normalizedPayload,
+        ...encryptedPayload,
+        tokenPreview: this.createTokenPreview(rawToken)
+      }, {
+        logging: this.createMutationQueryLogger("createServiceToken", "service_tokens insert query", requestId)
+      }))
+      .then((token) => this.toServiceTokenDto(token))
+  }
+
+  updateServiceToken(payload: iSharedServiceToken.UpdateServiceTokenPayloadDto, requestId?: string): Promise<iSharedServiceToken.UpdateServiceTokenResponseDto> {
+    const normalizedPayload = this.normalizeServiceTokenPayload(payload)
+
+    return this.serviceTokenModel.findByPk(payload.uid)
+      .then((token) => {
+        if (!token) throw new Exceptions.ServiceError.NotFoundError("Токен не найден")
+        const encryptedPayload = payload.token?.trim()
+          ? this.serviceTokenEncryptionService.encrypt(this.normalizeServiceTokenSecret(payload.token))
+          : {
+            encryptedToken: token.encryptedToken,
+            tokenIv: token.tokenIv,
+            tokenAuthTag: token.tokenAuthTag
+          }
+        const tokenPreview = payload.token?.trim()
+          ? this.createTokenPreview(this.normalizeServiceTokenSecret(payload.token))
+          : token.tokenPreview
+
+        return this.assertServiceTokenNameAvailable(normalizedPayload.type, normalizedPayload.serviceName, token.uid)
+          .then(() => token.update({
+            ...normalizedPayload,
+            ...encryptedPayload,
+            tokenPreview
+          }, {
+            logging: this.createMutationQueryLogger("updateServiceToken", "service_tokens update query", requestId)
+          }))
+          .then((updatedToken) => this.toServiceTokenDto(updatedToken))
+      })
+  }
+
+  deleteServiceToken(payload: iSharedServiceToken.DeleteServiceTokenPayloadDto, requestId?: string): Promise<iSharedServiceToken.DeleteServiceTokenResponseDto> {
+    return this.serviceTokenModel.findByPk(payload.uid)
+      .then((token) => {
+        if (!token) throw new Exceptions.ServiceError.NotFoundError("Токен не найден")
+
+        return token.destroy({
+          logging: this.createMutationQueryLogger("deleteServiceToken", "service_tokens delete query", requestId)
+        })
+      })
+      .then(() => ({ uid: payload.uid }))
   }
 
   private assertLoginAvailable(login: string, currentUserUid?: string): Promise<void> {
@@ -158,9 +296,13 @@ export class UsersService {
   }
 
   private assertRoleCanBeChanged(roleName: iSharedUserRole.UserRoleName): void {
-    if (roleName === "administrator" || roleName === "user") {
+    if (this.isSystemRoleName(roleName)) {
       throw new Exceptions.ServiceError.ConflictError("Системную роль нельзя изменить или удалить")
     }
+  }
+
+  private isSystemRoleName(roleName: iSharedUserRole.UserRoleName): roleName is iSharedUserRole.SystemUserRoleName {
+    return roleName === "superadministrator"
   }
 
   private updateUserRoles(userUid: UUID, roles: iDatabase.Models["Role"]["prototype"][], requestId?: string): Promise<void> {
@@ -195,6 +337,37 @@ export class UsersService {
       })
   }
 
+  private updateRoleUsers(roleUid: UUID, userUids: string[], requestId?: string): Promise<void> {
+    return this.userRoleModel.findAll({ where: { roleUid }, paranoid: false })
+      .then((userRoles) => {
+        const activeUserRoles = userRoles.filter((userRole) => !this.isSoftDeletedUserRole(userRole))
+        const activeUserUids = activeUserRoles.map((userRole) => String(userRole.userUid))
+        const removedUserUids = activeUserUids.filter((userUid) => !userUids.includes(userUid))
+        const restoredUserRoles = userRoles.filter((userRole) => this.isSoftDeletedUserRole(userRole) && userUids.includes(String(userRole.userUid)))
+        const existingUserUids = userRoles.map((userRole) => String(userRole.userUid))
+        const addedUserUids = userUids.filter((userUid) => !existingUserUids.includes(userUid))
+
+        return Promise.all([
+          removedUserUids.length
+            ? this.userRoleModel.destroy({
+              where: { roleUid, userUid: removedUserUids },
+              logging: this.createMutationQueryLogger("updateRoleUsers", "user_roles delete query", requestId)
+            })
+            : Promise.resolve(0),
+          ...restoredUserRoles.map((userRole) => userRole.restore({
+            logging: this.createMutationQueryLogger("updateRoleUsers", "user_roles restore query", requestId)
+          })),
+          ...addedUserUids.map((userUid) => this.userRoleModel.create({
+            userUid: userUid as UUID,
+            roleUid
+          }, {
+            logging: this.createMutationQueryLogger("updateRoleUsers", "user_roles insert query", requestId)
+          }))
+        ])
+          .then(() => undefined)
+      })
+  }
+
   private isSoftDeletedUserRole(userRole: iDatabase.Models["UserRole"]["prototype"]): boolean {
     return Boolean((userRole as unknown as { deletedAt?: Date | null }).deletedAt)
   }
@@ -203,7 +376,7 @@ export class UsersService {
     return this.userModel.findByPk(userUid, {
       include: [{
         association: this.userModel.associations.roles,
-        include: [{ association: "role" }]
+        include: [this.createUserRoleRoleInclude()]
       }]
     })
       .then((user) => {
@@ -213,19 +386,19 @@ export class UsersService {
   }
 
   private assertUserCanBeDeleted(user: iDatabase.Models["User"]["prototype"]): Promise<void> {
-    const isAdministrator = user.roles.some((userRole) => userRole.role.name === "administrator")
+    const isSuperadministrator = user.roles.some((userRole) => userRole.role.name === "superadministrator")
 
-    if (!isAdministrator) return Promise.resolve()
+    if (!isSuperadministrator) return Promise.resolve()
 
-    return this.countAdministrators()
-      .then((administratorsCount) => {
-        if (administratorsCount <= 1) {
-          throw new Exceptions.ServiceError.ConflictError("Нельзя удалить последнего администратора")
+    return this.countSuperadministrators()
+      .then((superadministratorsCount) => {
+        if (superadministratorsCount <= 1) {
+          throw new Exceptions.ServiceError.ConflictError("Нельзя удалить последнего суперадминистратора")
         }
       })
   }
 
-  private countAdministrators(): Promise<number> {
+  private countSuperadministrators(): Promise<number> {
     return this.userModel.count({
       distinct: true,
       include: [{
@@ -235,18 +408,38 @@ export class UsersService {
           association: "role",
           required: true,
           where: {
-            name: "administrator"
+            name: "superadministrator"
           }
         }]
       }]
     })
   }
 
+  private assertSuperadministratorRoleCanBeUpdated(userUid: UUID, nextRoles: iDatabase.Models["Role"]["prototype"][]): Promise<void> {
+    const hasNextSuperadministratorRole = nextRoles.some((role) => role.name === "superadministrator")
+
+    if (hasNextSuperadministratorRole) return Promise.resolve()
+
+    return this.findUserWithRoles(String(userUid))
+      .then((user) => {
+        const isCurrentSuperadministrator = user.roles.some((userRole) => userRole.role.name === "superadministrator")
+
+        if (!isCurrentSuperadministrator) return undefined
+
+        return this.countSuperadministrators()
+          .then((superadministratorsCount) => {
+            if (superadministratorsCount <= 1) {
+              throw new Exceptions.ServiceError.ConflictError("Нельзя снять права последнего суперадминистратора")
+            }
+          })
+      })
+  }
+
   private findPublicUser(userUid: UUID): Promise<iSharedUser.PublicUserDto> {
     return this.userModel.findByPk(userUid, {
       include: [{
         association: this.userModel.associations.roles,
-        include: [{ association: "role" }]
+        include: [this.createUserRoleRoleInclude()]
       }]
     })
       .then((user) => {
@@ -279,7 +472,111 @@ export class UsersService {
       })
   }
 
+  private getPermissionsByKeys(permissionKeys: iSharedPermission.PermissionKey[]): Promise<iDatabase.Models["Permission"]["prototype"][]> {
+    const uniquePermissionKeys = Array.from(new Set(permissionKeys))
+
+    if (!uniquePermissionKeys.length) return Promise.resolve([])
+
+    return this.permissionModel.findAll({
+      where: {
+        key: uniquePermissionKeys
+      }
+    })
+      .then((permissions) => {
+        const existingPermissionKeys = permissions.map((permission) => permission.key)
+        const missingPermissionKeys = uniquePermissionKeys.filter((permissionKey) => !existingPermissionKeys.includes(permissionKey))
+
+        if (missingPermissionKeys.length) {
+          throw new Exceptions.ServiceError.ConflictError(`Не найдены права: ${missingPermissionKeys.join(", ")}`)
+        }
+
+        return permissions
+      })
+  }
+
+  private assertServiceTokenNameAvailable(type: iSharedServiceToken.ServiceTokenType, serviceName: string, currentTokenUid?: UUID): Promise<void> {
+    return this.serviceTokenModel.findOne({ where: { type, serviceName } })
+      .then((token) => {
+        if (token && String(token.uid) !== currentTokenUid) {
+          throw new Exceptions.ServiceError.ConflictError("Токен для такого сервиса уже существует")
+        }
+      })
+  }
+
+  private normalizeServiceTokenPayload(payload: iSharedServiceToken.CreateServiceTokenPayloadDto | iSharedServiceToken.UpdateServiceTokenPayloadDto): Omit<iSharedServiceToken.CreateServiceTokenPayloadDto, "token"> {
+    const type = payload.type
+    const serviceName = payload.serviceName.trim().toLowerCase()
+    const displayName = payload.displayName.trim()
+
+    if (!["service", "messenger", "social_network"].includes(type)) {
+      throw new Exceptions.ServiceError.ConflictError("Недопустимый тип сервиса")
+    }
+
+    if (!/^[a-z][a-z0-9_-]{1,79}$/.test(serviceName)) {
+      throw new Exceptions.ServiceError.ConflictError("Системное имя сервиса должно содержать латинские буквы, цифры, дефис или подчеркивание")
+    }
+
+    if (!displayName.length) {
+      throw new Exceptions.ServiceError.ConflictError("Название сервиса обязательно")
+    }
+
+    return {
+      type,
+      serviceName,
+      displayName,
+      isEnabled: payload.isEnabled
+    }
+  }
+
+  private normalizeServiceTokenSecret(token: string): string {
+    const normalizedToken = token.trim()
+
+    if (!normalizedToken.length) {
+      throw new Exceptions.ServiceError.ConflictError("Токен обязателен")
+    }
+
+    return normalizedToken
+  }
+
+  private updateRolePermissionLinks(roleUid: UUID, permissions: iDatabase.Models["Permission"]["prototype"][], requestId?: string): Promise<void> {
+    return this.rolePermissionModel.findAll({ where: { roleUid }, paranoid: false })
+      .then((rolePermissions) => {
+        const nextPermissionUids = permissions.map((permission) => String(permission.uid))
+        const activeRolePermissions = rolePermissions.filter((rolePermission) => !this.isSoftDeletedRolePermission(rolePermission))
+        const activePermissionUids = activeRolePermissions.map((rolePermission) => String(rolePermission.permissionUid))
+        const removedPermissionUids = activePermissionUids.filter((permissionUid) => !nextPermissionUids.includes(permissionUid))
+        const restoredRolePermissions = rolePermissions.filter((rolePermission) => this.isSoftDeletedRolePermission(rolePermission) && nextPermissionUids.includes(String(rolePermission.permissionUid)))
+        const existingPermissionUids = rolePermissions.map((rolePermission) => String(rolePermission.permissionUid))
+        const addedPermissions = permissions.filter((permission) => !existingPermissionUids.includes(String(permission.uid)))
+
+        return Promise.all([
+          removedPermissionUids.length
+            ? this.rolePermissionModel.destroy({
+              where: { roleUid, permissionUid: removedPermissionUids },
+              logging: this.createMutationQueryLogger("updateRolePermissions", "role_permissions delete query", requestId)
+            })
+            : Promise.resolve(0),
+          ...restoredRolePermissions.map((rolePermission) => rolePermission.restore({
+            logging: this.createMutationQueryLogger("updateRolePermissions", "role_permissions restore query", requestId)
+          })),
+          ...addedPermissions.map((permission) => this.rolePermissionModel.create({
+            roleUid,
+            permissionUid: permission.uid
+          }, {
+            logging: this.createMutationQueryLogger("updateRolePermissions", "role_permissions insert query", requestId)
+          }))
+        ])
+          .then(() => undefined)
+      })
+  }
+
+  private isSoftDeletedRolePermission(rolePermission: iDatabase.Models["RolePermission"]["prototype"]): boolean {
+    return Boolean((rolePermission as unknown as { deletedAt?: Date | null }).deletedAt)
+  }
+
   private toPublicUserDto(user: iDatabase.Models["User"]["prototype"]): iSharedUser.PublicUserDto {
+    const roles = user.roles.map((userRole) => this.toRoleDto(userRole.role))
+
     return {
       uid: user.uid,
       login: user.login,
@@ -287,15 +584,80 @@ export class UsersService {
       lastName: user.lastName,
       surname: user.surname,
       fullName: user.fullName,
-      roles: user.roles.map((userRole) => this.toRoleDto(userRole.role))
+      roles,
+      permissions: this.getUniquePermissions(roles)
     }
   }
 
   private toRoleDto(role: iDatabase.Models["Role"]["prototype"]): iSharedUserRole.UserRoleDto {
     return {
       uid: role.uid,
-      name: role.name
+      name: role.name,
+      permissions: (role.rolePermissions || []).map((rolePermission) => this.toPermissionDto(rolePermission.permission))
     }
+  }
+
+  private toPermissionDto(permission: iDatabase.Models["Permission"]["prototype"]): iSharedPermission.PermissionDto {
+    return {
+      uid: permission.uid,
+      key: permission.key,
+      title: permission.title,
+      description: permission.description
+    }
+  }
+
+  private getUniquePermissions(roles: iSharedUserRole.UserRoleDto[]): iSharedPermission.PermissionDto[] {
+    const permissions = new Map<string, iSharedPermission.PermissionDto>()
+
+    roles.forEach((role) => {
+      role.permissions.forEach((permission) => {
+        permissions.set(permission.key, permission)
+      })
+    })
+
+    return Array.from(permissions.values()).sort((left, right) => left.key.localeCompare(right.key))
+  }
+
+  private toServiceTokenDto(token: iDatabase.Models["ServiceToken"]["prototype"]): iSharedServiceToken.ServiceTokenDto {
+    return {
+      uid: token.uid,
+      type: token.type,
+      serviceName: token.serviceName,
+      displayName: token.displayName,
+      tokenPreview: token.tokenPreview,
+      isEnabled: token.isEnabled,
+      createdAt: token.createdAt.toISOString(),
+      updatedAt: token.updatedAt.toISOString()
+    }
+  }
+
+  private createTokenPreview(tokenValue: string): string {
+    const suffix = tokenValue.slice(-4)
+    return suffix ? `••••${suffix}` : "••••"
+  }
+
+  private createUserRoleRoleInclude() {
+    return {
+      association: "role",
+      include: [this.createRolePermissionsInclude()]
+    }
+  }
+
+  private createRolePermissionsInclude() {
+    return {
+      association: this.roleModel.associations.rolePermissions,
+      include: [{ association: "permission" }]
+    }
+  }
+
+  private findRoleWithPermissions(roleUid: UUID): Promise<iDatabase.Models["Role"]["prototype"]> {
+    return this.roleModel.findByPk(roleUid, {
+      include: [this.createRolePermissionsInclude()]
+    })
+      .then((role) => {
+        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль не найдена")
+        return role
+      })
   }
 
   private createMutationQueryLogger(serviceMethod: string, event: string, requestId?: string): (sql: string) => void {

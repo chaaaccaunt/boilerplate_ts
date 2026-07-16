@@ -9,6 +9,10 @@ const mutations: MutationTree<iSharedState.UsersState> = {
     state.roles = payload.roles
   },
 
+  setPermissions(state, payload: iSharedUser.ListPermissionsResponseDto) {
+    state.permissions = payload.permissions
+  },
+
   addUser(state, user: iSharedUser.PublicUserDto) {
     state.users = [user, ...state.users.filter((item) => item.uid !== user.uid)]
   },
@@ -49,7 +53,8 @@ export const users: Module<iSharedState.UsersState, iSharedState.RootState> = {
 
   state: () => ({
     users: [],
-    roles: []
+    roles: [],
+    permissions: []
   }),
 
   mutations

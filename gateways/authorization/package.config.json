@@ -13,6 +13,14 @@
         "operations": ["SELECT"]
       },
       {
+        "table": "permissions",
+        "operations": ["SELECT"]
+      },
+      {
+        "table": "role_permissions",
+        "operations": ["SELECT"]
+      },
+      {
         "table": "user_roles",
         "operations": ["SELECT"]
       },

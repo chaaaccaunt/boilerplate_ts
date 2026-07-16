@@ -5,11 +5,12 @@ export class LogCollectorConnectionRegistry {
   private readonly connectionStates = new Set<iLogCollectorConnectionState>()
   private readonly offlinePackageStates = new Map<string, iLogCollectorOfflinePackageState>()
 
-  create(socket: Socket): iLogCollectorConnectionState {
+  create(socket: Socket, connectionId: string): iLogCollectorConnectionState {
     const state: iLogCollectorConnectionState = {
+      connectionId,
       authenticated: false,
-      authenticating: null,
       packageUid: null,
+      skipDisconnectEvent: false,
       source: null,
       socket
     }
@@ -55,6 +56,18 @@ export class LogCollectorConnectionRegistry {
   findByPackageUid(packageUid: string): iLogCollectorConnectionState | undefined {
     return Array.from(this.connectionStates)
       .find((state) => state.packageUid === packageUid)
+  }
+
+  closeDuplicatePackageConnections(packageUid: string, currentState: iLogCollectorConnectionState): iLogCollectorConnectionState[] {
+    const duplicateStates = Array.from(this.connectionStates)
+      .filter((state) => state !== currentState && state.packageUid === packageUid && state.socket.writable)
+
+    duplicateStates.forEach((state) => {
+      state.skipDisconnectEvent = true
+      state.socket.destroy()
+    })
+
+    return duplicateStates
   }
 
   findWritableByPackageUid(packageUid: string): iLogCollectorConnectionState | undefined {

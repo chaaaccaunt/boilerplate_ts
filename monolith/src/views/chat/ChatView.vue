@@ -252,7 +252,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
 </script>
 
 <template>
-  <section class="grid min-h-[calc(100vh-57px)] md:grid-cols-[300px_minmax(0,1fr)]">
+  <section class="grid h-[calc(100vh-57px)] overflow-hidden md:grid-cols-[300px_minmax(0,1fr)]">
     <ChatRoomsPanel
       :rooms="rooms"
       :available-members="availableMembers"
@@ -267,7 +267,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
       @leave="leaveRoom"
     />
 
-    <div class="grid min-w-0 grid-rows-[57px_minmax(0,1fr)_auto]">
+    <div class="grid min-h-0 min-w-0 grid-rows-[57px_minmax(0,1fr)_auto] overflow-hidden">
       <header class="flex min-w-0 items-center border-b border-slate-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-900">
         <div class="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{{ activeRoom?.title || "Комната не выбрана" }}</div>
       </header>

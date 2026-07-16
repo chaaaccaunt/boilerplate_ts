@@ -106,8 +106,12 @@ function getDiskPercent(item: iSharedSystem.RuntimeMetricsDto): number {
     : 0
 }
 
-function getLastLog(item: iSharedSystem.RuntimeMetricsDto): iSharedLogs.LogRecordDto | null {
+function getLastLog(item: iSharedSystem.RuntimeMetricsItemDto): iSharedLogs.LogRecordDto | null {
   return item.logSummary.logs[0] || null
+}
+
+function hasLogDetails(item: iSharedSystem.RuntimeMetricsItemDto): boolean {
+  return Boolean(item.logSummary.logs.length || item.logSummary.warnCount || item.logSummary.errorCount)
 }
 
 function getLogLevelClass(level: iSharedLogs.LogLevel | undefined): string {
@@ -116,7 +120,8 @@ function getLogLevelClass(level: iSharedLogs.LogLevel | undefined): string {
   return "text-slate-500 dark:text-slate-400"
 }
 
-function getLogCellClass(item: iSharedSystem.RuntimeMetricsDto): string {
+function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
+  if (!hasLogDetails(item)) return ""
   if (item.logSummary.errorCount) return "rounded-md border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/70 dark:bg-red-950/30"
   if (item.logSummary.warnCount) return "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/70 dark:bg-amber-950/30"
   return "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/70 dark:bg-emerald-950/20"
@@ -241,7 +246,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsDto): string {
           <div v-else></div>
 
           <div class="min-w-0 text-slate-700 dark:text-slate-200" :class="getLogCellClass(item)">
-            <div class="mb-1 flex flex-wrap gap-2 text-xs">
+            <div v-if="hasLogDetails(item)" class="mb-1 flex flex-wrap gap-2 text-xs">
               <span
                 class="rounded px-2 py-0.5 font-semibold"
                 :class="item.logSummary.warnCount ? 'bg-amber-200 text-amber-900 dark:bg-amber-900/80 dark:text-amber-100' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300'"
@@ -271,7 +276,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsDto): string {
               </div>
             </div>
             <div v-else class="text-xs text-slate-500 dark:text-slate-400">
-              Логов пакета пока нет
+              Нет записей log collector
             </div>
           </div>
 
@@ -301,4 +306,3 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsDto): string {
     </div>
   </section>
 </template>
-

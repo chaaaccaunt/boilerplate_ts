@@ -9,9 +9,13 @@ import type { FileUploadItem } from "../model/types"
 const props = withDefaults(defineProps<{
   disabled?: boolean
   compact?: boolean
+  folderUid?: string | null
+  showUploadedItems?: boolean
 }>(), {
   disabled: false,
-  compact: false
+  compact: false,
+  folderUid: null,
+  showUploadedItems: true
 })
 
 const emit = defineEmits<{
@@ -55,7 +59,7 @@ function selectFiles(event: Event): void {
 }
 
 function uploadFile(file: File, itemUid: string): void {
-  apiClient.files.upload([file], "", (progress) => updateUploadProgress(itemUid, progress))
+  apiClient.files.upload([file], "", props.folderUid, (progress) => updateUploadProgress(itemUid, progress))
     .then((result) => {
       const uploadedFile = result.files[0]
 
@@ -148,13 +152,13 @@ defineExpose({ clear })
 <template>
   <div :class="compact ? 'contents' : 'grid gap-2'">
     <div
-      v-if="uploadItems.length"
+      v-if="showUploadedItems && uploadItems.length"
       :class="compact ? 'col-span-3 flex min-w-0 flex-wrap gap-2' : 'flex min-w-0 flex-wrap gap-2'"
     >
       <div
         v-for="item in uploadItems"
         :key="item.uid"
-        class="inline-flex max-w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800"
+        class="inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800"
       >
         <img
           v-if="item.uploadedFile?.previewUrl"
@@ -164,7 +168,7 @@ defineExpose({ clear })
         >
         <FileTextIcon v-else class="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
         <div class="min-w-0">
-          <div class="max-w-52 truncate text-xs font-medium text-slate-700 dark:text-slate-200">{{ item.fileName }}</div>
+          <div class="max-w-52 truncate text-xs font-medium text-slate-700 dark:text-slate-200" :title="item.fileName">{{ item.fileName }}</div>
           <div class="text-xs" :class="item.status === 'failed' ? 'text-red-600 dark:text-red-300' : 'text-slate-500 dark:text-slate-400'">
             <span v-if="item.status === 'uploading'">Загрузка {{ item.progress }}%</span>
             <span v-else-if="item.status === 'uploaded'">Загружен</span>
@@ -239,14 +243,14 @@ defineExpose({ clear })
             </div>
           </div>
 
-          <div class="max-h-96 overflow-y-auto pr-1">
+          <div class="file-upload-scrollbar max-h-96 min-w-0 overflow-y-auto overflow-x-hidden pr-2">
             <div class="grid gap-2">
               <div
                 v-for="item in uploadItems"
                 :key="item.uid"
-                class="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
+                class="min-w-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
               >
-                <div class="mb-2 flex min-w-0 items-start gap-2">
+                <div class="mb-2 flex w-full min-w-0 items-start gap-2">
                   <img
                     v-if="item.uploadedFile?.previewUrl"
                     class="h-10 w-10 shrink-0 rounded object-cover"
@@ -255,7 +259,7 @@ defineExpose({ clear })
                   >
                   <FileTextIcon v-else class="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
                   <div class="min-w-0 flex-1">
-                    <div class="truncate text-xs font-medium text-slate-700 dark:text-slate-200">{{ item.fileName }}</div>
+                    <div class="block max-w-full truncate text-xs font-medium text-slate-700 dark:text-slate-200" :title="item.fileName">{{ item.fileName }}</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }}</div>
                   </div>
                   <CheckCircle2Icon v-if="item.status === 'uploaded'" class="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" aria-hidden="true" />
@@ -299,3 +303,29 @@ defineExpose({ clear })
     </ModalHost>
   </div>
 </template>
+
+<style scoped>
+.file-upload-scrollbar {
+  scrollbar-color: rgb(100 116 139) rgb(15 23 42);
+  scrollbar-width: thin;
+}
+
+.file-upload-scrollbar::-webkit-scrollbar {
+  width: 0.625rem;
+}
+
+.file-upload-scrollbar::-webkit-scrollbar-track {
+  border-radius: 9999px;
+  background: rgb(15 23 42);
+}
+
+.file-upload-scrollbar::-webkit-scrollbar-thumb {
+  border: 0.125rem solid rgb(15 23 42);
+  border-radius: 9999px;
+  background: rgb(100 116 139);
+}
+
+.file-upload-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184);
+}
+</style>

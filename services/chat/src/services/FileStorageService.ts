@@ -18,6 +18,8 @@ export class FileStorageService {
       size: file.size,
       description,
       storagePath: file.storagePath,
+      folderUid: null,
+      visibility: "public",
       createdByUserUid
     })
       .then((storedFile) => this.toUploadedFileDto(storedFile))
@@ -56,6 +58,11 @@ export class FileStorageService {
       mimeType: file.mimeType,
       size: file.size,
       description: file.description,
+      folderUid: file.folderUid,
+      visibility: file.visibility,
+      createdByUserUid: file.createdByUserUid,
+      createdAt: file.createdAt.toISOString(),
+      updatedAt: file.updatedAt.toISOString(),
       url: this.getDownloadUrl(file.uid),
       viewUrl: this.getViewUrl(file),
       previewUrl: this.getPreviewUrl(file)

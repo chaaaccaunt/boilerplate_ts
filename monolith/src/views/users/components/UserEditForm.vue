@@ -71,7 +71,7 @@ function updateUser(): void {
 </script>
 
 <template>
-  <form class="px-5 py-4" @submit.prevent="updateUser">
+  <form class="max-h-[calc(92vh-4.5rem)] overflow-y-auto px-5 py-4" @submit.prevent="updateUser">
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>

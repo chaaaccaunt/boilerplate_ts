@@ -51,7 +51,7 @@ Backend-сервисы могут использовать:
 `libs` не должен зависеть от конкретных backend-сервисов, controllers, domain services или project-specific authorization policy.
 
 `libs/HTTPServer` используется gateway и публичными API boundary.
-`libs/MicroServiceHTTPServer` используется backend-микросервисами для internal requests от gateway.
+`libs/MicroServiceHTTPServer` используется backend-микросервисами для internal requests от gateway, а также realtime gateway для приема internal package-to-package events.
 
 Gateway, который является самостоятельным публичным обходом `gateways/public`, должен быть автономным внутри своего package.
 Такой gateway не должен требовать отдельный одноименный backend-сервис только для выполнения своей базовой domain logic.
@@ -59,6 +59,7 @@ Gateway, который является самостоятельным публ
 Пример: `gateways/authorization` сам обрабатывает authorization flow и не должен проксировать его в `services/authorization`.
 
 Исключение допускается для domain-сценариев, где gateway является осознанным агрегатором backend-сервисов, например `gateways/public`, или realtime boundary над отдельным domain-сервисом, например chat realtime.
+Realtime boundary не является REST boundary: публичные REST endpoints домена должны оставаться в `gateways/public`, а realtime gateway должен принимать только WebSocket connections и internal events через `MicroServiceHTTPServer`.
 
 ## Самостоятельные packages
 

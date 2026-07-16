@@ -19,7 +19,7 @@ const password = ref("")
 const firstName = ref("")
 const lastName = ref("")
 const surname = ref("")
-const selectedRoleNames = ref<iSharedUserRole.UserRoleName[]>(["user"])
+const selectedRoleNames = ref<iSharedUserRole.UserRoleName[]>([])
 const isSubmitting = ref(false)
 const errorMessage = ref("")
 
@@ -52,7 +52,7 @@ function createUser(): void {
       firstName.value = ""
       lastName.value = ""
       surname.value = ""
-      selectedRoleNames.value = ["user"]
+      selectedRoleNames.value = []
       emit("created")
     })
     .catch((error) => {
@@ -65,7 +65,7 @@ function createUser(): void {
 </script>
 
 <template>
-  <form class="px-5 py-4" @submit.prevent="createUser">
+  <form class="max-h-[calc(92vh-4.5rem)] overflow-y-auto px-5 py-4" @submit.prevent="createUser">
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>

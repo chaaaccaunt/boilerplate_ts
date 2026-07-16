@@ -1,0 +1,15 @@
+{
+  "localhost": {
+    "publicUserCookieDomain": ".localhost",
+    "httpOrigin": "http://localhost:8080",
+    "baseUrl": "http://localhost:4200",
+    "serviceTokenEncryptionKey": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    "noNginx": false,
+    "debug": true,
+    "database": {
+      "dialect": "mysql",
+      "port": "3306",
+      "serviceHost": "%"
+    }
+  }
+}

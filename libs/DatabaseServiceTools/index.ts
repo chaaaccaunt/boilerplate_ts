@@ -45,8 +45,8 @@ export class DatabaseServiceTools {
   }
 
   sanitizeSql(sql: string): string {
-    return this.redactPasswordAssignments(
-      this.redactPasswordInsertValues(
+    return this.redactSensitiveAssignments(
+      this.redactSensitiveInsertValues(
         this.redactBcryptHashes(sql)
       )
     )
@@ -56,23 +56,26 @@ export class DatabaseServiceTools {
     return sql.replace(/\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}/g, "[REDACTED_PASSWORD]")
   }
 
-  private redactPasswordAssignments(sql: string): string {
-    return sql.replace(/((?:`|"|')?password(?:`|"|')?\s*=\s*)(?:'[^']*'|"[^"]*"|[^\s,;)]+)/gi, "$1'[REDACTED_PASSWORD]'")
+  private redactSensitiveAssignments(sql: string): string {
+    return sql.replace(/((?:`|"|')?(?:password|tokenValue|encryptedToken|tokenIv|tokenAuthTag|token|secret)(?:`|"|')?\s*=\s*)(?:'[^']*'|"[^"]*"|[^\s,;)]+)/gi, "$1'[REDACTED_SECRET]'")
   }
 
-  private redactPasswordInsertValues(sql: string): string {
+  private redactSensitiveInsertValues(sql: string): string {
     return sql.replace(
       /(INSERT\s+INTO\s+[`"A-Za-z0-9_.]+\s*\(([^)]*)\)\s+VALUES\s*)\(([^)]*)\)/gi,
       (match: string, prefix: string, rawColumns: string, rawValues: string): string => {
         const columns = this.splitSqlList(rawColumns).map((column) => this.normalizeSqlIdentifier(column))
-        const passwordIndex = columns.indexOf("password")
+        const sensitiveIndexes = columns
+          .map((column, index) => ["password", "tokenvalue", "encryptedtoken", "tokeniv", "tokenauthtag", "token", "secret"].includes(column) ? index : -1)
+          .filter((index) => index !== -1)
 
-        if (passwordIndex === -1) return match
+        if (!sensitiveIndexes.length) return match
 
         const values = this.splitSqlList(rawValues)
-        if (passwordIndex >= values.length) return match
 
-        values[passwordIndex] = "'[REDACTED_PASSWORD]'"
+        sensitiveIndexes.forEach((index) => {
+          if (index < values.length) values[index] = "'[REDACTED_SECRET]'"
+        })
 
         return `${prefix}(${values.join(",")})`
       }

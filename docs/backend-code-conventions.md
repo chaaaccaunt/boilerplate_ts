@@ -104,6 +104,8 @@ Gateway и публичные API entrypoints используют `HTTPServer`.
 - передачу `requestId` в controller payload.
 
 Backend-микросервисы используют `MicroServiceHTTPServer`.
+Realtime gateway, который принимает internal package-to-package events, также использует `MicroServiceHTTPServer` для этих internal endpoints.
+`HTTPServer` не используется для internal event ingress внутри realtime gateway.
 
 `MicroServiceHTTPServer` отвечает только за internal HTTP transport между gateway и backend-сервисом:
 
@@ -120,6 +122,11 @@ Business payload не должен передаваться через query str
 `MicroServiceHTTPServer` не должен использовать `HTTPMiddlewares`, `PayloadValidator`, `TraceContext` или `MethodTracer`.
 
 `requestId` передается между gateway и микросервисом через header `x-request-id`. Не добавлять `requestId` в shared DTO как domain field.
+
+REST и realtime transport не смешиваются.
+REST endpoints домена, включая chat CRUD/list endpoints, должны находиться за `gateways/public` и вызывать backend-сервис домена.
+Realtime gateway не должен содержать REST controllers домена.
+Realtime gateway содержит только WebSocket gateway logic и internal event ingress через `MicroServiceHTTPServer`.
 
 Gateway controllers должны наследоваться от `HTTPController` из `@/libs`.
 `HTTPController` используется как общий базовый класс для `getRoutes`, `addRoutes`, проверки ролей через `access` и общего `handle`, который преобразует service errors в controller errors.

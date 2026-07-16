@@ -14,6 +14,7 @@
     "@babel/preset-env": "^7.29.3",
     "@types/busboy": "^1.5.4",
     "@types/node": "^24.12.2",
+    "@types/pg": "^8.20.0",
     "@types/webpack": "^5.28.5",
     "babel-loader": "^8.4.1",
     "nodemon": "^3.1.10",
@@ -23,13 +24,13 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
     "webpack": "^5.99.9",
-    "webpack-cli": "^6.0.1",
-    "@types/pg": "^8.20.0"
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "busboy": "^1.6.0",
+    "docx": "^9.7.1",
     "mysql2": "^3.22.2",
-    "sequelize": "^6.37.7",
-    "pg": "^8.21.0"
+    "pg": "^8.21.0",
+    "sequelize": "^6.37.7"
   }
 }

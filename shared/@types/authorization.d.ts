@@ -7,6 +7,22 @@
 
     type LoginResponseDto = iSharedUser.PublicUserDto
 
+    interface PublicUserCookieRoleDto {
+      uid: string
+      name: iSharedUserRole.UserRoleName
+    }
+
+    interface PublicUserCookieDto {
+      uid: string
+      login: string
+      firstName: string
+      lastName: string
+      surname: string | null
+      fullName: string
+      roles: PublicUserCookieRoleDto[]
+      permissionKeys: iSharedPermission.PermissionKey[]
+    }
+
     interface AuthorizationStateResponseDto {
       authenticated: boolean
     }
@@ -47,4 +63,3 @@
 }
 
 export { }
-

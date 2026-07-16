@@ -7,13 +7,7 @@ INSERT INTO "roles" (
 VALUES
   (
     '00000000-0000-4000-8000-000000000101',
-    'administrator',
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-  ),
-  (
-    '00000000-0000-4000-8000-000000000102',
-    'user',
+    'superadministrator',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
   )

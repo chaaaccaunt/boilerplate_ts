@@ -15,7 +15,8 @@ const webSocketClient = useWebSocketClient()
 
 const isLogoutModalOpen = ref(false)
 const userName = computed(() => store.state.authorization.user?.fullName || store.state.authorization.user?.login || "")
-const isAdministrator = computed(() => Boolean(store.state.authorization.user?.roles.some((role) => role.name === "administrator")))
+const canManageUsers = computed(() => hasAnyPermission(["users.read", "users.create", "users.update", "users.delete", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage"]) || hasRole("superadministrator"))
+const canViewSystem = computed(() => hasAnyPermission(["system.metrics.read", "logs.read"]) || hasRole("superadministrator"))
 
 onMounted(() => {
   webSocketClient.connect()
@@ -34,16 +35,28 @@ function logout(): void {
       router.replace({ name: "login" })
     })
 }
+
+function hasPermission(permissionKey: iSharedPermission.PermissionKey): boolean {
+  return Boolean(store.state.authorization.user?.permissions.some((permission) => permission.key === permissionKey))
+}
+
+function hasAnyPermission(permissionKeys: iSharedPermission.PermissionKey[]): boolean {
+  return permissionKeys.some((permissionKey) => hasPermission(permissionKey))
+}
+
+function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
+  return Boolean(store.state.authorization.user?.roles.some((role) => role.name === roleName))
+}
 </script>
 
 <template>
-  <div class="grid min-h-screen bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50 md:grid-cols-[240px_minmax(0,1fr)]">
-    <MainSidebar :is-administrator="isAdministrator" />
+  <div class="grid h-screen grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-1">
+    <MainSidebar :can-manage-users="canManageUsers" :can-view-system="canViewSystem" />
 
-    <section class="grid min-w-0 grid-rows-[57px_minmax(0,1fr)]">
+    <section class="grid min-h-0 min-w-0 grid-rows-[3.5rem_minmax(0,1fr)]">
       <MainHeader :user-name="userName" @logout="openLogoutModal" />
 
-      <main class="min-w-0">
+      <main class="min-h-0 min-w-0 overflow-y-auto">
         <router-view></router-view>
       </main>
     </section>

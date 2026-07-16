@@ -1,5 +1,7 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
+import { getPermissionModel, PermissionModel } from "@/models/users/PermissionModel"
 import { getRoleModel, RoleModel } from "@/models/users/RoleModel"
+import { getRolePermissionModel, RolePermissionModel } from "@/models/users/RolePermissionModel"
 import { getUserRoleModel, UserRoleModel } from "@/models/users/UserRoleModel"
 import { getUserModel, UserModel } from "@/models/users/UserModel"
 import { getUserSessionModel, UserSessionModel } from "@/models/users/UserSessionModel"
@@ -13,6 +15,8 @@ export interface DataBaseInstance {
 export interface iModels {
   User: typeof UserModel
   Role: typeof RoleModel
+  Permission: typeof PermissionModel
+  RolePermission: typeof RolePermissionModel
   UserRole: typeof UserRoleModel
   UserSession: typeof UserSessionModel
 }
@@ -27,6 +31,8 @@ export class Database {
     this.models = {
       User: getUserModel(this.sequelize),
       Role: getRoleModel(this.sequelize),
+      Permission: getPermissionModel(this.sequelize),
+      RolePermission: getRolePermissionModel(this.sequelize),
       UserRole: getUserRoleModel(this.sequelize),
       UserSession: getUserSessionModel(this.sequelize)
     }

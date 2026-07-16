@@ -28,8 +28,12 @@ export class LogCollectorService {
       .then((record) => this.toDto(record))
   }
 
-  findRuntimePackage(uid: string): Promise<iDatabase.Models["RuntimePackage"]["prototype"] | null> {
-    return this.models.RuntimePackage.findByPk(uid)
+  listRuntimePackages(): Promise<{ uid: string; name: string }[]> {
+    return this.models.RuntimePackage.findAll()
+      .then((runtimePackages) => runtimePackages.map((runtimePackage) => ({
+        uid: runtimePackage.uid,
+        name: runtimePackage.name
+      })))
   }
 
   collectConnectionEvent(payload: {

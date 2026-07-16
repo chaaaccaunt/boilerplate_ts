@@ -1,52 +1,39 @@
-import { Exceptions, HTTPController, WebSocketServer } from "@/libs"
+import { Exceptions, MicroServiceController, WebSocketServer } from "@/libs"
 
-export class SystemPackageEventsController extends HTTPController {
-  constructor(
-    private readonly webSocketServer: WebSocketServer,
-    private readonly internalServiceToken: string
-  ) {
+export class SystemPackageEventsController extends MicroServiceController {
+  constructor(private readonly webSocketServer: WebSocketServer) {
     super()
 
-    const notifyRoute: iContracts.iRoute<iSharedLogs.RuntimePackageConnectionEventDto, iContracts.iControllerResult<{ delivered: true }>> = {
-      url: /^\/system\/package-connection-event\/?$/,
+    const notifyRoute: iContracts.iMicroServiceRoute<iSharedLogs.RuntimePackageConnectionEventDto, { delivered: true }> = {
+      url: /^POST:\/system\/package-connection-event\/?$/,
       method: "POST",
-      callback: this.handle("notify", this.notify.bind(this))
+      callback: this.handle(this.constructor.name, "notify", this.notify.bind(this))
     }
 
     this.addRoutes([notifyRoute])
   }
 
-  private notify(payload: iContracts.iRequestContextPayload<iSharedLogs.RuntimePackageConnectionEventDto>): Promise<iContracts.iControllerResult<{ delivered: true }>> {
-    this.assertInternalServiceToken(payload)
+  private notify(payload: iContracts.iMicroServiceRequestPayload<iSharedLogs.RuntimePackageConnectionEventDto>): Promise<{ delivered: true }> {
     const event = this.getEventPayload(payload.data)
 
     this.webSocketServer.broadcast("system:package-connection", event, {
-      allowedRoles: ["administrator"]
+      allowedPermissions: ["system.metrics.read", "logs.read"],
+      allowedRoles: ["superadministrator"]
     })
 
     return Promise.resolve({
-      data: {
-        delivered: true
-      }
+      delivered: true
     })
   }
 
-  private assertInternalServiceToken(payload: iContracts.iRequestContextPayload): void {
-    const token = payload.headers["x-internal-service-token"]
-
-    if (typeof token === "string" && token === this.internalServiceToken) return
-
-    throw new Exceptions.ControllerError.UnauthorizedError("Invalid internal service token")
-  }
-
   private getEventPayload(payload: iSharedLogs.RuntimePackageConnectionEventDto | undefined): iSharedLogs.RuntimePackageConnectionEventDto {
-    if (!payload) throw new Exceptions.ControllerError.ConflictError("Отсутствуют данные события package")
+    if (!payload) throw new Exceptions.ServiceError.ConflictError("Отсутствуют данные события package")
     if (!payload.packageUid || !payload.source || !payload.event || !payload.timestamp || !payload.level || !payload.message) {
-      throw new Exceptions.ControllerError.ConflictError("Некорректные данные события package")
+      throw new Exceptions.ServiceError.ConflictError("Некорректные данные события package")
     }
 
     if (payload.event !== "connected" && payload.event !== "disconnected") {
-      throw new Exceptions.ControllerError.ConflictError("Некорректный тип события package")
+      throw new Exceptions.ServiceError.ConflictError("Некорректный тип события package")
     }
 
     return payload

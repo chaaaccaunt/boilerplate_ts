@@ -111,11 +111,59 @@ export class UsersGatewayController extends HTTPController {
       callback: this.handle("deleteRole", this.deleteRole.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute])
+    const permissionsRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedUser.ListPermissionsResponseDto>> = {
+      url: /^\/users\/permissions\/?$/,
+      method: "GET",
+      requireAuthorization: true,
+      callback: this.handle("listPermissions", this.listPermissions.bind(this))
+    }
+
+    const updateRolePermissionsRoute: iContracts.iRoute<iSharedUserRole.UpdateRolePermissionsPayloadDto, iContracts.iControllerResult<iSharedUserRole.UpdateRolePermissionsResponseDto>> = {
+      url: /^\/users\/roles\/permissions\/?$/,
+      method: "PATCH",
+      requireAuthorization: true,
+      validator: {
+        uid: { isPrimitive: { string: { minLength: 36, maxLength: 36, reg: /^[0-9a-fA-F-]{36}$/ } } },
+        permissionKeys: {
+          isArray: {
+            isPrimitive: {
+              string: {
+                minLength: 1,
+                maxLength: 128,
+                reg: /^[a-z][a-z0-9_.-]{1,127}$/
+              }
+            }
+          }
+        }
+      },
+      callback: this.handle("updateRolePermissions", this.updateRolePermissions.bind(this))
+    }
+
+    const updateSuperadministratorUsersRoute: iContracts.iRoute<iSharedUser.UpdateSuperadministratorUsersPayloadDto, iContracts.iControllerResult<iSharedUser.UpdateSuperadministratorUsersResponseDto>> = {
+      url: /^\/users\/superadministrators\/?$/,
+      method: "PATCH",
+      requireAuthorization: true,
+      validator: {
+        userUids: {
+          isArray: {
+            isPrimitive: {
+              string: {
+                minLength: 36,
+                maxLength: 36,
+                reg: /^[0-9a-fA-F-]{36}$/
+              }
+            }
+          }
+        }
+      },
+      callback: this.handle("updateSuperadministratorUsers", this.updateSuperadministratorUsers.bind(this))
+    }
+
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute])
   }
 
   private list(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["users.read", "users.update", "users.delete"], ["superadministrator"])
 
     return this.usersServiceClient.request<iSharedUser.ListUsersResponseDto>({
       requestId: payload.requestId,
@@ -125,7 +173,7 @@ export class UsersGatewayController extends HTTPController {
   }
 
   private create(payload: iContracts.iRequestContextPayload<iSharedUser.CreateUserPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.CreateUserResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["users.create"], ["superadministrator"])
 
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.create")
 
@@ -138,20 +186,21 @@ export class UsersGatewayController extends HTTPController {
   }
 
   private update(payload: iContracts.iRequestContextPayload<iSharedUser.UpdateUserPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.UpdateUserResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["users.update"], ["superadministrator"])
 
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.update")
 
-    return this.usersServiceClient.request<iSharedUser.UpdateUserResponseDto, iSharedUser.UpdateUserPayloadDto>({
-      requestId: payload.requestId,
-      path: "/users/update",
-      payload: payload.data
-    })
+    return this.assertCanUpdateUserRoles(payload)
+      .then(() => this.usersServiceClient.request<iSharedUser.UpdateUserResponseDto, iSharedUser.UpdateUserPayloadDto>({
+        requestId: payload.requestId,
+        path: "/users/update",
+        payload: payload.data
+      }))
       .then((data) => ({ data }))
   }
 
   private delete(payload: iContracts.iRequestContextPayload<iSharedUser.DeleteUserPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.DeleteUserResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["users.delete"], ["superadministrator"])
 
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.delete")
 
@@ -164,7 +213,7 @@ export class UsersGatewayController extends HTTPController {
   }
 
   private listRoles(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedUser.ListRolesResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage", "users.create", "users.update"], ["superadministrator"])
 
     return this.usersServiceClient.request<iSharedUser.ListRolesResponseDto>({
       requestId: payload.requestId,
@@ -173,8 +222,18 @@ export class UsersGatewayController extends HTTPController {
       .then((data) => ({ data }))
   }
 
+  private listPermissions(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedUser.ListPermissionsResponseDto>> {
+    this.accessPermissions(payload, ["roles.read", "roles.permissions.manage"], ["superadministrator"])
+
+    return this.usersServiceClient.request<iSharedUser.ListPermissionsResponseDto>({
+      requestId: payload.requestId,
+      path: "/users/permissions/list"
+    })
+      .then((data) => ({ data }))
+  }
+
   private createRole(payload: iContracts.iRequestContextPayload<iSharedUserRole.CreateRolePayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.CreateRoleResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["roles.create"], ["superadministrator"])
 
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.createRole")
 
@@ -187,7 +246,7 @@ export class UsersGatewayController extends HTTPController {
   }
 
   private updateRole(payload: iContracts.iRequestContextPayload<iSharedUserRole.UpdateRolePayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.UpdateRoleResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["roles.update"], ["superadministrator"])
 
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.updateRole")
 
@@ -200,7 +259,7 @@ export class UsersGatewayController extends HTTPController {
   }
 
   private deleteRole(payload: iContracts.iRequestContextPayload<iSharedUserRole.DeleteRolePayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.DeleteRoleResponseDto>> {
-    this.access(payload, ["administrator"])
+    this.accessPermissions(payload, ["roles.delete"], ["superadministrator"])
 
     if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.deleteRole")
 
@@ -210,6 +269,55 @@ export class UsersGatewayController extends HTTPController {
       payload: payload.data
     })
       .then((data) => ({ data }))
+  }
+
+  private updateRolePermissions(payload: iContracts.iRequestContextPayload<iSharedUserRole.UpdateRolePermissionsPayloadDto>): Promise<iContracts.iControllerResult<iSharedUserRole.UpdateRolePermissionsResponseDto>> {
+    this.accessPermissions(payload, ["roles.permissions.manage"], ["superadministrator"])
+
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.updateRolePermissions")
+
+    return this.usersServiceClient.request<iSharedUserRole.UpdateRolePermissionsResponseDto, iSharedUserRole.UpdateRolePermissionsPayloadDto>({
+      requestId: payload.requestId,
+      path: "/users/roles/permissions/update",
+      payload: payload.data
+    })
+      .then((data) => ({ data }))
+  }
+
+  updateSuperadministratorUsers(payload: iContracts.iRequestContextPayload<iSharedUser.UpdateSuperadministratorUsersPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.UpdateSuperadministratorUsersResponseDto>> {
+    this.access(payload, ["superadministrator"])
+
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.updateSuperadministratorUsers")
+
+    return this.usersServiceClient.request<iSharedUser.UpdateSuperadministratorUsersResponseDto, iSharedUser.UpdateSuperadministratorUsersPayloadDto>({
+      requestId: payload.requestId,
+      path: "/users/superadministrators/update",
+      payload: payload.data
+    })
+      .then((data) => ({ data }))
+  }
+
+  private assertCanUpdateUserRoles(payload: iContracts.iRequestContextPayload<iSharedUser.UpdateUserPayloadDto>): Promise<void> {
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные запроса для UsersGatewayController.assertCanUpdateUserRoles")
+    if (this.hasSuperadministratorRole(payload)) return Promise.resolve()
+    if (payload.data.roleNames.includes("superadministrator")) throw new Exceptions.ControllerError.AccessDeniedError()
+
+    return this.usersServiceClient.request<iSharedUser.ListUsersResponseDto>({
+      requestId: payload.requestId,
+      path: "/users/list"
+    })
+      .then((data) => {
+        const updatedUser = data.users.find((user) => user.uid === payload.data?.uid)
+        const updatesSuperadministrator = updatedUser?.roles.some((role) => role.name === "superadministrator")
+
+        if (updatesSuperadministrator) throw new Exceptions.ControllerError.AccessDeniedError()
+      })
+  }
+
+  private hasSuperadministratorRole(payload: iContracts.iRequestContextPayload): boolean {
+    const roles = payload.user?.claims?.roles
+
+    return Array.isArray(roles) && roles.includes("superadministrator")
   }
 }
 

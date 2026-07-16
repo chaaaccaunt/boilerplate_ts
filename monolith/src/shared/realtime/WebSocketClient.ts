@@ -10,11 +10,22 @@ type WebSocketEvent =
   | "chat:room:join"
   | "chat:messages:list"
   | "chat:message:send"
+  | "chat:message:update"
+  | "chat:message:delete"
+  | "chat:message:file:delete"
 
 type WebSocketServerEvent =
   | "chat:message:created"
+  | "chat:message:updated"
+  | "chat:message:deleted"
   | "chat:room:updated"
   | "chat:room:deleted"
+  | "files:file:created"
+  | "files:file:updated"
+  | "files:file:deleted"
+  | "files:folder:created"
+  | "files:folder:updated"
+  | "files:folder:deleted"
   | "system:package-connection"
 
 export class WebSocketClient {
