@@ -23,18 +23,6 @@
       {
         "table": "chat_message_files",
         "operations": ["SELECT"]
-      },
-      {
-        "table": "chat_messages",
-        "operations": ["SELECT"]
-      },
-      {
-        "table": "chat_rooms",
-        "operations": ["SELECT"]
-      },
-      {
-        "table": "chat_room_members",
-        "operations": ["SELECT"]
       }
     ]
   },

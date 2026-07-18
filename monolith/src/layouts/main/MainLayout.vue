@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { useApiClient } from "@/application/api"
 import { useWebSocketClient } from "@/application/realtime"
@@ -16,10 +16,14 @@ const webSocketClient = useWebSocketClient()
 const isLogoutModalOpen = ref(false)
 const userName = computed(() => store.state.authorization.user?.fullName || store.state.authorization.user?.login || "")
 const canManageUsers = computed(() => hasAnyPermission(["users.read", "users.create", "users.update", "users.delete", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage"]) || hasRole("superadministrator"))
-const canViewSystem = computed(() => hasAnyPermission(["system.metrics.read", "logs.read"]) || hasRole("superadministrator"))
+const canViewSystem = computed(() => hasAnyPermission(["system.metrics.read"]) || hasRole("superadministrator"))
 
 onMounted(() => {
   webSocketClient.connect()
+})
+
+onUnmounted(() => {
+  webSocketClient.disconnect()
 })
 
 function openLogoutModal(): void {

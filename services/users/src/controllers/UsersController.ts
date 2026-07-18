@@ -71,31 +71,7 @@ export class UsersController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "updateSuperadministratorUsers", this.updateSuperadministratorUsers.bind(this))
     }
 
-    const listServiceTokensRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedServiceToken.ListServiceTokensResponseDto> = {
-      url: /^POST:\/service-tokens\/list\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "listServiceTokens", this.listServiceTokens.bind(this))
-    }
-
-    const createServiceTokenRoute: iContracts.iMicroServiceRoute<iSharedServiceToken.CreateServiceTokenPayloadDto, iSharedServiceToken.CreateServiceTokenResponseDto> = {
-      url: /^POST:\/service-tokens\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "createServiceToken", this.createServiceToken.bind(this))
-    }
-
-    const updateServiceTokenRoute: iContracts.iMicroServiceRoute<iSharedServiceToken.UpdateServiceTokenPayloadDto, iSharedServiceToken.UpdateServiceTokenResponseDto> = {
-      url: /^POST:\/service-tokens\/update\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "updateServiceToken", this.updateServiceToken.bind(this))
-    }
-
-    const deleteServiceTokenRoute: iContracts.iMicroServiceRoute<iSharedServiceToken.DeleteServiceTokenPayloadDto, iSharedServiceToken.DeleteServiceTokenResponseDto> = {
-      url: /^POST:\/service-tokens\/delete\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "deleteServiceToken", this.deleteServiceToken.bind(this))
-    }
-
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute, listServiceTokensRoute, createServiceTokenRoute, updateServiceTokenRoute, deleteServiceTokenRoute])
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute])
   }
 
   private list(): Promise<iSharedUser.ListUsersResponseDto> {
@@ -178,32 +154,4 @@ export class UsersController extends MicroServiceController {
       .then((users) => ({ users }))
   }
 
-  private listServiceTokens(): Promise<iSharedServiceToken.ListServiceTokensResponseDto> {
-    return this.service.listServiceTokens()
-      .then((tokens) => ({ tokens }))
-  }
-
-  private createServiceToken(payload: iContracts.iMicroServiceRequestPayload<iSharedServiceToken.CreateServiceTokenPayloadDto>): Promise<iSharedServiceToken.CreateServiceTokenResponseDto> {
-    if (!payload.data) {
-      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.createServiceToken"))
-    }
-
-    return this.service.createServiceToken(payload.data, payload.requestId)
-  }
-
-  private updateServiceToken(payload: iContracts.iMicroServiceRequestPayload<iSharedServiceToken.UpdateServiceTokenPayloadDto>): Promise<iSharedServiceToken.UpdateServiceTokenResponseDto> {
-    if (!payload.data) {
-      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateServiceToken"))
-    }
-
-    return this.service.updateServiceToken(payload.data, payload.requestId)
-  }
-
-  private deleteServiceToken(payload: iContracts.iMicroServiceRequestPayload<iSharedServiceToken.DeleteServiceTokenPayloadDto>): Promise<iSharedServiceToken.DeleteServiceTokenResponseDto> {
-    if (!payload.data) {
-      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.deleteServiceToken"))
-    }
-
-    return this.service.deleteServiceToken(payload.data, payload.requestId)
-  }
 }

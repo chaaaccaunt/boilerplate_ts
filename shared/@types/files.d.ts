@@ -45,6 +45,19 @@ declare global {
       exportUrl: string
     }
 
+    interface StoredDocumentListItemDto {
+      documentUid: string
+      title: string
+      folderUid: string | null
+      visibility: FileVisibility
+      status: StoredDocumentStatus
+      createdByUserUid: string
+      createdAt: string
+      updatedAt: string
+      finalizedAt: string | null
+      exportUrl: string
+    }
+
     interface FileOwnerDto {
       userUid: string
       fullName: string
@@ -65,7 +78,7 @@ declare global {
       folder: FileFolderDto | null
       folders: FileFolderDto[]
       files: UploadedFileDto[]
-      documents: StoredDocumentDto[]
+      documents: StoredDocumentListItemDto[]
       breadcrumbs: FileFolderDto[]
     }
 

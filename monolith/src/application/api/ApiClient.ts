@@ -4,7 +4,6 @@ import { AuthorizationApi } from "@/entities/authorization/api/AuthorizationApi"
 import { ChatApi } from "@/entities/chat/api/ChatApi"
 import { FilesApi } from "@/entities/files/api/FilesApi"
 import { LogsApi } from "@/entities/logs/api/LogsApi"
-import { ServiceTokensApi } from "@/entities/service-tokens/api/ServiceTokensApi"
 import { SystemApi } from "@/entities/system/api/SystemApi"
 import { UsersApi } from "@/entities/users/api/UsersApi"
 
@@ -29,7 +28,6 @@ export class ApiClient {
   readonly chat: ChatApi
   readonly files: FilesApi
   readonly logs: LogsApi
-  readonly serviceTokens: ServiceTokensApi
   readonly system: SystemApi
   readonly users: UsersApi
 
@@ -41,7 +39,6 @@ export class ApiClient {
     this.chat = new ChatApi(this)
     this.files = new FilesApi(this)
     this.logs = new LogsApi(this)
-    this.serviceTokens = new ServiceTokensApi(this)
     this.system = new SystemApi(this)
     this.users = new UsersApi(this)
   }

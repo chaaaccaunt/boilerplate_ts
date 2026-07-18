@@ -16,8 +16,6 @@ const defaultDatabasePorts = {
   mysql: "3306",
   postgres: "5432"
 }
-const defaultLocalhostServiceTokenEncryptionKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-
 function createProjectConfig() {
   const developmentConfig = getDevelopmentConfig()
 
@@ -43,7 +41,6 @@ function createProjectConfig() {
     localhostCookieName: "authorization",
     localhostPublicUserCookieName: "authorization_user",
     localhostJwtSecret: "localhost-development-jwt-secret",
-    localhostServiceTokenEncryptionKey: getLocalhostServiceTokenEncryptionKey(developmentConfig),
     localhostJwtAudience: "boilerplate-ts-localhost",
     localhostJwtIssuer: "boilerplate-ts-localhost",
     localhostLogCollectorSocketHost: "localhost",
@@ -78,7 +75,6 @@ function getDevelopmentConfig() {
   validateRequiredDevelopmentConfigValue(localhost.baseUrl, "localhost.baseUrl", sourceConfigFileName)
   validateOptionalDevelopmentConfigBoolean(localhost.noNginx, "localhost.noNginx", sourceConfigFileName)
   validateOptionalDevelopmentConfigBoolean(localhost.debug, "localhost.debug", sourceConfigFileName)
-  validateOptionalDevelopmentConfigString(localhost.serviceTokenEncryptionKey, "localhost.serviceTokenEncryptionKey", sourceConfigFileName)
   validateOptionalDatabaseConfig(localhost.database, sourceConfigFileName)
 
   return config
@@ -145,10 +141,6 @@ function getLocalhostNoNginx(developmentConfig) {
 
 function getLocalhostDebug(developmentConfig) {
   return developmentConfig.localhost.debug !== false
-}
-
-function getLocalhostServiceTokenEncryptionKey(developmentConfig) {
-  return developmentConfig.localhost.serviceTokenEncryptionKey || defaultLocalhostServiceTokenEncryptionKey
 }
 
 module.exports = {

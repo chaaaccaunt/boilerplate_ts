@@ -18,14 +18,16 @@ const onlineCount = computed(() => metrics.value.filter((item) => item.status ==
 const unavailableCount = computed(() => metrics.value.length - onlineCount.value)
 const warningCount = computed(() => metrics.value.reduce((sum, item) => sum + item.logSummary.warnCount, 0))
 const errorCount = computed(() => metrics.value.reduce((sum, item) => sum + item.logSummary.errorCount, 0))
+let unsubscribePackageConnection: (() => void) | null = null
 
 onMounted(() => {
-  webSocketClient.on<iSharedLogs.RuntimePackageConnectionEventDto>("system:package-connection", handlePackageConnectionEvent)
+  unsubscribePackageConnection = webSocketClient.on<iSharedLogs.RuntimePackageConnectionEventDto>("system:package-connection", handlePackageConnectionEvent)
   loadMetrics()
 })
 
 onUnmounted(() => {
-  webSocketClient.off("system:package-connection")
+  unsubscribePackageConnection?.()
+  unsubscribePackageConnection = null
 })
 
 function handlePackageConnectionEvent(event: iSharedLogs.RuntimePackageConnectionEventDto): void {

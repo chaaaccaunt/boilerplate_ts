@@ -5,7 +5,7 @@ import FilesBulkToolbar from "./FilesBulkToolbar.vue"
 const props = defineProps<{
   folders: iSharedFiles.FileFolderDto[]
   files: iSharedFiles.UploadedFileDto[]
-  documents: iSharedFiles.StoredDocumentDto[]
+  documents: iSharedFiles.StoredDocumentListItemDto[]
   currentFolder: iSharedFiles.FileFolderDto | null
   selectedTileKeys: string[]
   canManageCurrentItems: boolean
@@ -33,10 +33,10 @@ const emit = defineEmits<{
   (event: "copy-file-link", file: iSharedFiles.UploadedFileDto): void
   (event: "rename-file", file: iSharedFiles.UploadedFileDto): void
   (event: "delete-file", file: iSharedFiles.UploadedFileDto): void
-  (event: "open-document", document: iSharedFiles.StoredDocumentDto): void
-  (event: "download-document", document: iSharedFiles.StoredDocumentDto): void
-  (event: "rename-document", document: iSharedFiles.StoredDocumentDto): void
-  (event: "delete-document", document: iSharedFiles.StoredDocumentDto): void
+  (event: "open-document", document: iSharedFiles.StoredDocumentListItemDto): void
+  (event: "download-document", document: iSharedFiles.StoredDocumentListItemDto): void
+  (event: "rename-document", document: iSharedFiles.StoredDocumentListItemDto): void
+  (event: "delete-document", document: iSharedFiles.StoredDocumentListItemDto): void
   (event: "preview-error", fileUid: string): void
 }>()
 

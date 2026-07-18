@@ -27,7 +27,7 @@
       owners: iSharedFiles.FileOwnerDto[]
       files: iSharedFiles.UploadedFileDto[]
       folders: iSharedFiles.FileFolderDto[]
-      documents: iSharedFiles.StoredDocumentDto[]
+      documents: iSharedFiles.StoredDocumentListItemDto[]
       currentOwner: iSharedFiles.FileOwnerDto | null
       currentFolder: iSharedFiles.FileFolderDto | null
       breadcrumbs: iSharedFiles.FileFolderDto[]
@@ -45,10 +45,6 @@
       packageConnectionEvents: iSharedLogs.RuntimePackageConnectionEventDto[]
     }
 
-    interface ServiceTokensState {
-      tokens: iSharedServiceToken.ServiceTokenDto[]
-    }
-
     interface ChatState {
       rooms: iSharedChat.ChatRoomDto[]
       activeRoomUid: string | null
@@ -62,7 +58,6 @@
       files: FilesState
       logs: LogsState
       system: SystemState
-      serviceTokens: ServiceTokensState
       errors: ErrorsState
     }
   }

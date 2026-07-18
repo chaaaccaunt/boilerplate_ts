@@ -1,9 +1,10 @@
 import { randomUUID } from "crypto"
 import type { UUID } from "crypto"
-import { existsSync } from "fs"
+import { createWriteStream, existsSync } from "fs"
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises"
 import { tmpdir } from "os"
 import { join } from "path"
+import { once } from "events"
 import {
   AlignmentType,
   Document as DocxDocument,
@@ -39,10 +40,19 @@ interface ArchiveMetadata {
   path: string
 }
 
-interface ZipEntry {
+interface ZipSourceEntry {
   name: string
-  content: Buffer
+  contentPath: string
+  size: number
   date: Date
+}
+
+interface ZipCentralDirectoryEntry {
+  name: string
+  date: Date
+  offset: number
+  crc32: number
+  size: number
 }
 
 interface TipTapNode {
@@ -91,6 +101,8 @@ export class FileStorageService {
   private readonly uploadsRoot = join(process.cwd(), "uploads")
   private readonly archivesRoot = join(tmpdir(), "boilerplate-files-archives")
   private readonly documentsExportRoot = join(tmpdir(), "boilerplate-documents-export")
+  private readonly maxArchiveFiles = 100
+  private readonly maxArchiveContentBytes = 200 * 1024 * 1024
   private readonly previewProxy = new FilePreviewProxy()
   private readonly logger = new Logger()
 
@@ -146,12 +158,12 @@ export class FileStorageService {
           this.getBreadcrumbs(folder)
         ])
           .then(([folders, files, documents, breadcrumbs]) => ({
-          owner,
-          folder: folder ? this.toFolderDto(folder) : null,
-          folders,
-          files,
-          documents,
-          breadcrumbs
+            owner,
+            folder: folder ? this.toFolderDto(folder) : null,
+            folders,
+            files,
+            documents,
+            breadcrumbs
           }))))
   }
 
@@ -319,11 +331,11 @@ export class FileStorageService {
     return this.models.StoredFile.findByPk(fileUid)
       .then((storedFile) => {
         if (!storedFile) {
-          throw new Error("Файл не найден")
+          throw new Exceptions.ServiceError.NotFoundError("Файл не найден")
         }
 
-      return storedFile
-    })
+        return storedFile
+      })
   }
 
   findAccessible(fileUid: string, user: iContracts.iUserToken): Promise<StoredFile> {
@@ -426,6 +438,21 @@ export class FileStorageService {
     }
   }
 
+  toDocumentListItemDto(document: StoredDocument): iSharedFiles.StoredDocumentListItemDto {
+    return {
+      documentUid: document.uid,
+      title: document.title,
+      folderUid: document.folderUid,
+      visibility: document.visibility,
+      status: document.status,
+      createdByUserUid: document.createdByUserUid,
+      createdAt: document.createdAt.toISOString(),
+      updatedAt: document.updatedAt.toISOString(),
+      finalizedAt: document.finalizedAt ? document.finalizedAt.toISOString() : null,
+      exportUrl: this.getDocumentExportUrl(document.uid)
+    }
+  }
+
   private getDownloadUrl(fileUid: string): string {
     return `/v1/gateway/files/download?fileUid=${encodeURIComponent(fileUid)}`
   }
@@ -498,23 +525,39 @@ export class FileStorageService {
       throw new Exceptions.ServiceError.ConflictError("Не выбраны файлы для скачивания")
     }
 
+    if (fileUids.length > this.maxArchiveFiles) {
+      throw new Exceptions.ServiceError.ConflictError("В один архив можно добавить не более 100 файлов")
+    }
+
     return fileUids
   }
 
-  private collectArchiveEntries(fileUids: string[], user: iContracts.iUserToken): Promise<ZipEntry[]> {
+  private collectArchiveEntries(fileUids: string[], user: iContracts.iUserToken): Promise<ZipSourceEntry[]> {
     const usedNames = new Map<string, number>()
+    let totalSize = 0
 
-    return fileUids.reduce<Promise<ZipEntry[]>>((previous, fileUid) => previous
+    return fileUids.reduce<Promise<ZipSourceEntry[]>>((previous, fileUid) => previous
       .then((entries) => this.findAccessible(fileUid, user)
-        .then((file) => readFile(this.getContentPath(file))
-          .then((content) => entries.concat({
+        .then((file) => {
+          totalSize += file.size
+          this.assertArchiveContentSize(totalSize)
+
+          return entries.concat({
             name: this.getUniqueArchiveEntryName(file.originalName, usedNames),
-            content,
+            contentPath: this.getContentPath(file),
+            size: file.size,
             date: file.updatedAt
-          })))), Promise.resolve([]))
+          })
+        })), Promise.resolve([]))
   }
 
-  private writeArchive(entries: ZipEntry[], user: iContracts.iUserToken): Promise<ArchiveMetadata> {
+  private assertArchiveContentSize(totalSize: number): void {
+    if (totalSize > this.maxArchiveContentBytes) {
+      throw new Exceptions.ServiceError.ConflictError("Суммарный размер файлов в архиве не должен превышать 200 МБ")
+    }
+  }
+
+  private writeArchive(entries: ZipSourceEntry[], user: iContracts.iUserToken): Promise<ArchiveMetadata> {
     const archiveUid = randomUUID()
     const metadata: ArchiveMetadata = {
       archiveUid,
@@ -525,40 +568,83 @@ export class FileStorageService {
     }
 
     return mkdir(this.archivesRoot, { recursive: true })
-      .then(() => writeFile(metadata.path, this.createZip(entries)))
+      .then(() => this.writeZip(metadata.path, entries))
       .then(() => writeFile(this.getArchiveMetadataPath(archiveUid), JSON.stringify(metadata)))
       .then(() => metadata)
   }
 
-  private createZip(entries: ZipEntry[]): Buffer {
-    const fileParts: Buffer[] = []
-    const centralDirectoryParts: Buffer[] = []
+  private writeZip(path: string, entries: ZipSourceEntry[]): Promise<void> {
+    const stream = createWriteStream(path)
+    const centralDirectoryEntries: ZipCentralDirectoryEntry[] = []
+    let streamError: Error | null = null
     let offset = 0
 
-    entries.forEach((entry) => {
-      const localHeader = this.createZipLocalHeader(entry)
-      const centralDirectoryEntry = this.createZipCentralDirectoryEntry(entry, offset)
-
-      fileParts.push(localHeader, entry.content)
-      centralDirectoryParts.push(centralDirectoryEntry)
-      offset += localHeader.length + entry.content.length
-
-      this.assertZipSize(offset)
+    stream.on("error", (error) => {
+      streamError = error
     })
 
-    const centralDirectorySize = centralDirectoryParts.reduce((sum, part) => sum + part.length, 0)
-    const endOfCentralDirectory = this.createZipEndOfCentralDirectory(entries.length, centralDirectorySize, offset)
+    return entries.reduce<Promise<void>>((previous, entry) => previous
+      .then(() => readFile(entry.contentPath))
+      .then((content) => {
+        const crc32 = this.getCrc32(content)
+        const localHeader = this.createZipLocalHeader(entry, crc32, content.length)
 
-    return Buffer.concat(fileParts.concat(centralDirectoryParts, endOfCentralDirectory))
+        centralDirectoryEntries.push({
+          name: entry.name,
+          date: entry.date,
+          offset,
+          crc32,
+          size: content.length
+        })
+        offset += localHeader.length + content.length
+
+        this.assertZipSize(offset)
+
+        return this.writeZipBuffer(stream, localHeader)
+          .then(() => this.writeZipBuffer(stream, content))
+      }), Promise.resolve())
+      .then(() => {
+        const centralDirectoryOffset = offset
+        const centralDirectoryParts = centralDirectoryEntries.map((entry) => this.createZipCentralDirectoryEntry(entry))
+        const centralDirectorySize = centralDirectoryParts.reduce((sum, part) => sum + part.length, 0)
+        const endOfCentralDirectory = this.createZipEndOfCentralDirectory(entries.length, centralDirectorySize, centralDirectoryOffset)
+
+        return centralDirectoryParts.reduce<Promise<void>>((previous, part) => previous
+          .then(() => this.writeZipBuffer(stream, part)), Promise.resolve())
+          .then(() => this.writeZipBuffer(stream, endOfCentralDirectory))
+      })
+      .then(() => new Promise<void>((resolvePromise, rejectPromise) => {
+        stream.end(() => {
+          if (streamError) {
+            rejectPromise(streamError)
+            return
+          }
+
+          resolvePromise()
+        })
+      }))
+      .catch((error) => {
+        stream.destroy()
+        throw error
+      })
   }
 
-  private createZipLocalHeader(entry: ZipEntry): Buffer {
+  private writeZipBuffer(stream: ReturnType<typeof createWriteStream>, content: Buffer): Promise<void> {
+    if (stream.write(content)) return Promise.resolve()
+    return Promise.race([
+      once(stream, "drain").then(() => undefined),
+      once(stream, "error").then(([error]) => {
+        throw error
+      })
+    ])
+  }
+
+  private createZipLocalHeader(entry: ZipSourceEntry, crc32: number, contentSize: number): Buffer {
     const name = Buffer.from(entry.name, "utf8")
     const header = Buffer.alloc(30 + name.length)
     const { dosTime, dosDate } = this.getZipDosDateTime(entry.date)
-    const crc32 = this.getCrc32(entry.content)
 
-    this.assertZipSize(entry.content.length)
+    this.assertZipSize(contentSize)
     header.writeUInt32LE(0x04034b50, 0)
     header.writeUInt16LE(20, 4)
     header.writeUInt16LE(0x0800, 6)
@@ -566,8 +652,8 @@ export class FileStorageService {
     header.writeUInt16LE(dosTime, 10)
     header.writeUInt16LE(dosDate, 12)
     header.writeUInt32LE(crc32, 14)
-    header.writeUInt32LE(entry.content.length, 18)
-    header.writeUInt32LE(entry.content.length, 22)
+    header.writeUInt32LE(contentSize, 18)
+    header.writeUInt32LE(contentSize, 22)
     header.writeUInt16LE(name.length, 26)
     header.writeUInt16LE(0, 28)
     name.copy(header, 30)
@@ -575,13 +661,12 @@ export class FileStorageService {
     return header
   }
 
-  private createZipCentralDirectoryEntry(entry: ZipEntry, offset: number): Buffer {
+  private createZipCentralDirectoryEntry(entry: ZipCentralDirectoryEntry): Buffer {
     const name = Buffer.from(entry.name, "utf8")
     const header = Buffer.alloc(46 + name.length)
     const { dosTime, dosDate } = this.getZipDosDateTime(entry.date)
-    const crc32 = this.getCrc32(entry.content)
 
-    this.assertZipSize(offset)
+    this.assertZipSize(entry.offset)
     header.writeUInt32LE(0x02014b50, 0)
     header.writeUInt16LE(20, 4)
     header.writeUInt16LE(20, 6)
@@ -589,16 +674,16 @@ export class FileStorageService {
     header.writeUInt16LE(0, 10)
     header.writeUInt16LE(dosTime, 12)
     header.writeUInt16LE(dosDate, 14)
-    header.writeUInt32LE(crc32, 16)
-    header.writeUInt32LE(entry.content.length, 20)
-    header.writeUInt32LE(entry.content.length, 24)
+    header.writeUInt32LE(entry.crc32, 16)
+    header.writeUInt32LE(entry.size, 20)
+    header.writeUInt32LE(entry.size, 24)
     header.writeUInt16LE(name.length, 28)
     header.writeUInt16LE(0, 30)
     header.writeUInt16LE(0, 32)
     header.writeUInt16LE(0, 34)
     header.writeUInt16LE(0, 36)
     header.writeUInt32LE(0, 38)
-    header.writeUInt32LE(offset, 42)
+    header.writeUInt32LE(entry.offset, 42)
     name.copy(header, 46)
 
     return header
@@ -769,31 +854,25 @@ export class FileStorageService {
       .then((files) => files.map((file) => this.toUploadedFileDto(file)))
   }
 
-  private listDocumentsByFolder(folderUid: string | null, ownerUserUid: string, user: iContracts.iUserToken): Promise<iSharedFiles.StoredDocumentDto[]> {
+  private listDocumentsByFolder(folderUid: string | null, ownerUserUid: string, user: iContracts.iUserToken): Promise<iSharedFiles.StoredDocumentListItemDto[]> {
     return this.models.StoredDocument.findAll({
       where: { folderUid, createdByUserUid: ownerUserUid },
       order: [["updatedAt", "DESC"]]
     })
-      .then((documents) => this.filterDocumentsByAccess(documents, user))
-      .then((documents) => documents.map((document) => this.toDocumentDto(document)))
+      .then((documents) => documents.filter((document) => this.canReadListedItem(document, user)))
+      .then((documents) => documents.map((document) => this.toDocumentListItemDto(document)))
   }
 
   private filterFoldersByAccess(folders: StoredFileFolder[], user: iContracts.iUserToken): Promise<StoredFileFolder[]> {
-    return folders.reduce<Promise<StoredFileFolder[]>>((previous, folder) => previous
-      .then((result) => this.canReadFolder(folder, user)
-        .then((canRead) => canRead ? result.concat(folder) : result)), Promise.resolve([]))
+    return Promise.resolve(folders.filter((folder) => this.canReadListedItem(folder, user)))
   }
 
   private filterFilesByAccess(files: StoredFile[], user: iContracts.iUserToken): Promise<StoredFile[]> {
-    return files.reduce<Promise<StoredFile[]>>((previous, file) => previous
-      .then((result) => this.canReadFile(file, user)
-        .then((canRead) => canRead ? result.concat(file) : result)), Promise.resolve([]))
+    return Promise.resolve(files.filter((file) => this.canReadListedItem(file, user)))
   }
 
-  private filterDocumentsByAccess(documents: StoredDocument[], user: iContracts.iUserToken): Promise<StoredDocument[]> {
-    return documents.reduce<Promise<StoredDocument[]>>((previous, document) => previous
-      .then((result) => this.canReadDocument(document, user)
-        .then((canRead) => canRead ? result.concat(document) : result)), Promise.resolve([]))
+  private canReadListedItem(entity: { createdByUserUid: string, visibility: iSharedFiles.FileVisibility }, user: iContracts.iUserToken): boolean {
+    return this.canManageEntity(entity.createdByUserUid, user) || entity.visibility === "public"
   }
 
   private canReadFile(file: StoredFile, user: iContracts.iUserToken): Promise<boolean> {
@@ -982,11 +1061,17 @@ export class FileStorageService {
   }
 
   private normalizeVisibility(value: unknown): iSharedFiles.FileVisibility {
-    return value === "private" ? "private" : "public"
+    if (value === "public" || value === undefined) return "public"
+    if (value === "private") return "private"
+
+    throw new Exceptions.ServiceError.ConflictError("Некорректная видимость файла")
   }
 
   private normalizeDocumentStatus(value: unknown): iSharedFiles.StoredDocumentStatus {
-    return value === "final" ? "final" : "draft"
+    if (value === "draft" || value === undefined) return "draft"
+    if (value === "final") return "final"
+
+    throw new Exceptions.ServiceError.ConflictError("Некорректный статус документа")
   }
 
   private resolveDocumentPatch(document: StoredDocument, payload: iSharedFiles.UpdateDocumentPayloadDto, user: iContracts.iUserToken): Promise<Partial<StoredDocument>> {

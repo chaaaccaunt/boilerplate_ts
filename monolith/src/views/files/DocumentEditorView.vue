@@ -230,6 +230,23 @@ const tableForm = ref({
   columns: 4,
   withHeaderRow: true
 })
+interface EditorActionDialogState {
+  isOpen: boolean
+  title: string
+  inputLabel: string
+  inputValue: string
+  inputMaxLength: number
+  resolve: ((value: string | null) => void) | null
+}
+
+const actionDialog = ref<EditorActionDialogState>({
+  isOpen: false,
+  title: "",
+  inputLabel: "",
+  inputValue: "",
+  inputMaxLength: 180,
+  resolve: null
+})
 const pageMargins = ref<DocumentPageMargins>({ ...defaultPageMargins })
 const horizontalRulerElement = ref<HTMLElement | null>(null)
 const verticalRulerElement = ref<HTMLElement | null>(null)
@@ -750,14 +767,17 @@ function markDocumentLayoutChanged(): void {
 function renameDocument(): void {
   if (!document.value || isReadonly.value) return
 
-  const title = window.prompt("Название документа", document.value.title)
-  if (!title?.trim() || title.trim() === document.value.title) return
+  openTextDialog("Название документа", "Название", document.value.title, 180)
+    .then((title) => {
+      const currentDocument = document.value
+      if (!currentDocument || !title?.trim() || title.trim() === currentDocument.title) return
 
-  document.value = {
-    ...document.value,
-    title: title.trim()
-  }
-  saveDocument()
+      document.value = {
+        ...currentDocument,
+        title: title.trim()
+      }
+      saveDocument()
+    })
 }
 
 function openFinalizeModal(): void {
@@ -897,16 +917,18 @@ function insertUploadedFile(file: iSharedFiles.UploadedFileDto): void {
 function insertLink(): void {
   if (!editor.value || isReadonly.value) return
 
-  const href = window.prompt("Ссылка на файл, PDF или страницу")
-  if (!href?.trim()) return
+  openTextDialog("Ссылка на файл, PDF или страницу", "Ссылка", "", 2048)
+    .then((href) => {
+      if (!href?.trim() || !editor.value) return
 
-  const selectedText = editor.value.state.doc.textBetween(editor.value.state.selection.from, editor.value.state.selection.to)
-  if (!selectedText) {
-    editor.value.chain().focus().insertContent(`<a href="${escapeAttribute(href.trim())}">${escapeHtml(href.trim())}</a>`).run()
-    return
-  }
+      const selectedText = editor.value.state.doc.textBetween(editor.value.state.selection.from, editor.value.state.selection.to)
+      if (!selectedText) {
+        editor.value.chain().focus().insertContent(`<a href="${escapeAttribute(href.trim())}">${escapeHtml(href.trim())}</a>`).run()
+        return
+      }
 
-  editor.value.chain().focus().setLink({ href: href.trim() }).run()
+      editor.value.chain().focus().setLink({ href: href.trim() }).run()
+    })
 }
 
 function setBlockStyle(event: Event): void {
@@ -1119,6 +1141,44 @@ function goBack(): void {
 function downloadDocument(): void {
   if (!document.value) return
   window.open(apiClient.resolvePublicUrl(document.value.exportUrl as `/${string}`), "_blank", "noopener")
+}
+
+function openTextDialog(title: string, inputLabel: string, initialValue: string, inputMaxLength: number): Promise<string | null> {
+  return new Promise((resolvePromise) => {
+    actionDialog.value = {
+      isOpen: true,
+      title,
+      inputLabel,
+      inputValue: initialValue,
+      inputMaxLength,
+      resolve: resolvePromise
+    }
+  })
+}
+
+function submitActionDialog(): void {
+  const resolve = actionDialog.value.resolve
+  if (!resolve) return
+
+  const value = actionDialog.value.inputValue
+  closeActionDialog()
+  resolve(value)
+}
+
+function cancelActionDialog(): void {
+  const resolve = actionDialog.value.resolve
+  if (!resolve) return
+
+  closeActionDialog()
+  resolve(null)
+}
+
+function closeActionDialog(): void {
+  actionDialog.value = {
+    ...actionDialog.value,
+    isOpen: false,
+    resolve: null
+  }
 }
 
 function escapeHtml(value: string): string {
@@ -1637,6 +1697,32 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
           <div class="mt-5 flex justify-end gap-2">
             <button class="modal-secondary-button" type="button" :disabled="isSaving" @click="closeFinalizeModal">Отмена</button>
             <button class="modal-primary-button" type="submit" :disabled="isSaving">Завершить</button>
+          </div>
+        </form>
+      </div>
+
+      <div
+        v-if="actionDialog.isOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="editor-action-dialog-title"
+      >
+        <form class="w-full max-w-md rounded-md bg-white p-5 shadow-xl dark:bg-slate-900" @submit.prevent="submitActionDialog">
+          <h2 id="editor-action-dialog-title" class="text-lg font-semibold text-slate-950 dark:text-slate-50">{{ actionDialog.title }}</h2>
+          <label class="mt-4 grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            {{ actionDialog.inputLabel }}
+            <input
+              v-model="actionDialog.inputValue"
+              class="min-h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+              type="text"
+              :maxlength="actionDialog.inputMaxLength"
+              autofocus
+            >
+          </label>
+          <div class="mt-5 flex justify-end gap-2">
+            <button class="modal-secondary-button" type="button" @click="cancelActionDialog">Отмена</button>
+            <button class="modal-primary-button" type="submit">Сохранить</button>
           </div>
         </form>
       </div>
@@ -2466,4 +2552,3 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
   border-color: rgb(71 85 105);
 }
 </style>
-

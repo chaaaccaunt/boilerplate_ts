@@ -203,8 +203,7 @@ function getPermissionGroupKey(permissionKey: string): string {
 function getPermissionGroupTitle(groupKey: string): string {
   const titles: Record<string, string> = {
     users: "Пользователи и роли",
-    system: "Система",
-    media: "СММ"
+    system: "Система"
   }
 
   return titles[groupKey] || "Другое"
@@ -213,7 +212,6 @@ function getPermissionGroupTitle(groupKey: string): string {
 function getPermissionGroupOrder(groupKey: string): number {
   const order: Record<string, number> = {
     users: 10,
-    media: 20,
     system: 30
   }
 

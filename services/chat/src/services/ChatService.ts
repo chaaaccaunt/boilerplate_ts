@@ -14,27 +14,28 @@ export class ChatService {
 
   listRooms(userUid: UUID): Promise<iSharedChat.ChatRoomsListResponseDto> {
     return this.models.ChatRoom.findAll({
-      where: { status: "active" },
+      where: {
+        status: "active",
+        [this.databaseTools.Op.or]: [
+          { type: "public" },
+          { "$members.userUid$": userUid }
+        ]
+      },
       include: [this.getRoomMembersInclude()],
+      subQuery: false,
       order: [["createdAt", "ASC"]]
     })
       .then((rooms) => ({
-        rooms: rooms
-          .filter((room) => room.type === "public" || this.hasActiveMember(room, userUid))
-          .map((room) => this.toRoomDto(room, userUid))
+        rooms: rooms.map((room) => this.toRoomDto(room, userUid))
       }))
   }
 
   listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
     return this.models.User.findAll({
-      include: [{
-        association: this.models.User.associations.roles,
-        include: [{ association: this.models.UserRole.associations.role }]
-      }],
       order: [["lastName", "ASC"], ["firstName", "ASC"]]
     })
       .then((users) => ({
-        users: users.map((user) => this.toPublicUserDto(user))
+        users: users.map((user) => this.toAvailableMemberDto(user))
       }))
   }
 
@@ -446,10 +447,6 @@ export class ChatService {
     }
   }
 
-  private hasActiveMember(room: iDatabase.Models["ChatRoom"]["prototype"], userUid: UUID): boolean {
-    return room.members.some((member) => member.userUid === userUid && !member.leftAt)
-  }
-
   private archivePrivateRoomIfEmpty(room: iDatabase.Models["ChatRoom"]["prototype"], requestId?: string): Promise<void> {
     return this.models.ChatRoomMember.count({
       where: {
@@ -499,20 +496,14 @@ export class ChatService {
     return companion?.user?.fullName || room.title
   }
 
-  private toPublicUserDto(user: iDatabase.Models["User"]["prototype"]): iSharedUser.PublicUserDto {
+  private toAvailableMemberDto(user: iDatabase.Models["User"]["prototype"]): iSharedChat.ChatAvailableMemberDto {
     return {
       uid: user.uid,
       login: user.login,
       firstName: user.firstName,
       lastName: user.lastName,
       surname: user.surname,
-      fullName: user.fullName,
-      roles: user.roles.map((userRole) => ({
-        uid: userRole.role.uid,
-        name: userRole.role.name,
-        permissions: []
-      })),
-      permissions: []
+      fullName: user.fullName
     }
   }
 

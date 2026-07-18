@@ -1,5 +1,5 @@
 import { InternalServiceClient } from "@/services/InternalServiceClient"
-import { HTTPController } from "@/libs"
+import { Exceptions, HTTPController } from "@/libs"
 
 export class LogsGatewayController extends HTTPController {
   constructor(private readonly logCollectorServiceClient: InternalServiceClient) {
@@ -39,6 +39,10 @@ export class LogsGatewayController extends HTTPController {
   private getOptionalNumber(value: unknown): number | undefined {
     if (value === undefined || value === null || value === "") return undefined
     const numberValue = typeof value === "number" ? value : Number(value)
+    if (!Number.isFinite(numberValue) || numberValue < 0) {
+      throw new Exceptions.ControllerError.ConflictError("Некорректный числовой параметр логов")
+    }
+
     return numberValue
   }
 

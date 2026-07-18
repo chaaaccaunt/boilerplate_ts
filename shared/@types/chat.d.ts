@@ -45,6 +45,15 @@ declare global {
       updatedAt: string
     }
 
+    interface ChatAvailableMemberDto {
+      uid: string
+      login: string
+      firstName: string
+      lastName: string
+      surname: string | null
+      fullName: string
+    }
+
     interface ChatRoomsListResponseDto {
       rooms: ChatRoomDto[]
     }
@@ -58,7 +67,7 @@ declare global {
     }
 
     interface ChatAvailableMembersListResponseDto {
-      users: iSharedUser.PublicUserDto[]
+      users: ChatAvailableMemberDto[]
     }
 
     interface ChatRoomCreatePayloadDto {

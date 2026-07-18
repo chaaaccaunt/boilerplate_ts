@@ -252,7 +252,7 @@ export class HTTPServer {
   }
 
   private logRequest(request: IncomingMessage, context: RequestContext, status: number): void {
-    if (!this.shouldLogRequest(request)) return
+    if (!this.shouldLogRequest(request, status)) return
 
     this.logger.log(this.errorMapper.getLogLevel(status), "запрос завершен", {
       requestId: context.requestId,
@@ -263,8 +263,9 @@ export class HTTPServer {
     })
   }
 
-  private shouldLogRequest(request: IncomingMessage): boolean {
-    return request.method === "GET" || request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
+  private shouldLogRequest(request: IncomingMessage, status: number): boolean {
+    if (status >= 400) return true
+    return request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
   }
 
   private shouldHandlePreflight(request: IncomingMessage): boolean {

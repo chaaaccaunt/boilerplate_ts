@@ -23,10 +23,6 @@
       {
         "table": "user_roles",
         "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
-      },
-      {
-        "table": "service_tokens",
-        "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
       }
     ]
   },

@@ -151,33 +151,6 @@
 - `monolith/src/entities/users`;
 - `monolith/src/views/users`.
 
-## Управление токенами сервисов
-
-Статус: реализован базовый CRUD для подготовки публикационного бота.
-
-Покрытый сценарий:
-
-- хранение токенов внешних сервисов, мессенджеров и социальных сетей;
-- хранение значения токена в БД только в зашифрованном виде через AES-256-GCM;
-- обязательный ключ шифрования `VAR_SERVICE_TOKEN_ENCRYPTION_KEY` хранится вне БД в env users service;
-- добавление, редактирование, отключение и удаление токена;
-- отображение токена только в маскированном виде без возврата полного секрета во frontend;
-- доступ к управлению токенами только через системную роль `superadministrator`;
-- передача роли `superadministrator` из настроек текущего суперадминистратора;
-- запрет назначать или снимать роль `superadministrator` через обычное право `users.update`;
-- защита от снятия прав последнего суперадминистратора на service layer;
-- очистка SQL-логов от значений `token`, `encryptedToken`, `tokenIv`, `tokenAuthTag` и `secret`.
-
-Основные зоны реализации:
-
-- `shared/@types/service-tokens.d.ts`;
-- `models/users/ServiceTokenModel.ts`;
-- `services/users`;
-- `gateways/public/src/controllers/ServiceTokensGatewayController.ts`;
-- `monolith/src/entities/service-tokens`;
-- `monolith/src/views/settings/SettingsView.vue`;
-- `services/database-migration/src/database/migrations/20260527203000-add-service-tokens.sql`.
-
 ## CRUD сообщений чата
 
 Статус: реализовано.

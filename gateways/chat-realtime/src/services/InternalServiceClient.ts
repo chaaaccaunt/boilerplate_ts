@@ -7,10 +7,14 @@ interface RequestOptions<TPayload> {
 }
 
 export class InternalServiceClient {
+  private readonly requestTimeoutMs = 10_000
+
   constructor(private readonly baseUrl: string) { }
 
   request<TResult, TPayload = iContracts.iPayload>(options: RequestOptions<TPayload>): Promise<TResult> {
     const url = new URL(options.path, this.baseUrl)
+    const abortController = new AbortController()
+    const timeout = setTimeout(() => abortController.abort(), this.requestTimeoutMs)
 
     return fetch(url, {
       method: "POST",
@@ -18,7 +22,8 @@ export class InternalServiceClient {
         "Content-Type": "application/json; charset=utf-8",
         "x-request-id": options.requestId
       },
-      body: JSON.stringify(options.payload || {})
+      body: JSON.stringify(options.payload === undefined ? {} : options.payload),
+      signal: abortController.signal
     })
       .catch((error) => {
         throw new Exceptions.ServiceError.InternalError("Внутренний сервис недоступен", { cause: error })
@@ -35,6 +40,7 @@ export class InternalServiceClient {
           if (envelope.ok) return envelope.result
           throw this.toServiceError(response.status, envelope.error.message)
         }))
+      .finally(() => clearTimeout(timeout))
   }
 
   private toServiceError(status: number, message: string): Error {
@@ -63,4 +69,3 @@ export class InternalServiceClient {
   }
 
 }
-

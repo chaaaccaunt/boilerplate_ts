@@ -314,15 +314,3 @@ Runtime metrics для admin-панели собираются через `servi
 
 Metrics не требуют отдельного database user и не создают отдельные таблицы.
 Регулярные snapshots metrics не сохраняются в БД.
-
-## Шифрование токенов внешних сервисов
-
-`services/users` хранит токены внешних сервисов, мессенджеров и социальных сетей только в зашифрованном виде.
-
-Для запуска users service должна быть задана обязательная переменная:
-
-```env
-VAR_SERVICE_TOKEN_ENCRYPTION_KEY=<base64-ключ-32-байта>
-```
-
-Ключ не хранится в БД и не должен попадать в SQL-логи. Development init-flow генерирует значение из `development.config.json` или использует стандартный localhost-ключ. Для production нужно задать отдельный production secret в package-local `.prod.env`.

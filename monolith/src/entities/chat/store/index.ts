@@ -21,7 +21,8 @@ const mutations: MutationTree<iSharedState.ChatState> = {
     delete state.messagesByRoomUid[roomUid]
 
     if (state.activeRoomUid === roomUid) {
-      state.activeRoomUid = state.rooms[0]?.uid || null
+      const publicRoom = state.rooms.find((room) => room.type === "public")
+      state.activeRoomUid = publicRoom ? publicRoom.uid : null
     }
   },
 

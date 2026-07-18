@@ -1,7 +1,6 @@
 import { hashSync } from "bcryptjs"
 import type { UUID } from "crypto"
 import { Exceptions } from "@/libs"
-import { ServiceTokenEncryptionService } from "./ServiceTokenEncryptionService"
 
 export class UsersService {
   constructor(
@@ -10,9 +9,7 @@ export class UsersService {
     private readonly permissionModel: iDatabase.Models["Permission"],
     private readonly rolePermissionModel: iDatabase.Models["RolePermission"],
     private readonly userRoleModel: iDatabase.Models["UserRole"],
-    private readonly serviceTokenModel: iDatabase.Models["ServiceToken"],
-    private readonly databaseTools: iLibs.DatabaseServiceTools,
-    private readonly serviceTokenEncryptionService: ServiceTokenEncryptionService
+    private readonly databaseTools: iLibs.DatabaseServiceTools
   ) { }
 
   list(): Promise<iSharedUser.PublicUserDto[]> {
@@ -182,89 +179,6 @@ export class UsersService {
           })
       })
       .then(() => this.list())
-  }
-
-  listServiceTokens(): Promise<iSharedServiceToken.ServiceTokenDto[]> {
-    return this.serviceTokenModel.findAll({
-      order: [["type", "ASC"], ["displayName", "ASC"]]
-    })
-      .then((tokens) => tokens.map((token) => this.toServiceTokenDto(token)))
-  }
-
-  getServiceTokenSecret(type: iSharedServiceToken.ServiceTokenType, serviceName: string): Promise<string> {
-    return this.serviceTokenModel.findOne({
-      where: {
-        type,
-        serviceName: serviceName.trim().toLowerCase(),
-        isEnabled: true
-      }
-    })
-      .then((token) => {
-        if (!token) throw new Exceptions.ServiceError.NotFoundError("Активный токен сервиса не найден")
-
-        return this.serviceTokenEncryptionService.decrypt({
-          encryptedToken: token.encryptedToken,
-          tokenIv: token.tokenIv,
-          tokenAuthTag: token.tokenAuthTag
-        })
-      })
-  }
-
-  createServiceToken(payload: iSharedServiceToken.CreateServiceTokenPayloadDto, requestId?: string): Promise<iSharedServiceToken.CreateServiceTokenResponseDto> {
-    const normalizedPayload = this.normalizeServiceTokenPayload(payload)
-    const rawToken = this.normalizeServiceTokenSecret(payload.token)
-    const encryptedPayload = this.serviceTokenEncryptionService.encrypt(rawToken)
-
-    return this.assertServiceTokenNameAvailable(normalizedPayload.type, normalizedPayload.serviceName)
-      .then(() => this.serviceTokenModel.create({
-        ...normalizedPayload,
-        ...encryptedPayload,
-        tokenPreview: this.createTokenPreview(rawToken)
-      }, {
-        logging: this.createMutationQueryLogger("createServiceToken", "service_tokens insert query", requestId)
-      }))
-      .then((token) => this.toServiceTokenDto(token))
-  }
-
-  updateServiceToken(payload: iSharedServiceToken.UpdateServiceTokenPayloadDto, requestId?: string): Promise<iSharedServiceToken.UpdateServiceTokenResponseDto> {
-    const normalizedPayload = this.normalizeServiceTokenPayload(payload)
-
-    return this.serviceTokenModel.findByPk(payload.uid)
-      .then((token) => {
-        if (!token) throw new Exceptions.ServiceError.NotFoundError("Токен не найден")
-        const encryptedPayload = payload.token?.trim()
-          ? this.serviceTokenEncryptionService.encrypt(this.normalizeServiceTokenSecret(payload.token))
-          : {
-            encryptedToken: token.encryptedToken,
-            tokenIv: token.tokenIv,
-            tokenAuthTag: token.tokenAuthTag
-          }
-        const tokenPreview = payload.token?.trim()
-          ? this.createTokenPreview(this.normalizeServiceTokenSecret(payload.token))
-          : token.tokenPreview
-
-        return this.assertServiceTokenNameAvailable(normalizedPayload.type, normalizedPayload.serviceName, token.uid)
-          .then(() => token.update({
-            ...normalizedPayload,
-            ...encryptedPayload,
-            tokenPreview
-          }, {
-            logging: this.createMutationQueryLogger("updateServiceToken", "service_tokens update query", requestId)
-          }))
-          .then((updatedToken) => this.toServiceTokenDto(updatedToken))
-      })
-  }
-
-  deleteServiceToken(payload: iSharedServiceToken.DeleteServiceTokenPayloadDto, requestId?: string): Promise<iSharedServiceToken.DeleteServiceTokenResponseDto> {
-    return this.serviceTokenModel.findByPk(payload.uid)
-      .then((token) => {
-        if (!token) throw new Exceptions.ServiceError.NotFoundError("Токен не найден")
-
-        return token.destroy({
-          logging: this.createMutationQueryLogger("deleteServiceToken", "service_tokens delete query", requestId)
-        })
-      })
-      .then(() => ({ uid: payload.uid }))
   }
 
   private assertLoginAvailable(login: string, currentUserUid?: string): Promise<void> {
@@ -494,50 +408,6 @@ export class UsersService {
       })
   }
 
-  private assertServiceTokenNameAvailable(type: iSharedServiceToken.ServiceTokenType, serviceName: string, currentTokenUid?: UUID): Promise<void> {
-    return this.serviceTokenModel.findOne({ where: { type, serviceName } })
-      .then((token) => {
-        if (token && String(token.uid) !== currentTokenUid) {
-          throw new Exceptions.ServiceError.ConflictError("Токен для такого сервиса уже существует")
-        }
-      })
-  }
-
-  private normalizeServiceTokenPayload(payload: iSharedServiceToken.CreateServiceTokenPayloadDto | iSharedServiceToken.UpdateServiceTokenPayloadDto): Omit<iSharedServiceToken.CreateServiceTokenPayloadDto, "token"> {
-    const type = payload.type
-    const serviceName = payload.serviceName.trim().toLowerCase()
-    const displayName = payload.displayName.trim()
-
-    if (!["service", "messenger", "social_network"].includes(type)) {
-      throw new Exceptions.ServiceError.ConflictError("Недопустимый тип сервиса")
-    }
-
-    if (!/^[a-z][a-z0-9_-]{1,79}$/.test(serviceName)) {
-      throw new Exceptions.ServiceError.ConflictError("Системное имя сервиса должно содержать латинские буквы, цифры, дефис или подчеркивание")
-    }
-
-    if (!displayName.length) {
-      throw new Exceptions.ServiceError.ConflictError("Название сервиса обязательно")
-    }
-
-    return {
-      type,
-      serviceName,
-      displayName,
-      isEnabled: payload.isEnabled
-    }
-  }
-
-  private normalizeServiceTokenSecret(token: string): string {
-    const normalizedToken = token.trim()
-
-    if (!normalizedToken.length) {
-      throw new Exceptions.ServiceError.ConflictError("Токен обязателен")
-    }
-
-    return normalizedToken
-  }
-
   private updateRolePermissionLinks(roleUid: UUID, permissions: iDatabase.Models["Permission"]["prototype"][], requestId?: string): Promise<void> {
     return this.rolePermissionModel.findAll({ where: { roleUid }, paranoid: false })
       .then((rolePermissions) => {
@@ -616,24 +486,6 @@ export class UsersService {
     })
 
     return Array.from(permissions.values()).sort((left, right) => left.key.localeCompare(right.key))
-  }
-
-  private toServiceTokenDto(token: iDatabase.Models["ServiceToken"]["prototype"]): iSharedServiceToken.ServiceTokenDto {
-    return {
-      uid: token.uid,
-      type: token.type,
-      serviceName: token.serviceName,
-      displayName: token.displayName,
-      tokenPreview: token.tokenPreview,
-      isEnabled: token.isEnabled,
-      createdAt: token.createdAt.toISOString(),
-      updatedAt: token.updatedAt.toISOString()
-    }
-  }
-
-  private createTokenPreview(tokenValue: string): string {
-    const suffix = tokenValue.slice(-4)
-    return suffix ? `••••${suffix}` : "••••"
   }
 
   private createUserRoleRoleInclude() {

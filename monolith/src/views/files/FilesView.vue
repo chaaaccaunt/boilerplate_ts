@@ -43,12 +43,35 @@ const documentForm = ref({
   title: "Новый документ",
   visibility: "public" as iSharedFiles.FileVisibility
 })
+interface FileActionDialogState {
+  isOpen: boolean
+  title: string
+  message: string
+  inputLabel: string
+  inputValue: string
+  inputMaxLength: number
+  mode: "confirm" | "text"
+  resolve: ((value: string | boolean | null) => void) | null
+}
+
+const actionDialog = ref<FileActionDialogState>({
+  isOpen: false,
+  title: "",
+  message: "",
+  inputLabel: "",
+  inputValue: "",
+  inputMaxLength: 180,
+  mode: "confirm",
+  resolve: null
+})
 const failedPreviewFileUids = ref<string[]>([])
 const selectedTileKeys = ref<string[]>([])
 const isBulkDownloading = ref(false)
 const bulkDownloadPhase = ref<"idle" | "preparing" | "downloading" | "finalizing">("idle")
 const bulkDownloadProgress = ref<number | null>(null)
 const realtimeReloadTimer = ref<number | null>(null)
+const realtimeUnsubscribeCallbacks: Array<() => void> = []
+const bulkOperationConcurrency = 4
 
 const routeName = computed(() => typeof route.name === "string" ? route.name : "files")
 const isOwnersOverview = computed(() => routeName.value === "files")
@@ -100,15 +123,13 @@ const title = computed(() => {
 
 onMounted(() => {
   filesRealtimeEvents.forEach((eventName) => {
-    webSocketClient.on<iSharedFiles.FilesRealtimeEventPayloadDto>(eventName, scheduleRealtimeContentReload)
+    realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedFiles.FilesRealtimeEventPayloadDto>(eventName, scheduleRealtimeContentReload))
   })
   loadContent()
 })
 
 onUnmounted(() => {
-  filesRealtimeEvents.forEach((eventName) => {
-    webSocketClient.off(eventName)
-  })
+  realtimeUnsubscribeCallbacks.splice(0).forEach((unsubscribe) => unsubscribe())
 
   if (realtimeReloadTimer.value !== null) {
     window.clearTimeout(realtimeReloadTimer.value)
@@ -285,74 +306,77 @@ function createDocument(): void {
 }
 
 function renameFolder(folder: iSharedFiles.FileFolderDto): void {
-  const title = window.prompt("Новое название папки", folder.title)
-  if (!title?.trim() || title.trim() === folder.title) return
+  openTextDialog("Новое название папки", "Название", folder.title, 120)
+    .then((title) => {
+      if (!title?.trim() || title.trim() === folder.title) return undefined
 
-  apiClient.files.updateFolder({
-    folderUid: folder.uid,
-    title: title.trim()
-  })
+      return apiClient.files.updateFolder({
+        folderUid: folder.uid,
+        title: title.trim()
+      })
+    })
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось переименовать папку")
     })
 }
 
 function deleteFolder(folder: iSharedFiles.FileFolderDto): void {
-  if (!window.confirm(`Удалить папку "${folder.title}"?`)) return
-
-  apiClient.files.deleteFolder({ folderUid: folder.uid })
+  openConfirmDialog("Удаление папки", `Удалить папку "${folder.title}"?`)
+    .then((isConfirmed) => isConfirmed ? apiClient.files.deleteFolder({ folderUid: folder.uid }) : undefined)
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось удалить папку")
     })
 }
 
 function renameFile(file: iSharedFiles.UploadedFileDto): void {
-  const description = window.prompt("Описание файла", file.description || "")
-  if (description === null) return
+  openTextDialog("Описание файла", "Описание", file.description || "", 500)
+    .then((description) => {
+      if (description === null) return undefined
 
-  apiClient.files.update({
-    fileUid: file.fileUid,
-    description: description.trim() || undefined
-  })
+      return apiClient.files.update({
+        fileUid: file.fileUid,
+        description: description.trim() || undefined
+      })
+    })
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось обновить файл")
     })
 }
 
 function deleteFile(file: iSharedFiles.UploadedFileDto): void {
-  if (!window.confirm(`Удалить файл "${file.originalName}"?`)) return
-
-  apiClient.files.delete({ fileUid: file.fileUid })
+  openConfirmDialog("Удаление файла", `Удалить файл "${file.originalName}"?`)
+    .then((isConfirmed) => isConfirmed ? apiClient.files.delete({ fileUid: file.fileUid }) : undefined)
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось удалить файл")
     })
 }
 
-function openDocument(document: iSharedFiles.StoredDocumentDto): void {
+function openDocument(document: iSharedFiles.StoredDocumentListItemDto): void {
   router.push({ name: "files-document", params: { documentUid: document.documentUid } })
 }
 
-function downloadDocument(document: iSharedFiles.StoredDocumentDto): void {
+function downloadDocument(document: iSharedFiles.StoredDocumentListItemDto): void {
   window.open(resolveFileUrl(document.exportUrl), "_blank", "noopener")
 }
 
-function renameDocument(document: iSharedFiles.StoredDocumentDto): void {
-  const title = window.prompt("Новое название документа", document.title)
-  if (!title?.trim() || title.trim() === document.title) return
+function renameDocument(document: iSharedFiles.StoredDocumentListItemDto): void {
+  openTextDialog("Новое название документа", "Название", document.title, 180)
+    .then((title) => {
+      if (!title?.trim() || title.trim() === document.title) return undefined
 
-  apiClient.files.updateDocument({
-    documentUid: document.documentUid,
-    title: title.trim()
-  })
+      return apiClient.files.updateDocument({
+        documentUid: document.documentUid,
+        title: title.trim()
+      })
+    })
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось переименовать документ")
     })
 }
 
-function deleteDocument(document: iSharedFiles.StoredDocumentDto): void {
-  if (!window.confirm(`Удалить документ "${document.title}"?`)) return
-
-  apiClient.files.deleteDocument({ documentUid: document.documentUid })
+function deleteDocument(document: iSharedFiles.StoredDocumentListItemDto): void {
+  openConfirmDialog("Удаление документа", `Удалить документ "${document.title}"?`)
+    .then((isConfirmed) => isConfirmed ? apiClient.files.deleteDocument({ documentUid: document.documentUid }) : undefined)
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось удалить документ")
     })
@@ -400,11 +424,11 @@ function clearSelection(): void {
 function bulkSetVisibility(visibility: iSharedFiles.FileVisibility): void {
   if (!selectedItemsCount.value) return
 
-  Promise.all([
-    ...selectedFolders.value.map((folder) => apiClient.files.updateFolder({ folderUid: folder.uid, visibility })),
-    ...selectedFiles.value.map((file) => apiClient.files.update({ fileUid: file.fileUid, visibility })),
-    ...selectedDocuments.value.map((document) => apiClient.files.updateDocument({ documentUid: document.documentUid, visibility }))
-  ])
+  runLimited([
+    ...selectedFolders.value.map((folder) => () => apiClient.files.updateFolder({ folderUid: folder.uid, visibility })),
+    ...selectedFiles.value.map((file) => () => apiClient.files.update({ fileUid: file.fileUid, visibility })),
+    ...selectedDocuments.value.map((document) => () => apiClient.files.updateDocument({ documentUid: document.documentUid, visibility }))
+  ], bulkOperationConcurrency)
     .then(() => {
       clearSelection()
       loadContent()
@@ -416,14 +440,21 @@ function bulkSetVisibility(visibility: iSharedFiles.FileVisibility): void {
 
 function bulkDeleteSelected(): void {
   if (!selectedItemsCount.value) return
-  if (!window.confirm(`Удалить выбранные элементы: ${selectedItemsCount.value}?`)) return
 
-  Promise.all([
-    ...selectedFolders.value.map((folder) => apiClient.files.deleteFolder({ folderUid: folder.uid })),
-    ...selectedFiles.value.map((file) => apiClient.files.delete({ fileUid: file.fileUid })),
-    ...selectedDocuments.value.map((document) => apiClient.files.deleteDocument({ documentUid: document.documentUid }))
-  ])
-    .then(() => {
+  openConfirmDialog("Удаление элементов", `Удалить выбранные элементы: ${selectedItemsCount.value}?`)
+    .then((isConfirmed) => {
+      if (!isConfirmed) return false
+
+      return runLimited([
+        ...selectedFolders.value.map((folder) => () => apiClient.files.deleteFolder({ folderUid: folder.uid })),
+        ...selectedFiles.value.map((file) => () => apiClient.files.delete({ fileUid: file.fileUid })),
+        ...selectedDocuments.value.map((document) => () => apiClient.files.deleteDocument({ documentUid: document.documentUid }))
+      ], bulkOperationConcurrency)
+        .then(() => true)
+    })
+    .then((isCompleted) => {
+      if (!isCompleted) return
+
       clearSelection()
       loadContent()
     })
@@ -477,6 +508,84 @@ function bulkDownloadSelected(): void {
       bulkDownloadPhase.value = "idle"
       bulkDownloadProgress.value = null
     })
+}
+
+function openTextDialog(title: string, inputLabel: string, initialValue: string, inputMaxLength: number): Promise<string | null> {
+  return new Promise((resolvePromise) => {
+    actionDialog.value = {
+      isOpen: true,
+      title,
+      message: "",
+      inputLabel,
+      inputValue: initialValue,
+      inputMaxLength,
+      mode: "text",
+      resolve: resolvePromise
+    }
+  })
+}
+
+function openConfirmDialog(title: string, message: string): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    actionDialog.value = {
+      isOpen: true,
+      title,
+      message,
+      inputLabel: "",
+      inputValue: "",
+      inputMaxLength: 180,
+      mode: "confirm",
+      resolve: resolvePromise
+    }
+  })
+}
+
+function submitActionDialog(): void {
+  const resolve = actionDialog.value.resolve
+  if (!resolve) return
+
+  const value = actionDialog.value.mode === "text" ? actionDialog.value.inputValue : true
+  closeActionDialog()
+  resolve(value)
+}
+
+function cancelActionDialog(): void {
+  const resolve = actionDialog.value.resolve
+  if (!resolve) return
+
+  const value = actionDialog.value.mode === "text" ? null : false
+  closeActionDialog()
+  resolve(value)
+}
+
+function closeActionDialog(): void {
+  actionDialog.value = {
+    ...actionDialog.value,
+    isOpen: false,
+    resolve: null
+  }
+}
+
+function runLimited<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<T[]> {
+  const results: T[] = []
+  let nextTaskIndex = 0
+
+  const runNext = (): Promise<void> => {
+    const taskIndex = nextTaskIndex
+    nextTaskIndex += 1
+
+    const task = tasks[taskIndex]
+    if (!task) return Promise.resolve()
+
+    return task()
+      .then((result) => {
+        results[taskIndex] = result
+      })
+      .then(runNext)
+  }
+
+  return Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, runNext))
+    .then(() => results)
 }
 
 function saveBlob(blob: Blob, fileName: string): void {
@@ -702,6 +811,50 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
               :disabled="isDocumentSubmitting"
             >
               Создать
+            </button>
+          </div>
+        </form>
+      </div>
+    </teleport>
+
+    <teleport to="body">
+      <div
+        v-if="actionDialog.isOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="file-action-dialog-title"
+      >
+        <form class="w-full max-w-md rounded-md bg-white p-5 shadow-xl dark:bg-slate-900" @submit.prevent="submitActionDialog">
+          <div class="grid gap-2">
+            <h2 id="file-action-dialog-title" class="text-lg font-semibold text-slate-950 dark:text-slate-50">{{ actionDialog.title }}</h2>
+            <p v-if="actionDialog.message" class="text-sm text-slate-600 dark:text-slate-300">{{ actionDialog.message }}</p>
+          </div>
+
+          <label v-if="actionDialog.mode === 'text'" class="mt-4 grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            {{ actionDialog.inputLabel }}
+            <input
+              v-model="actionDialog.inputValue"
+              class="min-h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+              type="text"
+              :maxlength="actionDialog.inputMaxLength"
+              autofocus
+            >
+          </label>
+
+          <div class="mt-5 flex justify-end gap-2">
+            <button
+              class="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              type="button"
+              @click="cancelActionDialog"
+            >
+              Отмена
+            </button>
+            <button
+              class="inline-flex min-h-9 items-center justify-center rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400"
+              type="submit"
+            >
+              {{ actionDialog.mode === 'text' ? 'Сохранить' : 'Подтвердить' }}
             </button>
           </div>
         </form>

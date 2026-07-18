@@ -26,7 +26,12 @@ type WebSocketServerEvent =
   | "files:folder:created"
   | "files:folder:updated"
   | "files:folder:deleted"
+  | "files:document:created"
+  | "files:document:updated"
+  | "files:document:deleted"
   | "system:package-connection"
+
+type WebSocketServerEventHandler<TResult> = (result: TResult) => void
 
 export class WebSocketClient {
   private readonly socket: Socket
@@ -50,14 +55,22 @@ export class WebSocketClient {
     this.socket.disconnect()
   }
 
-  on<TResult>(eventName: WebSocketServerEvent, handler: (result: TResult) => void): void {
-    this.socket.on(eventName, (payload: unknown) => {
+  on<TResult>(eventName: WebSocketServerEvent, handler: WebSocketServerEventHandler<TResult>): () => void {
+    const socketHandler = (payload: unknown) => {
       const envelope = this.parseEnvelope<TResult>(payload)
       if (envelope.ok) handler(envelope.result)
-    })
+    }
+
+    this.socket.on(eventName, socketHandler)
+    return () => this.off(eventName, socketHandler)
   }
 
-  off(eventName: WebSocketServerEvent): void {
+  off(eventName: WebSocketServerEvent, handler?: WebSocketServerEventHandler<unknown>): void {
+    if (handler) {
+      this.socket.off(eventName, handler)
+      return
+    }
+
     this.socket.off(eventName)
   }
 
@@ -92,7 +105,7 @@ export class WebSocketClient {
   private isEnvelope<TResult>(payload: unknown): payload is iSharedApi.ResponseEnvelope<TResult> {
     if (!this.isRecord(payload)) return false
     if (typeof payload.ok !== "boolean") return false
-    if (payload.ok) return payload.error === null
+    if (payload.ok) return "result" in payload && payload.error === null
 
     return payload.result === null && this.isRecord(payload.error) && typeof payload.error.code === "string" && typeof payload.error.message === "string"
   }

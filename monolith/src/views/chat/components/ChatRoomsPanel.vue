@@ -5,7 +5,7 @@ import ModalHost from "@/application/providers/ModalHost.vue"
 
 const props = defineProps<{
   rooms: iSharedChat.ChatRoomDto[]
-  availableMembers: iSharedUser.PublicUserDto[]
+  availableMembers: iSharedChat.ChatAvailableMemberDto[]
   activeRoomUid: string | null
   isLoading: boolean
   currentUserUid: string | null

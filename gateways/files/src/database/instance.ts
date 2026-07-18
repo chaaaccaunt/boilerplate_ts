@@ -1,15 +1,15 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
 import { ChatMessageFileModel, getChatMessageFileModel } from "@/models/chat/ChatMessageFileModel"
-import { ChatMessageModel, getChatMessageModel } from "@/models/chat/ChatMessageModel"
-import { ChatRoomMemberModel, getChatRoomMemberModel } from "@/models/chat/ChatRoomMemberModel"
-import { ChatRoomModel, getChatRoomModel } from "@/models/chat/ChatRoomModel"
+import { ChatMessageModel } from "@/models/chat/ChatMessageModel"
+import { ChatRoomMemberModel } from "@/models/chat/ChatRoomMemberModel"
+import { ChatRoomModel } from "@/models/chat/ChatRoomModel"
 import { getStoredFileFolderModel, StoredFileFolderModel } from "@/models/files/StoredFileFolderModel"
 import { getStoredFileModel, StoredFileModel } from "@/models/files/StoredFileModel"
 import { getStoredDocumentModel, StoredDocumentModel } from "@/models/files/StoredDocumentModel"
-import { getPermissionModel, PermissionModel } from "@/models/users/PermissionModel"
-import { getRoleModel, RoleModel } from "@/models/users/RoleModel"
-import { getRolePermissionModel, RolePermissionModel } from "@/models/users/RolePermissionModel"
-import { getUserRoleModel, UserRoleModel } from "@/models/users/UserRoleModel"
+import { PermissionModel } from "@/models/users/PermissionModel"
+import { RoleModel } from "@/models/users/RoleModel"
+import { RolePermissionModel } from "@/models/users/RolePermissionModel"
+import { UserRoleModel } from "@/models/users/UserRoleModel"
 import { getUserModel, UserModel } from "@/models/users/UserModel"
 
 export interface DataBaseInstance {
@@ -41,22 +41,15 @@ export class Database {
     this.sequelize = new SequelizeClass(config)
     this.models = {
       User: getUserModel(this.sequelize),
-      Role: getRoleModel(this.sequelize),
-      Permission: getPermissionModel(this.sequelize),
-      RolePermission: getRolePermissionModel(this.sequelize),
-      UserRole: getUserRoleModel(this.sequelize),
-      ChatRoom: getChatRoomModel(this.sequelize),
-      ChatRoomMember: getChatRoomMemberModel(this.sequelize),
-      ChatMessage: getChatMessageModel(this.sequelize),
       ChatMessageFile: getChatMessageFileModel(this.sequelize),
       StoredFileFolder: getStoredFileFolderModel(this.sequelize),
       StoredFile: getStoredFileModel(this.sequelize),
       StoredDocument: getStoredDocumentModel(this.sequelize)
-    }
+    } as iDatabase.Models
 
-    Object.keys(this.models).forEach((key) => {
-      this.models[key as keyof typeof this.models].associate(this.models)
-    })
+    this.models.StoredFileFolder.associate(this.models)
+    this.models.StoredFile.associate(this.models)
+    this.models.StoredDocument.associate(this.models)
   }
 }
 

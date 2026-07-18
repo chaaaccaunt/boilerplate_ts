@@ -2,6 +2,8 @@ import { randomUUID } from "crypto"
 import { Exceptions } from "@/libs"
 
 export class RuntimePackageEventGatewayClient {
+  private readonly requestTimeoutMs = 10_000
+
   constructor(private readonly baseUrl: string) {
     if (!this.baseUrl) {
       throw new Error("RuntimePackageEventGatewayClient требует URL chat realtime gateway")
@@ -10,6 +12,8 @@ export class RuntimePackageEventGatewayClient {
 
   notify(payload: iSharedLogs.RuntimePackageConnectionEventDto): Promise<void> {
     const url = new URL("/system/package-connection-event", this.baseUrl)
+    const abortController = new AbortController()
+    const timeout = setTimeout(() => abortController.abort(), this.requestTimeoutMs)
 
     return fetch(url, {
       method: "POST",
@@ -17,7 +21,8 @@ export class RuntimePackageEventGatewayClient {
         "Content-Type": "application/json; charset=utf-8",
         "x-request-id": randomUUID()
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: abortController.signal
     })
       .catch((error) => {
         throw new Exceptions.ServiceError.InternalError("Chat realtime gateway недоступен", { cause: error })
@@ -35,6 +40,7 @@ export class RuntimePackageEventGatewayClient {
           throw new Exceptions.ServiceError.InternalError(envelope.error.message)
         }
       })
+      .finally(() => clearTimeout(timeout))
   }
 
   private isEnvelope(value: unknown): value is iSharedApi.ResponseEnvelope<unknown> {

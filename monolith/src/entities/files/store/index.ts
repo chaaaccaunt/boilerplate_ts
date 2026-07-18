@@ -32,11 +32,11 @@ const mutations: MutationTree<iSharedState.FilesState> = {
     state.files = state.files.filter((item) => item.fileUid !== payload.fileUid)
   },
 
-  addDocument(state, document: iSharedFiles.StoredDocumentDto) {
+  addDocument(state, document: iSharedFiles.StoredDocumentListItemDto) {
     state.documents = [document, ...state.documents.filter((item) => item.documentUid !== document.documentUid)]
   },
 
-  updateDocument(state, document: iSharedFiles.StoredDocumentDto) {
+  updateDocument(state, document: iSharedFiles.StoredDocumentListItemDto) {
     state.documents = state.documents.map((item) => item.documentUid === document.documentUid ? document : item)
   },
 

@@ -177,12 +177,6 @@ function getInitDatabaseHost(config, options = {}) {
 }
 
 function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageName, localhostPackagePorts) {
-  if (packageKind === "service" && packageName === "users") {
-    return {
-      VAR_SERVICE_TOKEN_ENCRYPTION_KEY: config.localhostServiceTokenEncryptionKey
-    }
-  }
-
   if (packageKind === "service" && packageName === "log-collector") {
     return {
       VAR_LOG_COLLECTOR_SOCKET_PORT: config.localhostLogCollectorSocketPort,

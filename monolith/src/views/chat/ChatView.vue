@@ -16,40 +16,37 @@ const isLoading = ref(false)
 const isSending = ref(false)
 const errorMessage = ref("")
 const lastActiveRoomStorageKeyPrefix = "chat:last-active-room-uid"
+const realtimeUnsubscribeCallbacks: Array<() => void> = []
 
 const rooms = computed(() => store.state.chat.rooms)
-const availableMembers = ref<iSharedUser.PublicUserDto[]>([])
+const availableMembers = ref<iSharedChat.ChatAvailableMemberDto[]>([])
 const activeRoomUid = computed(() => store.state.chat.activeRoomUid)
 const activeRoom = computed(() => rooms.value.find((room) => room.uid === activeRoomUid.value) || null)
 const messages = computed(() => activeRoomUid.value ? store.state.chat.messagesByRoomUid[activeRoomUid.value] || [] : [])
 
 onMounted(() => {
-  webSocketClient.on<iSharedChat.ChatMessageSendResponseDto>("chat:message:created", ({ message }) => {
+  realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedChat.ChatMessageSendResponseDto>("chat:message:created", ({ message }) => {
     store.commit("chat/addMessage", message)
-  })
-  webSocketClient.on<iSharedChat.ChatMessageUpdateResponseDto>("chat:message:updated", ({ message }) => {
+  }))
+  realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedChat.ChatMessageUpdateResponseDto>("chat:message:updated", ({ message }) => {
     store.commit("chat/updateMessage", message)
-  })
-  webSocketClient.on<iSharedChat.ChatMessageDeleteResponseDto>("chat:message:deleted", (payload) => {
+  }))
+  realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedChat.ChatMessageDeleteResponseDto>("chat:message:deleted", (payload) => {
     store.commit("chat/deleteMessage", payload)
-  })
-  webSocketClient.on<iSharedChat.ChatRoomUpdateResponseDto>("chat:room:updated", ({ room }) => {
+  }))
+  realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedChat.ChatRoomUpdateResponseDto>("chat:room:updated", ({ room }) => {
     store.commit("chat/updateRoom", room)
-  })
-  webSocketClient.on<iSharedChat.ChatRoomDeleteResponseDto>("chat:room:deleted", ({ roomUid }) => {
+  }))
+  realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedChat.ChatRoomDeleteResponseDto>("chat:room:deleted", ({ roomUid }) => {
     removeRoom(roomUid)
-  })
+  }))
 
   loadAvailableMembers()
   loadRooms()
 })
 
 onBeforeUnmount(() => {
-  webSocketClient.off("chat:message:created")
-  webSocketClient.off("chat:message:updated")
-  webSocketClient.off("chat:message:deleted")
-  webSocketClient.off("chat:room:updated")
-  webSocketClient.off("chat:room:deleted")
+  realtimeUnsubscribeCallbacks.splice(0).forEach((unsubscribe) => unsubscribe())
 })
 
 watch(activeRoomUid, (roomUid) => {
