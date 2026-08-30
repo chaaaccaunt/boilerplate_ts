@@ -84,7 +84,6 @@ export class AuthorizationGatewayController extends HTTPController {
             value: result.accessToken,
             options: {
               httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
               sameSite: "strict",
               path: "/"
             }
@@ -93,7 +92,6 @@ export class AuthorizationGatewayController extends HTTPController {
             name: this.publicUserCookieName,
             value: JSON.stringify(this.toPublicUserCookieDto(result.user)),
             options: {
-              secure: process.env.NODE_ENV === "production",
               sameSite: "strict",
               path: "/"
             }

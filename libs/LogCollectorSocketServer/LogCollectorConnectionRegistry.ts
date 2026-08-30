@@ -10,7 +10,6 @@ export class LogCollectorConnectionRegistry {
       connectionId,
       authenticated: false,
       packageUid: null,
-      skipDisconnectEvent: false,
       source: null,
       socket
     }
@@ -47,6 +46,18 @@ export class LogCollectorConnectionRegistry {
       .filter((state) => state.source && state.socket.writable)
   }
 
+  getWritablePackageStates(): iLogCollectorConnectionState[] {
+    const packageStates = new Map<string, iLogCollectorConnectionState>()
+
+    this.getWritableAuthenticatedStates().forEach((state) => {
+      if (state.packageUid && !packageStates.has(state.packageUid)) {
+        packageStates.set(state.packageUid, state)
+      }
+    })
+
+    return Array.from(packageStates.values())
+  }
+
   getOnlinePackageUids(): Set<string> {
     return new Set(this.getWritableAuthenticatedStates()
       .map((state) => state.packageUid)
@@ -58,21 +69,13 @@ export class LogCollectorConnectionRegistry {
       .find((state) => state.packageUid === packageUid)
   }
 
-  closeDuplicatePackageConnections(packageUid: string, currentState: iLogCollectorConnectionState): iLogCollectorConnectionState[] {
-    const duplicateStates = Array.from(this.connectionStates)
-      .filter((state) => state !== currentState && state.packageUid === packageUid && state.socket.writable)
-
-    duplicateStates.forEach((state) => {
-      state.skipDisconnectEvent = true
-      state.socket.destroy()
-    })
-
-    return duplicateStates
-  }
-
   findWritableByPackageUid(packageUid: string): iLogCollectorConnectionState | undefined {
     return Array.from(this.connectionStates)
       .find((state) => state.packageUid === packageUid && state.source && state.socket.writable)
+  }
+
+  hasWritablePackageConnection(packageUid: string): boolean {
+    return Boolean(this.findWritableByPackageUid(packageUid))
   }
 
   getOfflinePackageState(packageUid: string): iLogCollectorOfflinePackageState | undefined {

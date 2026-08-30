@@ -49,8 +49,9 @@ export class HTTPErrorMapper {
     return error.message
   }
 
-  getLogLevel(status: number): LogLevel {
+  getLogLevel(error: Error | undefined, status: number): LogLevel {
     if (status >= 500) return "error"
+    if (this.isExpectedAuthenticationFailure(error)) return "info"
     if (status >= 400) return "warn"
     return "info"
   }
@@ -88,6 +89,13 @@ export class HTTPErrorMapper {
     return (
       error instanceof this.exceptions.InternalServerError ||
       error instanceof Exceptions.ControllerError.InternalError
+    )
+  }
+
+  private isExpectedAuthenticationFailure(error: Error | undefined): boolean {
+    return (
+      error instanceof Exceptions.ControllerError.UnauthorizedError &&
+      error.details?.cause instanceof Exceptions.ServiceError.AuthenticationError
     )
   }
 

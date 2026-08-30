@@ -205,7 +205,7 @@ export class HTTPResponseSender {
     if (options.path) parts.push(`Path=${options.path}`)
     if (domain) parts.push(`Domain=${domain}`)
     if (options.httpOnly) parts.push("HttpOnly")
-    if (options.secure) parts.push("Secure")
+    if (this.config.cookieSecure) parts.push("Secure")
     if (options.sameSite) parts.push(`SameSite=${this.formatSameSite(options.sameSite)}`)
 
     return parts.join("; ")

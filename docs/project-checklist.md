@@ -19,15 +19,18 @@
   - `VAR_HTTP_COOKIE_NAME`;
   - `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`;
   - `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN`;
+  - `VAR_HTTP_COOKIE_SECURE` при необходимости переопределить безопасное значение, вычисляемое из `NODE_ENV`;
   - `VAR_HTTP_JWT_SECRET`.
   - `VAR_HTTP_JWT_AUDIENCE`;
   - `VAR_HTTP_JWT_ISSUER`.
   - `VAR_PACKAGE_UID`.
+- Если включена кластеризация, проверить `VAR_PROCESS_CLUSTER_ENABLED=true` и `VAR_PROCESS_CLUSTER_WORKERS=auto` либо положительное целое число.
 - Проверить, что обязательные переменные не равны placeholder/default-значениям вроде `УкажитеЗначение`.
 - Проверить, что `VAR_DB_DIALECT` равен поддерживаемому Sequelize dialect для проекта, например `mysql` или `postgres`.
 - Проверить, что `VAR_DB_PORT` соответствует выбранной СУБД.
 - Если менялась schema, проверить миграции для всех поддерживаемых dialects: корневой MySQL/MariaDB-compatible набор и `migrations/postgres`.
 - Проверить, что `VAR_HTTP_ORIGIN` содержит hostname, из которого runtime может вычислить cookie domain второго уровня с ведущей точкой, например `.gtrktuva.local`.
+- Проверить соответствие `VAR_HTTP_COOKIE_SECURE` фактическому протоколу: `true` для HTTPS; `false` допускается только для окружения без HTTPS.
 - Для стандартного init-flow проверить, что `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN` равен `.gtrktuva.local`, если используются hostnames `test.gtrktuva.local` и `testapi.gtrktuva.local`.
 - Для режима `localhost.noNginx: true` проверить, что `VAR_HTTP_ENABLE_PREFLIGHT=true` и `VAR_HTTP_ALLOW_HOST_ONLY_COOKIES=true` заданы только в development `.dev.env`.
 - Проверить, что `VAR_APP_LOG_LEVEL` соответствует `localhost.debug` из `development.config.json`: `debug` при `true`, `info` при `false`.
@@ -114,6 +117,8 @@
   - для определения режима использовать `NODE_ENV`, если нет отдельного документированного project-specific флага;
   - проверить имена env-файлов, отсутствие лишних пробелов в путях и фактическое наличие файлов, которые копируются или читаются;
   - при изменении npm scripts, package-local scripts, root orchestration commands, режимов запуска, сборки или проверки проверить корневой `index.js`.
+  - для cluster-enabled package проверить запуск без fork при выключенном флаге, количество workers при включенном флаге и корректное завершение по `SIGTERM`/`SIGINT`;
+  - не включать cluster bootstrap для realtime gateway, log collector или migration utility без отдельного решения для их разделяемого состояния;
 - Если задача меняла обработку ошибок backend/gateway:
   - service должен бросать `Exceptions.ServiceError.*`, а controller должен маппить их в корректные HTTP/controller errors;
   - не использовать raw `Error` для ожидаемых доменных сценариев вроде not found, forbidden, conflict или validation error;

@@ -4,7 +4,6 @@ export interface iLogCollectorConnectionState {
   connectionId: string
   authenticated: boolean
   packageUid: string | null
-  skipDisconnectEvent: boolean
   source: string | null
   socket: Socket
 }

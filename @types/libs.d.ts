@@ -9,6 +9,7 @@ import {
   MethodTracer,
   MicroServiceHTTPServer,
   PayloadValidator,
+  ProcessCluster,
   TraceContext,
   WebSocketServer
 } from "@/libs"
@@ -21,6 +22,7 @@ import type {
   iLogCollectorRuntimePackageEventClient as LibLogCollectorRuntimePackageEventClient,
   iLogCollectorService as LibLogCollectorService,
   iMicroServiceHTTPConfig as LibMicroServiceHTTPConfig,
+  iProcessClusterConfig as LibProcessClusterConfig,
   iWebSocketConfig as LibWebSocketConfig,
   iWebSocketEvent as LibWebSocketEvent,
   iWebSocketEventContext as LibWebSocketEventContext,
@@ -54,6 +56,7 @@ declare global {
     type MethodTracer = InstanceType<typeof MethodTracer>
     type MethodTracerClass = typeof MethodTracer
     type PayloadValidator = typeof PayloadValidator
+    type ProcessCluster = typeof ProcessCluster
     type TraceContext = InstanceType<typeof TraceContext>
     type TraceContextClass = typeof TraceContext
 
@@ -65,6 +68,7 @@ declare global {
     type iLogCollectorRuntimePackageEventClient = LibLogCollectorRuntimePackageEventClient
     type iLogCollectorService = LibLogCollectorService
     type iMicroServiceHTTPConfig = LibMicroServiceHTTPConfig
+    type iProcessClusterConfig = LibProcessClusterConfig
     type iWebSocketConfig = LibWebSocketConfig
     type iWebSocketEvent = LibWebSocketEvent
     type iWebSocketEventContext = LibWebSocketEventContext

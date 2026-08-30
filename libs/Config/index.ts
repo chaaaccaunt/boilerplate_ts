@@ -2,6 +2,7 @@ import mysql2 from "mysql2"
 import * as postgresDriver from "pg"
 import { Dialect, Options } from "sequelize"
 import { iHTTPConfig } from "../HTTPServer"
+import { iProcessClusterConfig } from "../ProcessCluster"
 import { Envs } from "./env"
 
 export { Envs }
@@ -10,6 +11,7 @@ export interface iAppConfig {
   app: {
     LOG_LEVEL?: string
   }
+  process: iProcessClusterConfig
   http: iHTTPConfig
   db?: Options
   internalServices: {
@@ -33,7 +35,10 @@ export class AppConfiguration {
     "VAR_DB_PORT",
     "VAR_DB_USER",
     "VAR_HTTP_ALLOW_HOST_ONLY_COOKIES",
+    "VAR_HTTP_COOKIE_SECURE",
     "VAR_HTTP_ENABLE_PREFLIGHT",
+    "VAR_PROCESS_CLUSTER_ENABLED",
+    "VAR_PROCESS_CLUSTER_WORKERS",
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
     "VAR_CHAT_REALTIME_GATEWAY_URL",
@@ -50,12 +55,17 @@ export class AppConfiguration {
       app: {
         LOG_LEVEL: this.requiredEnvKeys.VAR_APP_LOG_LEVEL
       },
+      process: {
+        enabled: this.getBooleanEnv("VAR_PROCESS_CLUSTER_ENABLED"),
+        workers: this.getClusterWorkers()
+      },
       http: {
         port: this.getRequiredEnv("VAR_HTTP_PORT"),
         origin: this.getRequiredEnv("VAR_HTTP_ORIGIN"),
         cookie_name: this.getRequiredEnv("VAR_HTTP_COOKIE_NAME"),
         public_user_cookie_name: this.getRequiredEnv("VAR_HTTP_PUBLIC_USER_COOKIE_NAME"),
         public_user_cookie_domain: this.getRequiredEnv("VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN"),
+        cookieSecure: this.getBooleanEnv("VAR_HTTP_COOKIE_SECURE", process.env.NODE_ENV === "production"),
         jwt_audience: this.getRequiredEnv("VAR_HTTP_JWT_AUDIENCE"),
         jwt_issuer: this.getRequiredEnv("VAR_HTTP_JWT_ISSUER"),
         jwt_secret: this.getRequiredEnv("VAR_HTTP_JWT_SECRET"),
@@ -89,12 +99,15 @@ export class AppConfiguration {
       VAR_HTTP_JWT_ISSUER: this.getProcessEnvValue("VAR_HTTP_JWT_ISSUER"),
       VAR_HTTP_JWT_SECRET: this.getProcessEnvValue("VAR_HTTP_JWT_SECRET"),
       VAR_HTTP_ALLOW_HOST_ONLY_COOKIES: this.getProcessEnvValue("VAR_HTTP_ALLOW_HOST_ONLY_COOKIES"),
+      VAR_HTTP_COOKIE_SECURE: this.getProcessEnvValue("VAR_HTTP_COOKIE_SECURE"),
       VAR_HTTP_ENABLE_PREFLIGHT: this.getProcessEnvValue("VAR_HTTP_ENABLE_PREFLIGHT"),
       VAR_APP_LOG_LEVEL: this.getProcessEnvValue("VAR_APP_LOG_LEVEL"),
       VAR_USERS_SERVICE_URL: this.getProcessEnvValue("VAR_USERS_SERVICE_URL"),
       VAR_CHAT_SERVICE_URL: this.getProcessEnvValue("VAR_CHAT_SERVICE_URL"),
       VAR_CHAT_REALTIME_GATEWAY_URL: this.getProcessEnvValue("VAR_CHAT_REALTIME_GATEWAY_URL"),
-      VAR_LOG_COLLECTOR_SERVICE_URL: this.getProcessEnvValue("VAR_LOG_COLLECTOR_SERVICE_URL")
+      VAR_LOG_COLLECTOR_SERVICE_URL: this.getProcessEnvValue("VAR_LOG_COLLECTOR_SERVICE_URL"),
+      VAR_PROCESS_CLUSTER_ENABLED: this.getProcessEnvValue("VAR_PROCESS_CLUSTER_ENABLED"),
+      VAR_PROCESS_CLUSTER_WORKERS: this.getProcessEnvValue("VAR_PROCESS_CLUSTER_WORKERS")
     }
   }
 
@@ -190,8 +203,25 @@ export class AppConfiguration {
     return Boolean(value && value !== "УкажитеЗначение")
   }
 
-  private getBooleanEnv(key: keyof NodeJS.ProcessEnv): boolean {
-    return this.requiredEnvKeys[key] === "true"
+  private getBooleanEnv(key: keyof NodeJS.ProcessEnv, defaultValue = false): boolean {
+    const value = this.requiredEnvKeys[key]
+    if (value === undefined) return defaultValue
+    if (value === "true") return true
+    if (value === "false") return false
+
+    throw new Error(`${key} должен иметь значение true или false`)
+  }
+
+  private getClusterWorkers(): "auto" | number {
+    const value = this.requiredEnvKeys.VAR_PROCESS_CLUSTER_WORKERS
+    if (value === undefined || value === "auto") return "auto"
+
+    const workers = Number(value)
+    if (!Number.isSafeInteger(workers) || workers < 1) {
+      throw new Error("VAR_PROCESS_CLUSTER_WORKERS должен иметь значение auto или положительное целое число")
+    }
+
+    return workers
   }
 
   deepFreeze<T extends object>(value: T): Readonly<T> {

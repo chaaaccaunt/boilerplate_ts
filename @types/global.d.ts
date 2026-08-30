@@ -31,7 +31,6 @@ declare global {
 
     interface iCookieOptions {
       httpOnly?: boolean
-      secure?: boolean
       sameSite?: "strict" | "lax" | "none"
       path?: string
       domain?: string
@@ -167,4 +166,3 @@ declare global {
     }
   }
 }
-

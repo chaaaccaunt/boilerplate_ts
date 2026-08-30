@@ -15,6 +15,8 @@
 - Schema, начальные данные и runtime database grants подготавливаются через `services/database-migration`.
 - Для каждого backend-сервиса и gateway должен существовать package-local `package.config.json` с `database.runtimeGrants`.
 - Для каждого backend-сервиса и gateway должны существовать package-local env-файлы `.dev.env`, `.prod.env` и `.env.example`.
+- Атрибут `Secure` у authorization cookies настраивается через `VAR_HTTP_COOKIE_SECURE`; если параметр не задан, он включается в production и отключается в остальных режимах.
+- Process clustering по умолчанию выключен. Для поддерживаемого HTTP package он включается через `VAR_PROCESS_CLUSTER_ENABLED=true`; `VAR_PROCESS_CLUSTER_WORKERS` принимает `auto` или положительное целое число.
 - nginx используется как edge boundary для static, CORS preflight, method restrictions и CSRF/Origin checks.
 - Для быстрого локального development-старта допускается режим `localhost.noNginx: true` в `development.config.json`, в котором frontend обращается к gateway напрямую, а `httpServer` отвечает на browser preflight `OPTIONS`.
 - Лимит размера upload request должен задаваться на nginx/deployment boundary через `client_max_body_size`; frontend не должен хардкодить этот лимит.
@@ -263,6 +265,16 @@ Runtime database grants и стабильные localhost ports для отде�
 Пересоздание database внутри init-flow допускается только для development/test/local database и не должно использоваться для production.
 
 ## Production
+
+### Process clustering
+
+Общий `libs/ProcessCluster` поддерживает кластерный запуск `services/users`, `services/chat`, `gateways/authorization`, `gateways/files` и `gateways/public`.
+При `VAR_PROCESS_CLUSTER_ENABLED=false` или отсутствии параметра package запускает приложение прямо в текущем процессе без `cluster.fork()`.
+При включении primary process создает число workers из `VAR_PROCESS_CLUSTER_WORKERS`; значение `auto` использует число доступных процессу CPU.
+Primary передает workers сигналы `SIGINT` и `SIGTERM`, ограничивает частоту автоматических перезапусков и завершает оставшиеся workers принудительно после timeout.
+
+`gateways/chat-realtime`, `services/log-collector` и `services/database-migration` намеренно не подключены к cluster bootstrap. Realtime gateway требует отдельного решения для sticky sessions и межпроцессной доставки событий; log collector владеет TCP connection registry; migration package является последовательным utility process.
+Кластерные workers одного package могут одновременно подключаться к `log-collector`. Collector принимает такие соединения, считает package отключенным только после закрытия последнего соединения и использует одно доступное worker-соединение для package-level runtime metrics.
 
 Перед production запуском нужно:
 

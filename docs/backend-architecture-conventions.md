@@ -57,6 +57,7 @@ Package-local env-файлы должны явно задавать:
 - `VAR_HTTP_COOKIE_NAME`;
 - `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`;
 - `VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN`;
+- `VAR_HTTP_COOKIE_SECURE` (необязательный; по умолчанию `true` при `NODE_ENV=production` и `false` в остальных режимах);
 - `VAR_HTTP_JWT_SECRET`;
 - `VAR_HTTP_JWT_AUDIENCE`;
 - `VAR_HTTP_JWT_ISSUER`.
@@ -75,6 +76,7 @@ Authorization gateway должен выставлять две разные cook
 - публичную информативную user cookie, имя которой задается обязательной для authorization gateway переменной `VAR_HTTP_PUBLIC_USER_COOKIE_NAME`.
 
 Authorization cookie с JWT и публичная user cookie должны получать одинаковый cookie domain второго уровня с ведущей точкой.
+Атрибут `Secure` для всех устанавливаемых и очищаемых authorization cookies определяется единым параметром `VAR_HTTP_COOKIE_SECURE`. В production без явно заданного параметра `Secure` включен для обратной совместимости; отключать его допустимо только при осознанном запуске без HTTPS.
 Эта настройка нужна не только для публичной user cookie, но и для защищенной authorization cookie, чтобы `/authorization/state`, WebSocket connection и frontend state restoration работали одинаково на subdomain одного site.
 
 Публичная user cookie используется только frontend для восстановления отображаемого authorization state после обновления страницы.
@@ -150,6 +152,13 @@ Runtime backend-сервис или gateway должен использоват�
 Если package только читает таблицы, например authorization gateway читает `users`, `roles` и `user_roles`, его database user должен иметь только `SELECT` на эти таблицы.
 
 Runtime backend в production отвечает за подключение к БД и проверку готовности schema через реальные запросы, но не изменяет schema самостоятельно.
+
+## Кластеризация процессов
+
+Обычные HTTP services и gateways могут запускаться через общий `ProcessCluster` из `@/libs`.
+Кластеризация управляется package-local env: `VAR_PROCESS_CLUSTER_ENABLED` по умолчанию равен `false`, а `VAR_PROCESS_CLUSTER_WORKERS` принимает `auto` или положительное целое число.
+Создание database connections, HTTP servers, controllers и service instances выполняется только внутри worker callback; primary process не инициализирует application runtime.
+Realtime gateway, log collector и migration utility не кластеризуются без отдельной архитектуры для разделяемого состояния.
 
 `httpServer` является входной точкой обработки API request и обязан:
 
@@ -618,6 +627,7 @@ shared/@types/system.d.ts
 ### httpServer
 
 - `info` -> state-changing gateway request завершен успешно
+- `info` -> ожидаемый отказ login из-за неверного логина или пароля
 - `warn` -> token validation error
 - `warn` -> payload parse error
 - `warn` -> payload validation failed

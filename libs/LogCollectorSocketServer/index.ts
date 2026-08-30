@@ -46,7 +46,7 @@ export class LogCollectorSocketServer {
   }
 
   collectRuntimeMetrics(): Promise<iSharedSystem.RuntimeMetricsListResponseDto> {
-    const states = this.connections.getWritableAuthenticatedStates()
+    const states = this.connections.getWritablePackageStates()
 
     return Promise.all(states.map((state) => this.requestRuntimeMetrics(state)))
       .then((items) => this.appendLogCollectorRuntimeMetrics(items))
@@ -167,18 +167,6 @@ export class LogCollectorSocketServer {
     if (!runtimePackage) {
       this.rejectAuthentication(state, payload.packageUid, "package_not_registered")
       return true
-    }
-
-    const duplicateStates = this.connections.closeDuplicatePackageConnections(runtimePackage.uid, state)
-    if (duplicateStates.length) {
-      this.logger.warn("Закрыты дублирующие соединения package с log collector", {
-        serviceName: this.constructor.name,
-        serviceMethod: "handleAuthentication",
-        connectionId: state.connectionId,
-        packageUid: runtimePackage.uid,
-        source: runtimePackage.name,
-        result: duplicateStates.map((duplicateState) => duplicateState.connectionId)
-      })
     }
 
     this.connections.markAuthenticated(state, runtimePackage)
@@ -322,8 +310,8 @@ export class LogCollectorSocketServer {
   }
 
   private handleDisconnect(state: iLogCollectorConnectionState, hadError: boolean, socket: Socket): void {
-    if (state.skipDisconnectEvent) return
     if (!state.source || !state.packageUid) return
+    if (this.connections.hasWritablePackageConnection(state.packageUid)) return
 
     this.connections.rememberOffline(state, new Date().toISOString())
 

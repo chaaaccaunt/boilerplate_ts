@@ -13,6 +13,7 @@ export interface iHTTPServerEnv {
   VAR_HTTP_COOKIE_NAME: string
   VAR_HTTP_PUBLIC_USER_COOKIE_NAME: string
   VAR_HTTP_PUBLIC_USER_COOKIE_DOMAIN: string
+  VAR_HTTP_COOKIE_SECURE?: string
   VAR_HTTP_JWT_SECRET: string
   VAR_HTTP_JWT_ISSUER: string
   VAR_HTTP_JWT_AUDIENCE: string
@@ -26,6 +27,7 @@ export interface iHTTPConfig {
   cookie_name: string
   public_user_cookie_name: string
   public_user_cookie_domain: string
+  cookieSecure: boolean
   jwt_secret: string
   jwt_issuer: string
   jwt_audience: string
@@ -248,13 +250,13 @@ export class HTTPServer {
       this.errorMapper.getCode(normalizedError),
       this.errorMapper.getMessage(normalizedError)
     )
-    this.logRequest(request, context, status)
+    this.logRequest(request, context, status, normalizedError)
   }
 
-  private logRequest(request: IncomingMessage, context: RequestContext, status: number): void {
+  private logRequest(request: IncomingMessage, context: RequestContext, status: number, error?: Error): void {
     if (!this.shouldLogRequest(request, status)) return
 
-    this.logger.log(this.errorMapper.getLogLevel(status), "запрос завершен", {
+    this.logger.log(this.errorMapper.getLogLevel(error, status), "запрос завершен", {
       requestId: context.requestId,
       method: request.method,
       path: request.url,
