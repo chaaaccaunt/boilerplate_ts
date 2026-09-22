@@ -1,7 +1,7 @@
-import type { ApiClient } from "@/application/api/ApiClient"
+import type { ApiRequester } from "@/shared/api"
 
 export class LogsApi {
-  constructor(private readonly api: ApiClient) {}
+  constructor(private readonly api: ApiRequester) {}
 
   list(payload: iSharedLogs.LogsListPayloadDto = {}): Promise<iSharedLogs.LogsListResponseDto> {
     return this.api.get<iSharedLogs.LogsListResponseDto>({

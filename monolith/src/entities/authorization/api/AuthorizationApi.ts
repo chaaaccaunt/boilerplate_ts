@@ -1,7 +1,7 @@
-﻿import type { ApiClient } from "@/application/api/ApiClient"
+import type { ApiRequester } from "@/shared/api"
 
 export class AuthorizationApi {
-  constructor(private readonly api: ApiClient) { }
+  constructor(private readonly api: ApiRequester) { }
 
   login(payload: iSharedAuthorization.LoginPayloadDto): Promise<iSharedAuthorization.LoginResponseDto> {
     return this.api.post<iSharedAuthorization.LoginResponseDto, iSharedAuthorization.LoginPayloadDto>({
@@ -44,4 +44,3 @@ export class AuthorizationApi {
     })
   }
 }
-

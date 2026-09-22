@@ -15,14 +15,20 @@ import type { UserModel } from "../users/UserModel"
 
 export class ChatMessageModel extends Model<InferAttributes<ChatMessageModel>, InferCreationAttributes<ChatMessageModel>> {
   declare uid: CreationOptional<UUID>
-  declare text: string | null
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
+
+  declare text: string | null
 
   declare roomUid: ForeignKey<UUID>
   declare senderUserUid: ForeignKey<UUID>
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: {
+    ChatRoom: typeof ChatRoomModel
+    User: typeof UserModel
+    ChatMessageFile: typeof ChatMessageFileModel
+  }) {
     this.belongsTo(models.ChatRoom, { foreignKey: "roomUid", as: "room" })
     this.belongsTo(models.User, { foreignKey: "senderUserUid", as: "sender" })
     this.hasMany(models.ChatMessageFile, { foreignKey: "messageUid", as: "files" })

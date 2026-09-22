@@ -1,7 +1,5 @@
-import { config, MicroServiceHTTPServer, WebSocketServer } from "@/libs"
-import { FileEventsController, SystemPackageEventsController } from "@/controllers"
-import { ChatSocketGateway } from "@/realtime"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
+import { config, MicroServiceHTTPClient, MicroServiceHTTPServer, WebSocketServer } from "@/libs"
+import { ChatSocketController, FileEventsController, SystemPackageEventsController } from "../controller"
 
 if (!config.internalServices.chatUrl) {
   throw new Error("Missing VAR_CHAT_SERVICE_URL for chat realtime gateway")
@@ -13,7 +11,7 @@ const internalEventServer = new MicroServiceHTTPServer({
 const webSocketServer = new WebSocketServer(internalEventServer.getNativeServer(), config.http)
 
 webSocketServer.use([
-  new ChatSocketGateway(new InternalServiceClient(config.internalServices.chatUrl))
+  new ChatSocketController(new MicroServiceHTTPClient(config.internalServices.chatUrl))
 ])
 internalEventServer.use([
   new FileEventsController(webSocketServer).getRoutes(),

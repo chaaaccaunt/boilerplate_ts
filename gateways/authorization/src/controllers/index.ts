@@ -1,5 +1,5 @@
 import { HTTPController, HTTPServer } from "@/libs"
-import { AuthorizationService } from "@/services/AuthorizationService"
+import { AuthorizationService } from "../services/AuthorizationService"
 import { AuthorizationGatewayController } from "./AuthorizationGatewayController"
 
 export class Controllers {

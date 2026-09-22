@@ -37,6 +37,10 @@ services/
 
 ## Границы зависимостей
 
+Backend package наследует общие aliases и ambient types из корневого `tsconfig.json`. Его собственный `tsconfig.json` включает только package-local `webpack.config.ts` и `src`; общие `libs`, `models`, `@types` и `shared/@types` не перечисляются повторно через `../../`.
+
+Package-local исходники импортируются относительными путями. Алиасы `@/libs` и `@/models/*` принадлежат корневой конфигурации и не переопределяются в packages.
+
 `shared/@types` не должен импортировать runtime code из `libs`, `models`, `services` или `monolith`.
 
 Frontend-монолит может использовать только `shared/@types` как контракт с backend. Frontend не должен зависеть от backend runtime code, Sequelize models, controllers, services или infrastructure libraries.
@@ -52,6 +56,7 @@ Backend-сервисы могут использовать:
 
 `libs/HTTPServer` используется gateway и публичными API boundary.
 `libs/MicroServiceHTTPServer` используется backend-микросервисами для internal requests от gateway, а также realtime gateway для приема internal package-to-package events.
+`libs/MicroServiceHTTPClient` является общей реализацией исходящих internal HTTP requests из gateway в backend-сервисы. Package-local копии такого клиента в `src/services` не создаются.
 
 Gateway, который является самостоятельным публичным обходом `gateways/public`, должен быть автономным внутри своего package.
 Такой gateway не должен требовать отдельный одноименный backend-сервис только для выполнения своей базовой domain logic.

@@ -170,7 +170,7 @@
 - `shared/@types/chat.d.ts`;
 - `services/chat`;
 - `gateways/public/src/controllers/ChatHTTPGatewayController.ts`;
-- `gateways/chat-realtime/src/realtime/chat`;
+- `gateways/chat-realtime/src/controller/ChatSocketController.ts`;
 - `monolith/src/entities/chat`;
 - `monolith/src/views/chat`.
 

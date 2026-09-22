@@ -1,10 +1,5 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
-import { getPermissionModel, PermissionModel } from "@/models/users/PermissionModel"
-import { getRoleModel, RoleModel } from "@/models/users/RoleModel"
-import { getRolePermissionModel, RolePermissionModel } from "@/models/users/RolePermissionModel"
-import { getUserRoleModel, UserRoleModel } from "@/models/users/UserRoleModel"
-import { getUserModel, UserModel } from "@/models/users/UserModel"
-import { getUserSessionModel, UserSessionModel } from "@/models/users/UserSessionModel"
+import { AuthorizationModels, createAuthorizationModels } from "@/models/users/UserModelRegistry"
 
 export interface DataBaseInstance {
   Sequelize: typeof Sequelize
@@ -12,13 +7,13 @@ export interface DataBaseInstance {
   models: iDatabase.Models
 }
 
-export interface iModels {
-  User: typeof UserModel
-  Role: typeof RoleModel
-  Permission: typeof PermissionModel
-  RolePermission: typeof RolePermissionModel
-  UserRole: typeof UserRoleModel
-  UserSession: typeof UserSessionModel
+export interface iModels extends AuthorizationModels { }
+
+declare global {
+  namespace iDatabase {
+    interface Database extends DataBaseInstance { }
+    interface Models extends iModels { }
+  }
 }
 
 export class Database {
@@ -28,18 +23,7 @@ export class Database {
 
   constructor(config: Options) {
     this.sequelize = new SequelizeClass(config)
-    this.models = {
-      User: getUserModel(this.sequelize),
-      Role: getRoleModel(this.sequelize),
-      Permission: getPermissionModel(this.sequelize),
-      RolePermission: getRolePermissionModel(this.sequelize),
-      UserRole: getUserRoleModel(this.sequelize),
-      UserSession: getUserSessionModel(this.sequelize)
-    }
-
-    Object.keys(this.models).forEach((key) => {
-      this.models[key as keyof typeof this.models].associate(this.models)
-    })
+    this.models = createAuthorizationModels(this.sequelize)
   }
 }
 

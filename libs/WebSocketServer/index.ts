@@ -6,7 +6,7 @@ import {
   iWebSocketConfig,
   iWebSocketEvent,
   iWebSocketEventContext,
-  iWebSocketGateway,
+  iWebSocketController,
   iWebSocketNativeServer
 } from "./types"
 
@@ -14,7 +14,7 @@ export class WebSocketServer {
   private readonly socketServer: SocketServer
   private readonly middlewares: WebSocketMiddlewares
   private readonly tracer: MethodTracer
-  private readonly gateways: iWebSocketGateway[] = []
+  private readonly controllers: iWebSocketController[] = []
 
   constructor(
     nativeServer: iWebSocketNativeServer,
@@ -36,8 +36,8 @@ export class WebSocketServer {
     this.tracer = new MethodTracer(logger)
   }
 
-  use(gateways: readonly iWebSocketGateway[]): void {
-    this.gateways.push(...gateways)
+  use(controllers: readonly iWebSocketController[]): void {
+    this.controllers.push(...controllers)
   }
 
   listen(): void {
@@ -77,15 +77,15 @@ export class WebSocketServer {
       })
     })
 
-    for (const gateway of this.gateways) {
-      this.registerGateway(socket, user, gateway)
+    for (const controller of this.controllers) {
+      this.registerController(socket, user, controller)
     }
   }
 
-  private registerGateway(socket: Socket, user: iContracts.iUserToken, gateway: iWebSocketGateway): void {
-    for (const event of gateway.getEvents()) {
+  private registerController(socket: Socket, user: iContracts.iUserToken, controller: iWebSocketController): void {
+    for (const event of controller.getEvents()) {
       socket.on(event.name, (payload, callback) => {
-        this.handleEvent(socket, user, gateway, event, payload, callback)
+        this.handleEvent(socket, user, controller, event, payload, callback)
       })
     }
   }
@@ -93,7 +93,7 @@ export class WebSocketServer {
   private handleEvent(
     socket: Socket,
     user: iContracts.iUserToken,
-    gateway: iWebSocketGateway,
+    controller: iWebSocketController,
     event: iWebSocketEvent,
     payload: unknown,
     callback?: (response: unknown) => void
@@ -126,13 +126,13 @@ export class WebSocketServer {
 
     this.tracer.trace(
       traceContext,
-      "gateway",
+      "controller",
       event.name,
       "info",
       () => Promise.resolve().then(() => event.handler(eventContext, payload as iContracts.iPayload)),
       {
-        event: "WebSocket gateway завершил работу",
-        gatewayName: gateway.name,
+        event: "WebSocket controller завершил работу",
+        gatewayName: controller.name,
         gatewayEvent: event.name
       }
     )
@@ -140,7 +140,7 @@ export class WebSocketServer {
         this.emitSuccess(callback, result)
       })
       .catch((error) => {
-        this.logger.error("Ошибка WebSocket gateway", {
+        this.logger.error("Ошибка WebSocket controller", {
           userId: user.uid,
           event: event.name,
           error: error instanceof Error ? error : String(error),
@@ -232,6 +232,6 @@ export type {
   iWebSocketEventContext,
   iWebSocketEventHandler,
   iWebSocketEventResult,
-  iWebSocketGateway,
+  iWebSocketController,
   iWebSocketNativeServer
 } from "./types"

@@ -9,19 +9,25 @@ import {
   Sequelize
 } from "sequelize"
 import type { Association, NonAttribute } from "sequelize"
+import type { StoredFileModel } from "./StoredFileModel"
 import type { UserModel } from "../users/UserModel"
 
 export class StoredFileFolderModel extends Model<InferAttributes<StoredFileFolderModel>, InferCreationAttributes<StoredFileFolderModel>> {
   declare uid: CreationOptional<UUID>
   declare title: string
   declare visibility: iSharedFiles.FileVisibility
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
-  declare parentFolderUid: ForeignKey<UUID> | null
   declare createdByUserUid: ForeignKey<UUID>
+  declare parentFolderUid: ForeignKey<UUID> | null
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: {
+    User: typeof UserModel
+    StoredFileFolder: typeof StoredFileFolderModel
+    StoredFile: typeof StoredFileModel
+  }) {
     this.belongsTo(models.User, { foreignKey: "createdByUserUid", as: "creator" })
     this.belongsTo(models.StoredFileFolder, { foreignKey: "parentFolderUid", as: "parentFolder" })
     this.hasMany(models.StoredFileFolder, { foreignKey: "parentFolderUid", as: "childFolders" })
@@ -31,12 +37,13 @@ export class StoredFileFolderModel extends Model<InferAttributes<StoredFileFolde
   declare creator: NonAttribute<UserModel>
   declare parentFolder: NonAttribute<StoredFileFolderModel | null>
   declare childFolders: NonAttribute<StoredFileFolderModel[]>
+  declare files: NonAttribute<StoredFileModel[]>
 
   declare static associations: {
     creator: Association<StoredFileFolderModel, UserModel>
     parentFolder: Association<StoredFileFolderModel, StoredFileFolderModel>
     childFolders: Association<StoredFileFolderModel, StoredFileFolderModel>
-    files: Association<StoredFileFolderModel, iDatabase.Models["StoredFile"]["prototype"]>
+    files: Association<StoredFileFolderModel, StoredFileModel>
   };
 }
 

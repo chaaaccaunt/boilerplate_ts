@@ -16,9 +16,6 @@ import type {
 export class LogCollectorSocketServer {
   private readonly server: Server
   private readonly debugEnabled = process.env.VAR_APP_LOG_LEVEL === "debug"
-  private readonly connections = new LogCollectorConnectionRegistry()
-  private readonly protocol = new LogCollectorProtocol()
-  private readonly runtimeMetrics = new RuntimeMetrics()
   private readonly pendingMetricsRequests = new Map<string, iLogCollectorPendingMetricsRequest>()
   private readonly metricsTimeoutMs = 1500
 
@@ -27,7 +24,10 @@ export class LogCollectorSocketServer {
     private readonly service: iLogCollectorService,
     runtimePackages: iLogCollectorRuntimePackage[],
     private readonly runtimePackageEventGatewayClient: iLogCollectorRuntimePackageEventClient | null = null,
-    private readonly logger = new Logger()
+    private readonly logger = new Logger(),
+    private readonly connections = new LogCollectorConnectionRegistry(),
+    private readonly protocol = new LogCollectorProtocol(),
+    private readonly runtimeMetrics = new RuntimeMetrics()
   ) {
     this.runtimePackages = new Map(runtimePackages.map((runtimePackage) => [runtimePackage.uid, runtimePackage]))
     this.server = createServer((socket) => this.handleConnection(socket))

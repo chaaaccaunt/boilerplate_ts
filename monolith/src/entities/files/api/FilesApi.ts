@@ -1,8 +1,8 @@
-﻿import type { ApiClient } from "@/application/api/ApiClient"
+import type { ApiRequester } from "@/shared/api"
 import type { DownloadProgressCallback, UploadProgressCallback } from "@/shared/api"
 
 export class FilesApi {
-  constructor(private readonly api: ApiClient) { }
+  constructor(private readonly api: ApiRequester) { }
 
   list(folderUid?: string | null, ownerUserUid?: string | null): Promise<iSharedFiles.ListFolderContentResponseDto> {
     return this.api.get<iSharedFiles.ListFolderContentResponseDto>({

@@ -1,12 +1,14 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "target": "esnext",
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/libs": [
-        "./libs/index"
+        "./libs"
       ],
       "@/libs/*": [
         "./libs/*"
@@ -16,7 +18,8 @@
       ]
     },
     "types": [
-      "node"
+      "node",
+      "project"
     ],
     "typeRoots": [
       "./@types",
@@ -24,8 +27,6 @@
     ]
   },
   "include": [
-    "./@types/**/*.d.ts",
-    "./shared/@types/**/*.d.ts",
     "./libs/**/*.ts",
     "./models/**/*.ts"
   ]

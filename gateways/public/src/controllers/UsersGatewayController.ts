@@ -1,9 +1,9 @@
 ﻿import { Exceptions } from "@/libs"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
+import { MicroServiceHTTPClient } from "@/libs"
 import { HTTPController } from "@/libs"
 
 export class UsersGatewayController extends HTTPController {
-  constructor(private readonly usersServiceClient: InternalServiceClient) {
+  constructor(private readonly usersServiceClient: MicroServiceHTTPClient) {
     super()
 
     const listRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> = {
@@ -320,4 +320,3 @@ export class UsersGatewayController extends HTTPController {
     return Array.isArray(roles) && roles.includes("superadministrator")
   }
 }
-

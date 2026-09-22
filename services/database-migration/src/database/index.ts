@@ -8,6 +8,13 @@ export interface DataBaseInstance {
 
 export interface iModels { }
 
+declare global {
+  namespace iDatabase {
+    interface Database extends DataBaseInstance { }
+    interface Models extends iModels { }
+  }
+}
+
 export class Database {
   readonly Sequelize = Sequelize
   readonly sequelize: SequelizeClass

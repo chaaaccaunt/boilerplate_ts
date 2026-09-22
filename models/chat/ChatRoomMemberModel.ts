@@ -14,14 +14,16 @@ import type { UserModel } from "../users/UserModel"
 
 export class ChatRoomMemberModel extends Model<InferAttributes<ChatRoomMemberModel>, InferCreationAttributes<ChatRoomMemberModel>> {
   declare uid: CreationOptional<UUID>
-  declare leftAt: Date | null
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
+
+  declare leftAt: Date | null
 
   declare roomUid: ForeignKey<UUID>
   declare userUid: ForeignKey<UUID>
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { ChatRoom: typeof ChatRoomModel; User: typeof UserModel }) {
     this.belongsTo(models.ChatRoom, { foreignKey: "roomUid", as: "room" })
     this.belongsTo(models.User, { foreignKey: "userUid", as: "user" })
   }

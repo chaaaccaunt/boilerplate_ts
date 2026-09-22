@@ -18,7 +18,7 @@ export class UserRoleModel extends Model<InferAttributes<UserRoleModel>, InferCr
   declare userUid: ForeignKey<UUID>
   declare roleUid: ForeignKey<UUID>
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { User: typeof UserModel; Role: typeof RoleModel }) {
     this.belongsTo(models.User, { foreignKey: "userUid", as: "user" })
     this.belongsTo(models.Role, { foreignKey: "roleUid", as: "role" })
   }

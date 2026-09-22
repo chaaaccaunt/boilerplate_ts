@@ -6,12 +6,14 @@ import { ApiClient } from "./ApiClient"
 export const apiClientKey: InjectionKey<ApiClient> = Symbol()
 
 export function createApiClient(store: Store<iSharedState.RootState>): ApiClient {
+  const defaultHttpClient = createGatewayHttpClient(getRequiredApiBaseUrl("VUE_APP_BASE_URL"))
+
   return new ApiClient(
-    {
-      default: createGatewayHttpClient(getRequiredApiBaseUrl("VUE_APP_BASE_URL")),
-      authorization: createGatewayHttpClient(getOptionalApiBaseUrl("VUE_APP_AUTHORIZATION_BASE_URL") || getRequiredApiBaseUrl("VUE_APP_BASE_URL")),
-      files: createGatewayHttpClient(getOptionalApiBaseUrl("VUE_APP_FILES_BASE_URL") || getRequiredApiBaseUrl("VUE_APP_BASE_URL"))
-    },
+    defaultHttpClient,
+    [
+      createTransport("/authorization", getOptionalApiBaseUrl("VUE_APP_AUTHORIZATION_BASE_URL"), defaultHttpClient),
+      createTransport("/files", getOptionalApiBaseUrl("VUE_APP_FILES_BASE_URL"), defaultHttpClient)
+    ],
     store
   )
 }
@@ -32,6 +34,13 @@ function createGatewayHttpClient(baseUrl: string): HttpClient {
   return new HttpClient({
     baseUrl: `${baseUrl}/v1/gateway`
   })
+}
+
+function createTransport(pathPrefix: `/${string}`, baseUrl: string | undefined, fallbackClient: HttpClient) {
+  return {
+    matches: (path: `/${string}`) => path.startsWith(pathPrefix),
+    client: baseUrl ? createGatewayHttpClient(baseUrl) : fallbackClient
+  }
 }
 
 function getRequiredApiBaseUrl(key: string): string {

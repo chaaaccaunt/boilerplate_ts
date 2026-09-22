@@ -10,6 +10,10 @@
 ./@types
 ```
 
+Корневые и shared ambient declarations подключаются как type package `project` через корневой `tsconfig.json`. Backend package не должен повторно добавлять `../../@types` и `../../shared/@types` в свой `include`.
+
+`iDatabase.Database` и `iDatabase.Models` имеют пустой корневой контракт и расширяются в database-модуле конкретного package его фактическими `DataBaseInstance` и `iModels`. Package-local `iModels` не должен перечислять модели, которые не создаются в runtime.
+
 Для shared JSON/API/state contracts используется:
 
 ```text

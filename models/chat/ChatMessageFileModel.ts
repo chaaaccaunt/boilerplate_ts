@@ -14,13 +14,14 @@ import type { StoredFileModel } from "../files/StoredFileModel"
 
 export class ChatMessageFileModel extends Model<InferAttributes<ChatMessageFileModel>, InferCreationAttributes<ChatMessageFileModel>> {
   declare uid: CreationOptional<UUID>
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
   declare messageUid: ForeignKey<UUID>
   declare storedFileUid: ForeignKey<UUID>
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { ChatMessage: typeof ChatMessageModel; StoredFile: typeof StoredFileModel }) {
     this.belongsTo(models.ChatMessage, { foreignKey: "messageUid", as: "message" })
     this.belongsTo(models.StoredFile, { foreignKey: "storedFileUid", as: "storedFile" })
   }

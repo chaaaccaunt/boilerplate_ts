@@ -1,33 +1,27 @@
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
+import { FileTextIcon, FolderPlusIcon } from "@lucide/vue"
 import { useApiClient } from "@/application/api"
 import { useWebSocketClient } from "@/application/realtime"
 import { useStore } from "@/application/store"
+import { FileUploadField } from "@/features/file-upload"
 import { MediaViewerModal, type MediaViewerFile } from "@/features/media-viewer"
 import { ApiError } from "@/shared/api"
+import { copyText, runLimited, saveBlob } from "@/shared/lib"
 import FileFolderCreateModal from "./components/FileFolderCreateModal.vue"
 import FileOwnersGrid from "./components/FileOwnersGrid.vue"
 import FilesContentGrid from "./components/FilesContentGrid.vue"
 import FilesHeader from "./components/FilesHeader.vue"
+import { useFilesRealtimeReload } from "./useFilesRealtimeReload"
+import { useActionDialog } from "./useActionDialog"
+import { useFilesSelection } from "./useFilesSelection"
 
 const apiClient = useApiClient()
 const webSocketClient = useWebSocketClient()
 const store = useStore()
 const route = useRoute()
 const router = useRouter()
-
-const filesRealtimeEvents: iSharedFiles.FilesRealtimeEventName[] = [
-  "files:file:created",
-  "files:file:updated",
-  "files:file:deleted",
-  "files:folder:created",
-  "files:folder:updated",
-  "files:folder:deleted",
-  "files:document:created",
-  "files:document:updated",
-  "files:document:deleted"
-]
 
 const isLoading = ref(false)
 const errorMessage = ref("")
@@ -43,34 +37,11 @@ const documentForm = ref({
   title: "Новый документ",
   visibility: "public" as iSharedFiles.FileVisibility
 })
-interface FileActionDialogState {
-  isOpen: boolean
-  title: string
-  message: string
-  inputLabel: string
-  inputValue: string
-  inputMaxLength: number
-  mode: "confirm" | "text"
-  resolve: ((value: string | boolean | null) => void) | null
-}
-
-const actionDialog = ref<FileActionDialogState>({
-  isOpen: false,
-  title: "",
-  message: "",
-  inputLabel: "",
-  inputValue: "",
-  inputMaxLength: 180,
-  mode: "confirm",
-  resolve: null
-})
+const { actionDialog, openTextDialog, openConfirmDialog, submitActionDialog, cancelActionDialog } = useActionDialog()
 const failedPreviewFileUids = ref<string[]>([])
-const selectedTileKeys = ref<string[]>([])
 const isBulkDownloading = ref(false)
 const bulkDownloadPhase = ref<"idle" | "preparing" | "downloading" | "finalizing">("idle")
 const bulkDownloadProgress = ref<number | null>(null)
-const realtimeReloadTimer = ref<number | null>(null)
-const realtimeUnsubscribeCallbacks: Array<() => void> = []
 const bulkOperationConcurrency = 4
 
 const routeName = computed(() => typeof route.name === "string" ? route.name : "files")
@@ -95,16 +66,18 @@ const breadcrumbs = computed(() => store.state.files.breadcrumbs)
 const currentUserUid = computed(() => store.state.authorization.user?.uid || null)
 const isSuperadministrator = computed(() => store.state.authorization.user?.roles.some((role) => role.name === "superadministrator") || false)
 const canCreateInCurrentLocation = computed(() => isOwnersOverview.value || isMyFiles.value || currentOwner.value?.userUid === currentUserUid.value)
-const selectedFolders = computed(() => folders.value.filter((folder) => selectedTileKeys.value.includes(getFolderSelectionKey(folder.uid))))
-const selectedFiles = computed(() => files.value.filter((file) => selectedTileKeys.value.includes(getFileSelectionKey(file.fileUid))))
-const selectedDocuments = computed(() => documents.value.filter((document) => selectedTileKeys.value.includes(getDocumentSelectionKey(document.documentUid))))
-const selectedItemsCount = computed(() => selectedFolders.value.length + selectedFiles.value.length + selectedDocuments.value.length)
-const selectableFolders = computed(() => folders.value.filter((folder) => canManage(folder)))
-const selectableFiles = computed(() => files.value.filter((file) => canManage(file)))
-const selectableDocuments = computed(() => documents.value.filter((document) => canManage(document)))
-const selectableItemsCount = computed(() => selectableFolders.value.length + selectableFiles.value.length + selectableDocuments.value.length)
-const canManageCurrentItems = computed(() => selectableItemsCount.value > 0)
-const areAllItemsSelected = computed(() => selectableItemsCount.value > 0 && selectedItemsCount.value === selectableItemsCount.value)
+const {
+  selectedTileKeys,
+  selectedFolders,
+  selectedFiles,
+  selectedDocuments,
+  selectedItemsCount,
+  canManageCurrentItems,
+  areAllItemsSelected,
+  toggleTileSelection,
+  toggleAllItemsSelection,
+  clearSelection
+} = useFilesSelection(folders, files, documents, canManage)
 const bulkDownloadButtonText = computed(() => {
   if (bulkDownloadPhase.value === "preparing") return "Подготовка"
   if (bulkDownloadPhase.value === "downloading") {
@@ -122,19 +95,12 @@ const title = computed(() => {
 })
 
 onMounted(() => {
-  filesRealtimeEvents.forEach((eventName) => {
-    realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedFiles.FilesRealtimeEventPayloadDto>(eventName, scheduleRealtimeContentReload))
-  })
   loadContent()
 })
 
-onUnmounted(() => {
-  realtimeUnsubscribeCallbacks.splice(0).forEach((unsubscribe) => unsubscribe())
-
-  if (realtimeReloadTimer.value !== null) {
-    window.clearTimeout(realtimeReloadTimer.value)
-    realtimeReloadTimer.value = null
-  }
+useFilesRealtimeReload(webSocketClient, () => {
+  clearSelection()
+  loadContent()
 })
 
 watch(() => route.fullPath, () => {
@@ -158,18 +124,6 @@ function loadContent(): void {
     .finally(() => {
       isLoading.value = false
     })
-}
-
-function scheduleRealtimeContentReload(): void {
-  if (realtimeReloadTimer.value !== null) {
-    window.clearTimeout(realtimeReloadTimer.value)
-  }
-
-  realtimeReloadTimer.value = window.setTimeout(() => {
-    realtimeReloadTimer.value = null
-    clearSelection()
-    loadContent()
-  }, 150)
 }
 
 function openRoot(): void {
@@ -382,49 +336,10 @@ function deleteDocument(document: iSharedFiles.StoredDocumentListItemDto): void 
     })
 }
 
-function getFolderSelectionKey(folderUid: string): string {
-  return `folder:${folderUid}`
-}
-
-function getFileSelectionKey(fileUid: string): string {
-  return `file:${fileUid}`
-}
-
-function getDocumentSelectionKey(documentUid: string): string {
-  return `document:${documentUid}`
-}
-
-function isTileSelected(selectionKey: string): boolean {
-  return selectedTileKeys.value.includes(selectionKey)
-}
-
-function toggleTileSelection(selectionKey: string): void {
-  selectedTileKeys.value = isTileSelected(selectionKey)
-    ? selectedTileKeys.value.filter((key) => key !== selectionKey)
-    : selectedTileKeys.value.concat(selectionKey)
-}
-
-function toggleAllItemsSelection(): void {
-  if (areAllItemsSelected.value) {
-    clearSelection()
-    return
-  }
-
-  selectedTileKeys.value = folders.value
-    .filter((folder) => canManage(folder))
-    .map((folder) => getFolderSelectionKey(folder.uid))
-    .concat(files.value.filter((file) => canManage(file)).map((file) => getFileSelectionKey(file.fileUid)))
-    .concat(documents.value.filter((document) => canManage(document)).map((document) => getDocumentSelectionKey(document.documentUid)))
-}
-
-function clearSelection(): void {
-  selectedTileKeys.value = []
-}
-
 function bulkSetVisibility(visibility: iSharedFiles.FileVisibility): void {
   if (!selectedItemsCount.value) return
 
-  runLimited([
+  runLimited<unknown>([
     ...selectedFolders.value.map((folder) => () => apiClient.files.updateFolder({ folderUid: folder.uid, visibility })),
     ...selectedFiles.value.map((file) => () => apiClient.files.update({ fileUid: file.fileUid, visibility })),
     ...selectedDocuments.value.map((document) => () => apiClient.files.updateDocument({ documentUid: document.documentUid, visibility }))
@@ -445,7 +360,7 @@ function bulkDeleteSelected(): void {
     .then((isConfirmed) => {
       if (!isConfirmed) return false
 
-      return runLimited([
+      return runLimited<unknown>([
         ...selectedFolders.value.map((folder) => () => apiClient.files.deleteFolder({ folderUid: folder.uid })),
         ...selectedFiles.value.map((file) => () => apiClient.files.delete({ fileUid: file.fileUid })),
         ...selectedDocuments.value.map((document) => () => apiClient.files.deleteDocument({ documentUid: document.documentUid }))
@@ -510,98 +425,13 @@ function bulkDownloadSelected(): void {
     })
 }
 
-function openTextDialog(title: string, inputLabel: string, initialValue: string, inputMaxLength: number): Promise<string | null> {
-  return new Promise((resolvePromise) => {
-    actionDialog.value = {
-      isOpen: true,
-      title,
-      message: "",
-      inputLabel,
-      inputValue: initialValue,
-      inputMaxLength,
-      mode: "text",
-      resolve: resolvePromise
-    }
-  })
-}
-
-function openConfirmDialog(title: string, message: string): Promise<boolean> {
-  return new Promise((resolvePromise) => {
-    actionDialog.value = {
-      isOpen: true,
-      title,
-      message,
-      inputLabel: "",
-      inputValue: "",
-      inputMaxLength: 180,
-      mode: "confirm",
-      resolve: resolvePromise
-    }
-  })
-}
-
-function submitActionDialog(): void {
-  const resolve = actionDialog.value.resolve
-  if (!resolve) return
-
-  const value = actionDialog.value.mode === "text" ? actionDialog.value.inputValue : true
-  closeActionDialog()
-  resolve(value)
-}
-
-function cancelActionDialog(): void {
-  const resolve = actionDialog.value.resolve
-  if (!resolve) return
-
-  const value = actionDialog.value.mode === "text" ? null : false
-  closeActionDialog()
-  resolve(value)
-}
-
-function closeActionDialog(): void {
-  actionDialog.value = {
-    ...actionDialog.value,
-    isOpen: false,
-    resolve: null
-  }
-}
-
-function runLimited<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<T[]> {
-  const results: T[] = []
-  let nextTaskIndex = 0
-
-  const runNext = (): Promise<void> => {
-    const taskIndex = nextTaskIndex
-    nextTaskIndex += 1
-
-    const task = tasks[taskIndex]
-    if (!task) return Promise.resolve()
-
-    return task()
-      .then((result) => {
-        results[taskIndex] = result
-      })
-      .then(runNext)
-  }
-
-  return Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, runNext))
-    .then(() => results)
-}
-
-function saveBlob(blob: Blob, fileName: string): void {
-  const objectUrl = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = objectUrl
-  link.download = fileName
-  link.style.display = "none"
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
-}
-
 function openViewer(file: iSharedFiles.UploadedFileDto): void {
   if (!file.viewUrl) return
+
+  if (file.mimeType === "application/pdf") {
+    window.open(resolveFileUrl(file.viewUrl), "_blank", "noopener,noreferrer")
+    return
+  }
 
   viewerFile.value = {
     originalName: file.originalName,
@@ -619,33 +449,6 @@ function copyFileLink(file: iSharedFiles.UploadedFileDto): void {
     .catch(() => {
       errorMessage.value = "Не удалось скопировать ссылку"
     })
-}
-
-function copyText(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text)
-  }
-
-  return new Promise((resolvePromise, rejectPromise) => {
-    const textarea = document.createElement("textarea")
-    textarea.value = text
-    textarea.setAttribute("readonly", "true")
-    textarea.style.position = "fixed"
-    textarea.style.left = "-9999px"
-    textarea.style.top = "0"
-    document.body.appendChild(textarea)
-    textarea.select()
-
-    const isCopied = document.execCommand("copy")
-    document.body.removeChild(textarea)
-
-    if (isCopied) {
-      resolvePromise()
-      return
-    }
-
-    rejectPromise(new Error("Не удалось скопировать текст"))
-  })
 }
 
 function markPreviewFailed(fileUid: string): void {
@@ -680,13 +483,9 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
       :current-folder-uid="currentFolderUid"
       :current-owner="currentOwner"
       :breadcrumbs="breadcrumbs"
-      :can-create-in-current-location="canCreateInCurrentLocation"
       @open-owners-overview="openOwnersOverview"
       @open-root="openRoot"
       @open-folder="openFolder"
-      @open-folder-modal="openFolderModal"
-      @create-document="openDocumentModal"
-      @uploaded-files="handleUploadedFiles"
     />
 
     <div class="min-h-0 overflow-auto p-4">
@@ -705,41 +504,66 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
           @open-owner="openOwner"
         />
 
-        <FilesContentGrid
-          v-else
-          :folders="folders"
-          :files="files"
-          :documents="documents"
-          :current-folder="currentFolder"
-          :selected-tile-keys="selectedTileKeys"
-          :can-manage-current-items="canManageCurrentItems"
-          :are-all-items-selected="areAllItemsSelected"
-          :selected-items-count="selectedItemsCount"
-          :selected-files-count="selectedFiles.length"
-          :selected-documents-count="selectedDocuments.length"
-          :is-bulk-downloading="isBulkDownloading"
-          :bulk-download-button-text="bulkDownloadButtonText"
-          :can-manage="canManage"
-          :resolve-file-url="resolveFileUrl"
-          :has-preview="hasPreview"
-          @toggle-all="toggleAllItemsSelection"
-          @download-selected="bulkDownloadSelected"
-          @set-visibility="bulkSetVisibility"
-          @delete-selected="bulkDeleteSelected"
-          @toggle-selection="toggleTileSelection"
-          @open-folder="openFolder"
-          @rename-folder="renameFolder"
-          @delete-folder="deleteFolder"
-          @open-file="openViewer"
-          @copy-file-link="copyFileLink"
-          @rename-file="renameFile"
-          @delete-file="deleteFile"
-          @open-document="openDocument"
-          @download-document="downloadDocument"
-          @rename-document="renameDocument"
-          @delete-document="deleteDocument"
-          @preview-error="markPreviewFailed"
-        />
+        <template v-else>
+          <div v-if="canCreateInCurrentLocation" class="flex flex-wrap items-center gap-2">
+            <button
+              class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              type="button"
+              @click="openFolderModal"
+            >
+              <FolderPlusIcon class="h-4 w-4" aria-hidden="true" />
+              <span>Папка</span>
+            </button>
+            <button
+              class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              type="button"
+              @click="openDocumentModal"
+            >
+              <FileTextIcon class="h-4 w-4" aria-hidden="true" />
+              <span>Документ</span>
+            </button>
+            <FileUploadField
+              :folder-uid="currentFolderUid"
+              :show-uploaded-items="false"
+              @update:files="handleUploadedFiles"
+            />
+          </div>
+
+          <FilesContentGrid
+            :folders="folders"
+            :files="files"
+            :documents="documents"
+            :current-folder="currentFolder"
+            :selected-tile-keys="selectedTileKeys"
+            :can-manage-current-items="canManageCurrentItems"
+            :are-all-items-selected="areAllItemsSelected"
+            :selected-items-count="selectedItemsCount"
+            :selected-files-count="selectedFiles.length"
+            :selected-documents-count="selectedDocuments.length"
+            :is-bulk-downloading="isBulkDownloading"
+            :bulk-download-button-text="bulkDownloadButtonText"
+            :can-manage="canManage"
+            :resolve-file-url="resolveFileUrl"
+            :has-preview="hasPreview"
+            @toggle-all="toggleAllItemsSelection"
+            @download-selected="bulkDownloadSelected"
+            @set-visibility="bulkSetVisibility"
+            @delete-selected="bulkDeleteSelected"
+            @toggle-selection="toggleTileSelection"
+            @open-folder="openFolder"
+            @rename-folder="renameFolder"
+            @delete-folder="deleteFolder"
+            @open-file="openViewer"
+            @copy-file-link="copyFileLink"
+            @rename-file="renameFile"
+            @delete-file="deleteFile"
+            @open-document="openDocument"
+            @download-document="downloadDocument"
+            @rename-document="renameDocument"
+            @delete-document="deleteDocument"
+            @preview-error="markPreviewFailed"
+          />
+        </template>
       </div>
     </div>
 

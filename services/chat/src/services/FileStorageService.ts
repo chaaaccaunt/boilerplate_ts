@@ -3,9 +3,11 @@ import { Exceptions, FilePreviewProxy } from "@/libs"
 
 export class FileStorageService {
   private readonly uploadsRoot = join(process.cwd(), "uploads")
-  private readonly previewProxy = new FilePreviewProxy()
 
-  constructor(private readonly model: iDatabase.Models["StoredFile"]) { }
+  constructor(
+    private readonly model: iDatabase.Models["StoredFile"],
+    private readonly previewProxy: FilePreviewProxy
+  ) { }
 
   create(
     file: iContracts.iUploadedFile,

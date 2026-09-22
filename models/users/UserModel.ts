@@ -5,16 +5,17 @@ import type { UserRoleModel } from "./UserRoleModel";
 
 export class UserModel extends Model<InferAttributes<UserModel>, InferCreationAttributes<UserModel>> {
   declare uid: CreationOptional<UUID>
-  declare phone: CreationOptional<string>
   declare login: string
   declare password: string
   declare firstName: string
   declare lastName: string
-  declare surname: string | null
 
   declare readonly fullName: CreationOptional<string>
 
-  static associate(models: iDatabase.Models) {
+  declare phone: string | null
+  declare surname: string | null
+
+  static associate(models: { UserRole: typeof UserRoleModel }) {
     this.hasMany(models.UserRole, { foreignKey: "userUid", as: "roles" })
   }
 

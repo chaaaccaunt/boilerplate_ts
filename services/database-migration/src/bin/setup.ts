@@ -1,5 +1,5 @@
 import { Envs, Logger } from "@/libs"
-import { DatabaseSetupService } from "@/services/DatabaseSetupService"
+import { DatabaseSetupService } from "../services/DatabaseSetupService"
 
 Envs.assignEnv()
 

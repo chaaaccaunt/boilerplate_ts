@@ -1,7 +1,7 @@
-﻿import type { ApiClient } from "@/application/api/ApiClient"
+import type { ApiRequester } from "@/shared/api"
 
 export class ChatApi {
-  constructor(private readonly api: ApiClient) { }
+  constructor(private readonly api: ApiRequester) { }
 
   listRooms(): Promise<iSharedChat.ChatRoomsListResponseDto> {
     return this.api.get<iSharedChat.ChatRoomsListResponseDto>({

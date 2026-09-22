@@ -1,5 +1,5 @@
 import { Exceptions } from "@/libs"
-import { AuthorizationService } from "@/services/AuthorizationService"
+import { AuthorizationService } from "../services/AuthorizationService"
 import { HTTPController } from "@/libs"
 
 export class AuthorizationGatewayController extends HTTPController {

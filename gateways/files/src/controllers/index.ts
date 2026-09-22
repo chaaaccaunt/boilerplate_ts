@@ -1,5 +1,7 @@
 import { HTTPController, HTTPServer } from "@/libs"
-import { FileEventsGatewayClient } from "@/services/FileEventsGatewayClient"
+import { FileEventsGatewayClient } from "../services/FileEventsGatewayClient"
+import { FileStorageService } from "../services/FileStorageService"
+import { FileDtoMapper } from "../services/FileDtoMapper"
 import { FilesController } from "./FilesController"
 
 export class Controllers {
@@ -7,12 +9,12 @@ export class Controllers {
 
   constructor(
     httpServer: HTTPServer,
-    models: iDatabase.Models,
-    databaseTools: iLibs.DatabaseServiceTools,
+    fileStorageService: FileStorageService,
+    fileDtoMapper: FileDtoMapper,
     fileEventsGatewayClient: FileEventsGatewayClient | null = null
   ) {
     this.controllers = [
-      new FilesController(models, databaseTools, fileEventsGatewayClient)
+      new FilesController(fileStorageService, fileDtoMapper, fileEventsGatewayClient)
     ]
 
     this.controllers.forEach((controller) => {

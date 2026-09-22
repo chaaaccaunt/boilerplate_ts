@@ -1,4 +1,4 @@
-﻿import { Exceptions } from "@/libs"
+import { Exceptions } from "../Exceptions"
 
 interface RequestOptions<TPayload> {
   requestId: string
@@ -6,7 +6,7 @@ interface RequestOptions<TPayload> {
   payload?: TPayload
 }
 
-export class InternalServiceClient {
+export class MicroServiceHTTPClient {
   private readonly requestTimeoutMs = 10_000
 
   constructor(private readonly baseUrl: string) { }
@@ -18,7 +18,10 @@ export class InternalServiceClient {
 
     return fetch(url, {
       method: "POST",
-      headers: this.getHeaders(options.requestId),
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "x-request-id": options.requestId
+      },
       body: JSON.stringify(options.payload === undefined ? {} : options.payload),
       signal: abortController.signal
     })
@@ -38,13 +41,6 @@ export class InternalServiceClient {
           throw this.toServiceError(response.status, envelope.error.message)
         }))
       .finally(() => clearTimeout(timeout))
-  }
-
-  private getHeaders(requestId: string): HeadersInit {
-    return {
-      "Content-Type": "application/json; charset=utf-8",
-      "x-request-id": requestId
-    }
   }
 
   private toServiceError(status: number, message: string): Error {
@@ -71,5 +67,4 @@ export class InternalServiceClient {
       typeof value.error.message === "string"
     )
   }
-
 }

@@ -1,9 +1,7 @@
-import { Exceptions } from "@/libs"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
-import { HTTPController } from "@/libs"
+import { Exceptions, HTTPController, MicroServiceHTTPClient } from "@/libs"
 
 export class ChatHTTPGatewayController extends HTTPController {
-  constructor(private readonly chatServiceClient: InternalServiceClient) {
+  constructor(private readonly chatServiceClient: MicroServiceHTTPClient) {
     super()
 
     const roomsRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedChat.ChatRoomsListResponseDto>> = {

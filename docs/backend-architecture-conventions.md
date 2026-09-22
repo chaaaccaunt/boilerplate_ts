@@ -360,14 +360,14 @@ WebSocket transport является опциональным модулем boi
 libs/WebSocketServer
 ```
 
-Доменные realtime gateways должны находиться в package того gateway, который владеет realtime boundary, например:
+Доменные WebSocket controllers должны находиться в package того gateway, который владеет realtime boundary, например:
 
 ```text
-gateways/chat-realtime/src/realtime
+gateways/chat-realtime/src/controller
 ```
 
 Если проект использует realtime, `WebSocketServer` подключается в `gateways/<gateway-name>/src/bin/index.ts` к тому же native HTTP server.
-Новые gateways подключаются явно через `webSocketServer.use(...)`.
+Новые WebSocket controllers подключаются явно через `webSocketServer.use(...)`.
 
 WebSocket архитектура:
 
@@ -379,7 +379,7 @@ WebSocketServer
   валидирует payload события
   вызывает gateway
 
-Gateway
+Controller
   описывает события домена
   проверяет доступ к событию
   вызывает service
@@ -436,7 +436,7 @@ Service не должен знать про socket.io, WebSocket server instance
 
 Если событие должно быть доступно не всем пользователям, фильтрация аудитории выполняется на gateway/transport boundary или через явно описанную project-specific access policy. Boilerplate не должен молча зашивать такие правила.
 
-Доменные realtime gateways являются аналогом controller boundary:
+Доменные WebSocket controllers являются transport boundary:
 
 - проверяют доступ к событию или вызывают service-level access check без загрузки лишних данных;
 - вызывают service для бизнес-логики;

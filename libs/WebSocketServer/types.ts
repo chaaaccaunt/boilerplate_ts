@@ -40,7 +40,7 @@ export interface iWebSocketEvent<TPayload = iContracts.iPayload, TResult = unkno
   handler: iWebSocketEventHandler<TPayload, TResult>
 }
 
-export interface iWebSocketGateway {
+export interface iWebSocketController {
   readonly name: string
   getEvents(): readonly iWebSocketEvent[]
 }

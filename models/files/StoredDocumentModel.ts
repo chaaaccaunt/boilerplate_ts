@@ -19,14 +19,16 @@ export class StoredDocumentModel extends Model<InferAttributes<StoredDocumentMod
   declare contentHtml: string
   declare visibility: iSharedFiles.FileVisibility
   declare status: iSharedFiles.StoredDocumentStatus
-  declare finalizedAt: Date | null
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
-  declare folderUid: ForeignKey<UUID> | null
-  declare createdByUserUid: ForeignKey<UUID>
+  declare finalizedAt: Date | null
 
-  static associate(models: iDatabase.Models) {
+  declare createdByUserUid: ForeignKey<UUID>
+  declare folderUid: ForeignKey<UUID> | null
+
+  static associate(models: { User: typeof UserModel; StoredFileFolder: typeof StoredFileFolderModel }) {
     this.belongsTo(models.User, { foreignKey: "createdByUserUid", as: "creator" })
     this.belongsTo(models.StoredFileFolder, { foreignKey: "folderUid", as: "folder" })
   }

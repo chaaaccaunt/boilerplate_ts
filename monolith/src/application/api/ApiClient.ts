@@ -1,5 +1,6 @@
 import { Store } from "vuex"
 import { ApiError, DownloadProgressCallback, HttpClient, UploadProgressCallback } from "@/shared/api"
+import type { ApiPath, ApiRequester, ApiRequestOptions } from "@/shared/api"
 import { AuthorizationApi } from "@/entities/authorization/api/AuthorizationApi"
 import { ChatApi } from "@/entities/chat/api/ChatApi"
 import { FilesApi } from "@/entities/files/api/FilesApi"
@@ -7,23 +8,12 @@ import { LogsApi } from "@/entities/logs/api/LogsApi"
 import { SystemApi } from "@/entities/system/api/SystemApi"
 import { UsersApi } from "@/entities/users/api/UsersApi"
 
-type ApiPath = `/${string}`
-type VuexMutation = string
-
-interface ApiClientHttpClients {
-  default: HttpClient
-  authorization: HttpClient
-  files: HttpClient
+export interface ApiTransport {
+  matches(path: ApiPath): boolean
+  client: HttpClient
 }
 
-interface ApiRequestOptions<TPayload> {
-  path: ApiPath
-  payload?: TPayload
-  commit?: VuexMutation
-  reportError?: boolean
-}
-
-export class ApiClient {
+export class ApiClient implements ApiRequester {
   readonly authorization: AuthorizationApi
   readonly chat: ChatApi
   readonly files: FilesApi
@@ -32,7 +22,8 @@ export class ApiClient {
   readonly users: UsersApi
 
   constructor(
-    private readonly http: ApiClientHttpClients,
+    private readonly defaultHttpClient: HttpClient,
+    private readonly transports: ReadonlyArray<ApiTransport>,
     private readonly store: Store<iSharedState.RootState>
   ) {
     this.authorization = new AuthorizationApi(this)
@@ -43,7 +34,7 @@ export class ApiClient {
     this.users = new UsersApi(this)
   }
 
-  commit(type: VuexMutation, payload?: unknown): void {
+  commit(type: string, payload?: unknown): void {
     this.store.commit(type, payload)
   }
 
@@ -149,9 +140,6 @@ export class ApiClient {
   }
 
   private getHttpClient(path: ApiPath): HttpClient {
-    if (path.startsWith("/authorization")) return this.http.authorization
-    if (path.startsWith("/files")) return this.http.files
-
-    return this.http.default
+    return this.transports.find((transport) => transport.matches(path))?.client || this.defaultHttpClient
   }
 }

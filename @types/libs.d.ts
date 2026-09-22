@@ -7,6 +7,7 @@ import {
   Logger,
   LogCollectorSocketServer,
   MethodTracer,
+  MicroServiceHTTPClient,
   MicroServiceHTTPServer,
   PayloadValidator,
   ProcessCluster,
@@ -28,7 +29,7 @@ import type {
   iWebSocketEventContext as LibWebSocketEventContext,
   iWebSocketEventHandler as LibWebSocketEventHandler,
   iWebSocketEventResult as LibWebSocketEventResult,
-  iWebSocketGateway as LibWebSocketGateway,
+  iWebSocketController as LibWebSocketController,
   iWebSocketNativeServer as LibWebSocketNativeServer,
   LogLevel as LibLogLevel,
   TraceLayer as LibTraceLayer
@@ -47,6 +48,8 @@ declare global {
     type HTTPServerClass = typeof HTTPServer
     type MicroServiceHTTPServer = InstanceType<typeof MicroServiceHTTPServer>
     type MicroServiceHTTPServerClass = typeof MicroServiceHTTPServer
+    type MicroServiceHTTPClient = InstanceType<typeof MicroServiceHTTPClient>
+    type MicroServiceHTTPClientClass = typeof MicroServiceHTTPClient
     type WebSocketServer = InstanceType<typeof WebSocketServer>
     type WebSocketServerClass = typeof WebSocketServer
     type Logger = InstanceType<typeof Logger>
@@ -74,7 +77,7 @@ declare global {
     type iWebSocketEventContext = LibWebSocketEventContext
     type iWebSocketEventHandler = LibWebSocketEventHandler
     type iWebSocketEventResult = LibWebSocketEventResult
-    type iWebSocketGateway = LibWebSocketGateway
+    type iWebSocketController = LibWebSocketController
     type iWebSocketNativeServer = LibWebSocketNativeServer
     type LogLevel = LibLogLevel
     type TraceLayer = LibTraceLayer

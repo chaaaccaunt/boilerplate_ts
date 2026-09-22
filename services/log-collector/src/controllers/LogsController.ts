@@ -1,5 +1,5 @@
 import { Exceptions, MicroServiceController } from "@/libs"
-import { LogCollectorService } from "@/services/LogCollectorService"
+import { LogCollectorService } from "../services/LogCollectorService"
 
 export class LogsController extends MicroServiceController {
   constructor(private readonly service: LogCollectorService) {

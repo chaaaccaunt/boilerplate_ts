@@ -126,7 +126,7 @@ Business payload не должен передаваться через query str
 REST и realtime transport не смешиваются.
 REST endpoints домена, включая chat CRUD/list endpoints, должны находиться за `gateways/public` и вызывать backend-сервис домена.
 Realtime gateway не должен содержать REST controllers домена.
-Realtime gateway содержит только WebSocket gateway logic и internal event ingress через `MicroServiceHTTPServer`.
+Realtime gateway содержит только WebSocket controller logic и internal event ingress через `MicroServiceHTTPServer`.
 
 Gateway controllers должны наследоваться от `HTTPController` из `@/libs`.
 `HTTPController` используется как общий базовый класс для `getRoutes`, `addRoutes`, проверки ролей через `access` и общего `handle`, который преобразует service errors в controller errors.
@@ -186,9 +186,9 @@ Webpack-конфигурация backend должна:
 Одновременно нужно пересмотреть `AppConfiguration.getDatabaseConfig()`, package dependencies и migration/setup SQL, потому что Sequelize dialect меняет driver, синтаксис подключения и допустимые DDL/GRANT операции.
 В текущей конфигурации production bundle должен сохранять `mysql2`, `pg`, Sequelize dialects `mysql` и `postgres`, но игнорировать optional `pg-native`, если проект не принимает отдельное решение использовать native PostgreSQL driver.
 
-## WebSocket gateways
+## WebSocket controllers
 
-WebSocket gateways должны располагаться в package того gateway, который владеет realtime boundary, например `./gateways/chat-realtime/src/realtime`.
+WebSocket controllers должны располагаться в `./gateways/<domain>/src/controller`. Transport-схемы конкретного контроллера размещаются рядом с ним.
 
 Gateway naming должен быть полным и доменным:
 
@@ -205,4 +205,4 @@ Gateway должен описывать только transport-boundary собы
 
 WebSocket infrastructure находится в `./libs/WebSocketServer`.
 Она подключается в service-local `bin/index.ts` по умолчанию.
-Новые gateways должны подключаться явно через `webSocketServer.use(...)`.
+Новые WebSocket controllers должны подключаться явно через `webSocketServer.use(...)`.

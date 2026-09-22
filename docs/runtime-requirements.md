@@ -302,7 +302,7 @@ npm run project -- start-dist gateway public
 ## Внутренний transport между gateway и service
 
 Backend-сервисы, которые запускаются через `MicroServiceHTTPServer`, должны требовать заголовок `x-request-id`.
-Gateway, который вызывает backend-сервис через `InternalServiceClient`, должен передавать этот заголовок.
+Gateway, который вызывает backend-сервис через общий `MicroServiceHTTPClient` из `libs`, должен передавать этот заголовок.
 
 `MicroServiceHTTPServer` не использует shared secret header для авторизации внутренних запросов.
 Безопасность внутреннего transport обеспечивается изоляцией internal ports/process/network boundary.

@@ -1,6 +1,7 @@
 import { Exceptions, HTTPController } from "@/libs"
-import { FileEventsGatewayClient } from "@/services/FileEventsGatewayClient"
-import { FileStorageService } from "@/services/FileStorageService"
+import { FileEventsGatewayClient } from "../services/FileEventsGatewayClient"
+import { FileStorageService } from "../services/FileStorageService"
+import { FileDtoMapper } from "../services/FileDtoMapper"
 
 interface iUploadPayload extends iContracts.iRequestContextPayload<iContracts.iMultipartPayload> {}
 
@@ -8,15 +9,12 @@ interface iDownloadPayload extends iContracts.iRequestContextPayload<iContracts.
 interface iArchiveDownloadPayload extends iContracts.iRequestContextPayload<iContracts.iPayload> {}
 
 export class FilesController extends HTTPController {
-  private readonly service: FileStorageService
-
   constructor(
-    models: iDatabase.Models,
-    databaseTools: iLibs.DatabaseServiceTools,
+    private readonly service: FileStorageService,
+    private readonly dtoMapper: FileDtoMapper,
     private readonly fileEventsGatewayClient: FileEventsGatewayClient | null = null
   ) {
     super()
-    this.service = new FileStorageService(models, databaseTools)
 
     const uploadRoute: iContracts.iRoute<iContracts.iMultipartPayload, iContracts.iControllerResult<iSharedFiles.UploadResponseDto>> = {
       url: /^\/files\/upload\/?$/,
@@ -257,7 +255,7 @@ export class FilesController extends HTTPController {
 
     return this.service.findAccessible(fileUid, payload.user)
       .then((storedFile) => ({
-        data: this.service.toUploadedFileDto(storedFile)
+        data: this.dtoMapper.toFile(storedFile)
       }))
       .catch((error) => {
         throw new Exceptions.ControllerError.NotFoundError("Файл не найден", { cause: error })
@@ -342,7 +340,7 @@ export class FilesController extends HTTPController {
 
     return this.service.findDocumentAccessible(documentUid, payload.user)
       .then((document) => ({
-        data: this.service.toDocumentDto(document)
+        data: this.dtoMapper.toDocument(document)
       }))
       .catch((error) => {
         throw new Exceptions.ControllerError.NotFoundError("Документ не найден", { cause: error })
@@ -498,7 +496,7 @@ export class FilesController extends HTTPController {
     disposition: iContracts.iFileControllerResult["file"]["disposition"] = "attachment",
     range?: string
   ): iContracts.iFileControllerResult {
-    const metadata = this.service.toUploadedFileDto(storedFile)
+    const metadata = this.dtoMapper.toFile(storedFile)
 
     return {
       file: {
@@ -534,6 +532,7 @@ export class FilesController extends HTTPController {
       "image/png",
       "image/gif",
       "image/webp",
+      "application/pdf",
       "video/mp4",
       "video/webm",
       "video/ogg"

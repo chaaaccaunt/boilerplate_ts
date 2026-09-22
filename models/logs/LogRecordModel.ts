@@ -14,9 +14,8 @@ export class LogRecordModel extends Model<InferAttributes<LogRecordModel>, Infer
 
   declare packageUid: ForeignKey<RuntimePackageModel["uid"]>
 
-  static associate(models: iDatabase.Models) {
-    const runtimePackageModel = (models as unknown as { RuntimePackage?: typeof RuntimePackageModel }).RuntimePackage
-    if (runtimePackageModel) this.belongsTo(runtimePackageModel, { foreignKey: "packageUid", as: "package" })
+  static associate(models: { RuntimePackage: typeof RuntimePackageModel }) {
+    this.belongsTo(models.RuntimePackage, { foreignKey: "packageUid", as: "package" })
   }
 
   declare package: NonAttribute<RuntimePackageModel>

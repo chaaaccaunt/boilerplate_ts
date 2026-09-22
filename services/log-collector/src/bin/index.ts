@@ -1,8 +1,8 @@
-import { LogsController, SystemMetricsController } from "@/controllers"
-import { Database } from "@/database"
-import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, LogCollectorSocketServer, MicroServiceHTTPServer } from "@/libs"
-import { LogCollectorService } from "@/services/LogCollectorService"
-import { RuntimePackageEventGatewayClient } from "@/services/RuntimePackageEventGatewayClient"
+import { LogsController, SystemMetricsController } from "../controllers"
+import { Database } from "../database"
+import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, LogCollectorConnectionRegistry, LogCollectorProtocol, LogCollectorSocketServer, MicroServiceHTTPServer, RuntimeMetrics } from "@/libs"
+import { LogCollectorService } from "../services/LogCollectorService"
+import { RuntimePackageEventGatewayClient } from "../services/RuntimePackageEventGatewayClient"
 
 const logger = Logger.createLocal()
 const database = new Database(getRequiredDatabaseConfig())
@@ -33,7 +33,16 @@ function start(): Promise<void> {
         throw new Error("Не найдены разрешенные runtime packages в таблице runtime_packages")
       }
 
-      const socketServer = new LogCollectorSocketServer(socketPortValue, service, runtimePackages, runtimePackageEventGatewayClient, logger)
+      const socketServer = new LogCollectorSocketServer(
+        socketPortValue,
+        service,
+        runtimePackages,
+        runtimePackageEventGatewayClient,
+        logger,
+        new LogCollectorConnectionRegistry(),
+        new LogCollectorProtocol(),
+        new RuntimeMetrics()
+      )
 
       httpServer.use([
         ...new LogsController(service).getRoutes(),

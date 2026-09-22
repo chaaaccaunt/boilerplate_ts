@@ -102,7 +102,7 @@ function formatDocumentStatus(value: iSharedFiles.StoredDocumentStatus): string 
         >
           <input
             v-if="canManage(folder)"
-            class="absolute left-2 top-2 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950"
+            class="absolute left-2 top-2 z-10 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950"
             type="checkbox"
             :aria-label="`Выбрать папку ${folder.title}`"
             :checked="isTileSelected(getFolderSelectionKey(folder.uid))"
@@ -147,7 +147,7 @@ function formatDocumentStatus(value: iSharedFiles.StoredDocumentStatus): string 
         >
           <input
             v-if="canManage(document)"
-            class="absolute left-2 top-2 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950"
+            class="absolute left-2 top-2 z-10 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950"
             type="checkbox"
             :aria-label="`Выбрать документ ${document.title}`"
             :checked="isTileSelected(getDocumentSelectionKey(document.documentUid))"
@@ -205,7 +205,7 @@ function formatDocumentStatus(value: iSharedFiles.StoredDocumentStatus): string 
         >
           <input
             v-if="canManage(file)"
-            class="absolute left-2 top-2 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950"
+            class="absolute left-2 top-2 z-10 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-950"
             type="checkbox"
             :aria-label="`Выбрать файл ${file.originalName}`"
             :checked="isTileSelected(getFileSelectionKey(file.fileUid))"

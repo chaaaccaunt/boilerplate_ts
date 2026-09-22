@@ -16,7 +16,7 @@ export class RoleModel extends Model<InferAttributes<RoleModel>, InferCreationAt
   declare uid: CreationOptional<UUID>
   declare name: iSharedUserRole.UserRoleName
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { UserRole: typeof UserRoleModel; RolePermission: typeof RolePermissionModel }) {
     this.hasMany(models.UserRole, { foreignKey: "roleUid", as: "userRoles" })
     this.hasMany(models.RolePermission, { foreignKey: "roleUid", as: "rolePermissions" })
   }

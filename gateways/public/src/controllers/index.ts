@@ -1,5 +1,4 @@
-import { HTTPController, HTTPServer } from "@/libs"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
+import { HTTPController, HTTPServer, MicroServiceHTTPClient } from "@/libs"
 import { ChatHTTPGatewayController } from "./ChatHTTPGatewayController"
 import { LogsGatewayController } from "./LogsGatewayController"
 import { SystemMetricsGatewayController } from "./SystemMetricsGatewayController"
@@ -15,10 +14,10 @@ export class Controllers {
     logCollectorServiceUrl: string
   ) {
     this.controllers = [
-      new UsersGatewayController(new InternalServiceClient(usersServiceUrl)),
-      new ChatHTTPGatewayController(new InternalServiceClient(chatServiceUrl)),
-      new LogsGatewayController(new InternalServiceClient(logCollectorServiceUrl)),
-      new SystemMetricsGatewayController(new InternalServiceClient(logCollectorServiceUrl))
+      new UsersGatewayController(new MicroServiceHTTPClient(usersServiceUrl)),
+      new ChatHTTPGatewayController(new MicroServiceHTTPClient(chatServiceUrl)),
+      new LogsGatewayController(new MicroServiceHTTPClient(logCollectorServiceUrl)),
+      new SystemMetricsGatewayController(new MicroServiceHTTPClient(logCollectorServiceUrl))
     ]
 
     this.controllers.forEach((controller) => {

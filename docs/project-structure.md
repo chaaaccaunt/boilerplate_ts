@@ -77,6 +77,7 @@ Service layer не знает HTTP status codes и не формирует HTTP 
 - HTTP server;
 - HTTP controller base;
 - microservice HTTP server;
+- microservice HTTP client;
 - WebSocket server;
 - configuration;
 - logging;

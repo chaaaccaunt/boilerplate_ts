@@ -1,7 +1,7 @@
-import { Controllers } from "@/controllers"
-import { Database } from "@/database"
+import { Controllers } from "../controllers"
+import { Database } from "../database"
 import { config, DatabaseServiceTools, getRequiredDatabaseConfig, HTTPServer, Logger, ProcessCluster } from "@/libs"
-import { AuthorizationService } from "@/services/AuthorizationService"
+import { AuthorizationService } from "../services/AuthorizationService"
 
 ProcessCluster.run(config.process, startApplication, (error) => {
   const logger = new Logger()

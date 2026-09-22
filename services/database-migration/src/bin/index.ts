@@ -1,6 +1,6 @@
-import { Database } from "@/database"
+import { Database } from "../database"
 import { getRequiredDatabaseConfig, Logger } from "@/libs"
-import { DatabaseMigrationService } from "@/services/DatabaseMigrationService"
+import { DatabaseMigrationService } from "../services/DatabaseMigrationService"
 
 const logger = new Logger()
 const database = new Database(getRequiredDatabaseConfig())

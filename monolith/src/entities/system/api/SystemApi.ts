@@ -1,7 +1,7 @@
-import type { ApiClient } from "@/application/api/ApiClient"
+import type { ApiRequester } from "@/shared/api"
 
 export class SystemApi {
-  constructor(private readonly api: ApiClient) {}
+  constructor(private readonly api: ApiRequester) {}
 
   metrics(): Promise<iSharedSystem.RuntimeMetricsListResponseDto> {
     return this.api.get<iSharedSystem.RuntimeMetricsListResponseDto>({
@@ -17,4 +17,3 @@ export class SystemApi {
     })
   }
 }
-

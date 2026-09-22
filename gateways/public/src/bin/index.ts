@@ -1,4 +1,4 @@
-import { Controllers } from "@/controllers"
+import { Controllers } from "../controllers"
 import { config, HTTPServer, Logger, ProcessCluster } from "@/libs"
 
 ProcessCluster.run(config.process, startApplication, (error) => {

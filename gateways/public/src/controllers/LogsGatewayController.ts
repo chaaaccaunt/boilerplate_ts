@@ -1,8 +1,7 @@
-import { InternalServiceClient } from "@/services/InternalServiceClient"
-import { Exceptions, HTTPController } from "@/libs"
+import { Exceptions, HTTPController, MicroServiceHTTPClient } from "@/libs"
 
 export class LogsGatewayController extends HTTPController {
-  constructor(private readonly logCollectorServiceClient: InternalServiceClient) {
+  constructor(private readonly logCollectorServiceClient: MicroServiceHTTPClient) {
     super()
 
     const listRoute: iContracts.iRoute<iSharedLogs.LogsListPayloadDto, iContracts.iControllerResult<iSharedLogs.LogsListResponseDto>> = {

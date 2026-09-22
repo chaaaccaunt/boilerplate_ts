@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto"
-import type { iWebSocketEvent, iWebSocketEventContext, iWebSocketGateway } from "@/libs"
-import { InternalServiceClient } from "@/services/InternalServiceClient"
+import { MicroServiceHTTPClient } from "@/libs"
+import type { iWebSocketController, iWebSocketEvent, iWebSocketEventContext } from "@/libs"
 import {
   chatMessageDeleteScheme,
   chatMessageFileDeleteScheme,
@@ -14,11 +14,11 @@ import {
   chatRoomUpdateScheme
 } from "./chat.socket-schemes"
 
-export class ChatSocketGateway implements iWebSocketGateway {
-  readonly name = "ChatSocketGateway"
+export class ChatSocketController implements iWebSocketController {
+  readonly name = "ChatSocketController"
   private readonly removedLinkText = "Ссылка удалена из соображений безопасности"
 
-  constructor(private readonly chatServiceClient: InternalServiceClient) { }
+  constructor(private readonly chatServiceClient: MicroServiceHTTPClient) { }
 
   getEvents(): readonly iWebSocketEvent[] {
     return [

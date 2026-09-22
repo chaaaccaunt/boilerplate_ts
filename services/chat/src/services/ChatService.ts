@@ -3,14 +3,11 @@ import { Exceptions } from "@/libs"
 import { FileStorageService } from "./FileStorageService"
 
 export class ChatService {
-  private readonly fileStorage: FileStorageService
-
   constructor(
     private readonly models: iDatabase.Models,
-    private readonly databaseTools: iLibs.DatabaseServiceTools
-  ) {
-    this.fileStorage = new FileStorageService(models.StoredFile)
-  }
+    private readonly databaseTools: iLibs.DatabaseServiceTools,
+    private readonly fileStorage: FileStorageService
+  ) { }
 
   listRooms(userUid: UUID): Promise<iSharedChat.ChatRoomsListResponseDto> {
     return this.models.ChatRoom.findAll({

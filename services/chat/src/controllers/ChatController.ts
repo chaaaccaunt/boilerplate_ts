@@ -1,6 +1,6 @@
 import type { UUID } from "crypto"
 import { MicroServiceController } from "@/libs"
-import { ChatService } from "@/services/ChatService"
+import { ChatService } from "../services/ChatService"
 
 export class ChatController extends MicroServiceController {
   constructor(private readonly service: ChatService) {

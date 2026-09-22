@@ -7,17 +7,16 @@ import type { RuntimePackageConnectionModel } from "./RuntimePackageConnectionMo
 export class RuntimePackageModel extends Model<InferAttributes<RuntimePackageModel>, InferCreationAttributes<RuntimePackageModel>> {
   declare uid: UUID
   declare name: string
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
-  static associate(models: iDatabase.Models) {
-    const logModels = models as unknown as {
-      LogRecord?: typeof LogRecordModel
-      RuntimePackageConnection?: typeof RuntimePackageConnectionModel
-    }
-
-    if (logModels.LogRecord) this.hasMany(logModels.LogRecord, { foreignKey: "packageUid", as: "logRecords" })
-    if (logModels.RuntimePackageConnection) this.hasMany(logModels.RuntimePackageConnection, { foreignKey: "packageUid", as: "connections" })
+  static associate(models: {
+    LogRecord: typeof LogRecordModel
+    RuntimePackageConnection: typeof RuntimePackageConnectionModel
+  }) {
+    this.hasMany(models.LogRecord, { foreignKey: "packageUid", as: "logRecords" })
+    this.hasMany(models.RuntimePackageConnection, { foreignKey: "packageUid", as: "connections" })
   }
 
   declare logRecords: NonAttribute<LogRecordModel[]>

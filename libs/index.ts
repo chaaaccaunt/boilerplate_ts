@@ -8,6 +8,8 @@ export { FilePreviewProxy } from "./FilePreviewProxy"
 export { RuntimeMetrics } from "./RuntimeMetrics"
 export { ProcessCluster, iProcessClusterConfig } from "./ProcessCluster"
 export { LogCollectorSocketServer } from "./LogCollectorSocketServer"
+export { LogCollectorConnectionRegistry } from "./LogCollectorSocketServer/LogCollectorConnectionRegistry"
+export { LogCollectorProtocol } from "./LogCollectorSocketServer/LogCollectorProtocol"
 export type {
   iLogCollectorRuntimePackageEventClient,
   iLogCollectorService
@@ -16,6 +18,7 @@ export { HTTPServer, iHTTPServerEnv, iHTTPConfig } from "./HTTPServer"
 export { HTTPController } from "./HTTPController"
 export { MicroServiceHTTPServer, iMicroServiceHTTPConfig } from "./MicroServiceHTTPServer"
 export { MicroServiceController } from "./MicroServiceController"
+export { MicroServiceHTTPClient } from "./MicroServiceHTTPClient"
 export { DatabaseServiceTools } from "./DatabaseServiceTools"
 export { WebSocketServer } from "./WebSocketServer"
 export type {
@@ -25,7 +28,7 @@ export type {
   iWebSocketEventContext,
   iWebSocketEventHandler,
   iWebSocketEventResult,
-  iWebSocketGateway,
+  iWebSocketController,
   iWebSocketNativeServer
 } from "./WebSocketServer"
 export { Exceptions } from "./Exceptions"

@@ -1,7 +1,5 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
-import { getLogRecordModel, LogRecordModel } from "@/models/logs/LogRecordModel"
-import { getRuntimePackageModel, RuntimePackageModel } from "@/models/logs/RuntimePackageModel"
-import { getRuntimePackageConnectionModel, RuntimePackageConnectionModel } from "@/models/logs/RuntimePackageConnectionModel"
+import { createLogModels, LogModels } from "@/models/logs/LogModelRegistry"
 
 export interface DataBaseInstance {
   Sequelize: typeof Sequelize
@@ -9,10 +7,13 @@ export interface DataBaseInstance {
   models: iDatabase.Models
 }
 
-export interface iModels {
-  LogRecord: typeof LogRecordModel
-  RuntimePackage: typeof RuntimePackageModel
-  RuntimePackageConnection: typeof RuntimePackageConnectionModel
+export interface iModels extends LogModels { }
+
+declare global {
+  namespace iDatabase {
+    interface Database extends DataBaseInstance { }
+    interface Models extends iModels { }
+  }
 }
 
 export class Database {
@@ -22,15 +23,7 @@ export class Database {
 
   constructor(config: Options) {
     this.sequelize = new SequelizeClass(config)
-    this.models = {
-      RuntimePackage: getRuntimePackageModel(this.sequelize),
-      RuntimePackageConnection: getRuntimePackageConnectionModel(this.sequelize),
-      LogRecord: getLogRecordModel(this.sequelize)
-    }
-
-    Object.keys(this.models).forEach((key) => {
-      this.models[key as keyof typeof this.models].associate(this.models)
-    })
+    this.models = createLogModels(this.sequelize)
   }
 }
 

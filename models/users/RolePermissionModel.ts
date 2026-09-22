@@ -18,7 +18,7 @@ export class RolePermissionModel extends Model<InferAttributes<RolePermissionMod
   declare roleUid: ForeignKey<UUID>
   declare permissionUid: ForeignKey<UUID>
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { Role: typeof RoleModel; Permission: typeof PermissionModel }) {
     this.belongsTo(models.Role, { foreignKey: "roleUid", as: "role" })
     this.belongsTo(models.Permission, { foreignKey: "permissionUid", as: "permission" })
   }

@@ -11,28 +11,37 @@ import {
 import type { Association, NonAttribute } from "sequelize"
 import type { ChatMessageModel } from "./ChatMessageModel"
 import type { ChatRoomMemberModel } from "./ChatRoomMemberModel"
+import type { UserModel } from "../users/UserModel"
 
 export class ChatRoomModel extends Model<InferAttributes<ChatRoomModel>, InferCreationAttributes<ChatRoomModel>> {
   declare uid: CreationOptional<UUID>
   declare type: iSharedChat.ChatRoomType
-  declare status: CreationOptional<iSharedChat.ChatRoomStatus>
   declare title: string
-  declare archivedAt: Date | null
+
+  declare status: CreationOptional<iSharedChat.ChatRoomStatus>
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
+  declare archivedAt: Date | null
+
   declare createdByUserUid: ForeignKey<UUID> | null
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: {
+    User: typeof UserModel
+    ChatRoomMember: typeof ChatRoomMemberModel
+    ChatMessage: typeof ChatMessageModel
+  }) {
     this.belongsTo(models.User, { foreignKey: "createdByUserUid", as: "creator" })
     this.hasMany(models.ChatRoomMember, { foreignKey: "roomUid", as: "members" })
     this.hasMany(models.ChatMessage, { foreignKey: "roomUid", as: "messages" })
   }
 
+  declare creator: NonAttribute<UserModel | null>
   declare members: NonAttribute<ChatRoomMemberModel[]>
   declare messages: NonAttribute<ChatMessageModel[]>
 
   declare static associations: {
+    creator: Association<ChatRoomModel, UserModel>
     members: Association<ChatRoomModel, ChatRoomMemberModel>
     messages: Association<ChatRoomModel, ChatMessageModel>
   };

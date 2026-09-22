@@ -5,19 +5,21 @@ import type { UserModel } from "./UserModel"
 
 export class UserSessionModel extends Model<InferAttributes<UserSessionModel>, InferCreationAttributes<UserSessionModel>> {
   declare uid: CreationOptional<UUID>
-  declare ipAddress: string | null
   declare userAgent: string
   declare deviceType: string
   declare operatingSystem: string
   declare browser: string
   declare lastSeenAt: Date
-  declare revokedAt: Date | null
+
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
+  declare ipAddress: string | null
+  declare revokedAt: Date | null
+
   declare userUid: ForeignKey<UserModel["uid"]>
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { User: typeof UserModel }) {
     this.belongsTo(models.User, { foreignKey: "userUid", as: "user" })
   }
 

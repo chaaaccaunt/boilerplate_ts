@@ -15,9 +15,10 @@ export class PermissionModel extends Model<InferAttributes<PermissionModel>, Inf
   declare uid: CreationOptional<UUID>
   declare key: iSharedPermission.PermissionKey
   declare title: string
+
   declare description: string | null
 
-  static associate(models: iDatabase.Models) {
+  static associate(models: { RolePermission: typeof RolePermissionModel }) {
     this.hasMany(models.RolePermission, { foreignKey: "permissionUid", as: "rolePermissions" })
   }
 

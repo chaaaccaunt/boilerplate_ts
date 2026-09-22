@@ -1,7 +1,8 @@
-import { ChatController } from "@/controllers"
-import { Database } from "@/database"
-import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer, ProcessCluster } from "@/libs"
-import { ChatService } from "@/services/ChatService"
+import { ChatController } from "../controllers"
+import { Database } from "../database"
+import { config, DatabaseServiceTools, FilePreviewProxy, getRequiredDatabaseConfig, Logger, MicroServiceHTTPServer, ProcessCluster } from "@/libs"
+import { ChatService } from "../services/ChatService"
+import { FileStorageService } from "../services/FileStorageService"
 
 ProcessCluster.run(config.process, startApplication, (error) => {
   const logger = new Logger()
@@ -13,7 +14,8 @@ function startApplication(): Promise<void> {
   const database = new Database(getRequiredDatabaseConfig())
   const httpServer = new MicroServiceHTTPServer({ port: config.http.port })
   const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
-  const service = new ChatService(database.models, databaseTools)
+  const fileStorageService = new FileStorageService(database.models.StoredFile, new FilePreviewProxy())
+  const service = new ChatService(database.models, databaseTools, fileStorageService)
 
   httpServer.use([...new ChatController(service).getRoutes()])
 

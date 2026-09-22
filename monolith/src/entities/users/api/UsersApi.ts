@@ -1,7 +1,7 @@
-﻿import type { ApiClient } from "@/application/api/ApiClient"
+import type { ApiRequester } from "@/shared/api"
 
 export class UsersApi {
-  constructor(private readonly api: ApiClient) { }
+  constructor(private readonly api: ApiRequester) { }
 
   list(): Promise<iSharedUser.ListUsersResponseDto> {
     return this.api.get<iSharedUser.ListUsersResponseDto>({

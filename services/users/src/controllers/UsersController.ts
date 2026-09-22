@@ -1,8 +1,12 @@
 import { MicroServiceController } from "@/libs"
-import { UsersService } from "@/services/UsersService"
+import { UsersService } from "../services/UsersService"
+import { RoleService } from "../services/RoleService"
 
 export class UsersController extends MicroServiceController {
-  constructor(private readonly service: UsersService) {
+  constructor(
+    private readonly service: UsersService,
+    private readonly roleService: RoleService
+  ) {
     super()
 
     const listRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListUsersResponseDto> = {
@@ -32,37 +36,37 @@ export class UsersController extends MicroServiceController {
     const rolesRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListRolesResponseDto> = {
       url: /^POST:\/users\/roles\/list\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "listRoles", this.listRoles.bind(this))
+      callback: this.handle(this.roleService.constructor.name, "listRoles", this.listRoles.bind(this))
     }
 
     const createRoleRoute: iContracts.iMicroServiceRoute<iSharedUserRole.CreateRolePayloadDto, iSharedUserRole.CreateRoleResponseDto> = {
       url: /^POST:\/users\/roles\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "createRole", this.createRole.bind(this))
+      callback: this.handle(this.roleService.constructor.name, "createRole", this.createRole.bind(this))
     }
 
     const updateRoleRoute: iContracts.iMicroServiceRoute<iSharedUserRole.UpdateRolePayloadDto, iSharedUserRole.UpdateRoleResponseDto> = {
       url: /^POST:\/users\/roles\/update\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "updateRole", this.updateRole.bind(this))
+      callback: this.handle(this.roleService.constructor.name, "updateRole", this.updateRole.bind(this))
     }
 
     const deleteRoleRoute: iContracts.iMicroServiceRoute<iSharedUserRole.DeleteRolePayloadDto, iSharedUserRole.DeleteRoleResponseDto> = {
       url: /^POST:\/users\/roles\/delete\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "deleteRole", this.deleteRole.bind(this))
+      callback: this.handle(this.roleService.constructor.name, "deleteRole", this.deleteRole.bind(this))
     }
 
     const permissionsRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListPermissionsResponseDto> = {
       url: /^POST:\/users\/permissions\/list\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "listPermissions", this.listPermissions.bind(this))
+      callback: this.handle(this.roleService.constructor.name, "listPermissions", this.listPermissions.bind(this))
     }
 
     const updateRolePermissionsRoute: iContracts.iMicroServiceRoute<iSharedUserRole.UpdateRolePermissionsPayloadDto, iSharedUserRole.UpdateRolePermissionsResponseDto> = {
       url: /^POST:\/users\/roles\/permissions\/update\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "updateRolePermissions", this.updateRolePermissions.bind(this))
+      callback: this.handle(this.roleService.constructor.name, "updateRolePermissions", this.updateRolePermissions.bind(this))
     }
 
     const updateSuperadministratorUsersRoute: iContracts.iMicroServiceRoute<iSharedUser.UpdateSuperadministratorUsersPayloadDto, iSharedUser.UpdateSuperadministratorUsersResponseDto> = {
@@ -104,12 +108,12 @@ export class UsersController extends MicroServiceController {
   }
 
   private listRoles(): Promise<iSharedUser.ListRolesResponseDto> {
-    return this.service.listRoles()
+    return this.roleService.listRoles()
       .then((roles) => ({ roles }))
   }
 
   private listPermissions(): Promise<iSharedUser.ListPermissionsResponseDto> {
-    return this.service.listPermissions()
+    return this.roleService.listPermissions()
       .then((permissions) => ({ permissions }))
   }
 
@@ -118,7 +122,7 @@ export class UsersController extends MicroServiceController {
       return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.createRole"))
     }
 
-    return this.service.createRole(payload.data, payload.requestId)
+    return this.roleService.createRole(payload.data, payload.requestId)
   }
 
   private updateRole(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.UpdateRolePayloadDto>): Promise<iSharedUserRole.UpdateRoleResponseDto> {
@@ -126,7 +130,7 @@ export class UsersController extends MicroServiceController {
       return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateRole"))
     }
 
-    return this.service.updateRole(payload.data, payload.requestId)
+    return this.roleService.updateRole(payload.data, payload.requestId)
   }
 
   private deleteRole(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.DeleteRolePayloadDto>): Promise<iSharedUserRole.DeleteRoleResponseDto> {
@@ -134,7 +138,7 @@ export class UsersController extends MicroServiceController {
       return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.deleteRole"))
     }
 
-    return this.service.deleteRole(payload.data, payload.requestId)
+    return this.roleService.deleteRole(payload.data, payload.requestId)
   }
 
   private updateRolePermissions(payload: iContracts.iMicroServiceRequestPayload<iSharedUserRole.UpdateRolePermissionsPayloadDto>): Promise<iSharedUserRole.UpdateRolePermissionsResponseDto> {
@@ -142,7 +146,7 @@ export class UsersController extends MicroServiceController {
       return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateRolePermissions"))
     }
 
-    return this.service.updateRolePermissions(payload.data, payload.requestId)
+    return this.roleService.updateRolePermissions(payload.data, payload.requestId)
   }
 
   private updateSuperadministratorUsers(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.UpdateSuperadministratorUsersPayloadDto>): Promise<iSharedUser.UpdateSuperadministratorUsersResponseDto> {
