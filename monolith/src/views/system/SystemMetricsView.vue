@@ -132,10 +132,10 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
 
 <template>
   <section class="p-4 lg:p-6">
-    <div class="mb-5 flex items-center justify-between gap-3">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Состояние системы</h1>
       <button
-        class="inline-flex min-h-9 items-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
+        class="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40 sm:w-auto"
         type="button"
         :disabled="isLoading"
         @click="loadMetrics"
@@ -160,7 +160,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
       </div>
       <div class="rounded-md border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
         <div class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Логи</div>
-        <div class="mt-1 flex items-baseline gap-3">
+        <div class="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span class="text-2xl font-semibold text-amber-600 dark:text-amber-300">{{ warningCount }}</span>
           <span class="text-sm text-slate-500 dark:text-slate-400">предупреждений</span>
           <span class="text-2xl font-semibold text-red-600 dark:text-red-300">{{ errorCount }}</span>
@@ -174,7 +174,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
     </div>
 
     <div class="overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div class="grid grid-cols-[12rem_6rem_10rem_10rem_10rem_minmax(12rem,1fr)_minmax(16rem,1.1fr)_6.5rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+      <div class="hidden grid-cols-[12rem_6rem_10rem_10rem_10rem_minmax(12rem,1fr)_minmax(16rem,1.1fr)_6.5rem] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 xl:grid">
         <span>Источник</span>
         <span>Статус</span>
         <span>CPU</span>
@@ -197,30 +197,36 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
         <article
           v-for="item in metrics"
           :key="item.packageUid"
-          class="grid grid-cols-[12rem_6rem_10rem_10rem_10rem_minmax(12rem,1fr)_minmax(16rem,1.1fr)_6.5rem] gap-3 px-4 py-3 text-sm"
+          class="grid min-w-0 grid-cols-2 gap-4 px-4 py-4 text-sm xl:grid-cols-[12rem_6rem_10rem_10rem_10rem_minmax(12rem,1fr)_minmax(16rem,1.1fr)_6.5rem] xl:gap-3 xl:py-3"
           :class="item.logSummary.errorCount ? 'bg-red-50/60 dark:bg-red-950/10' : item.logSummary.warnCount ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''"
         >
-          <div class="min-w-0">
-            <div class="truncate font-medium text-slate-950 dark:text-slate-50">{{ item.source }}</div>
+          <div class="col-span-2 min-w-0 xl:col-span-1">
+            <div class="break-words font-medium text-slate-950 dark:text-slate-50 xl:truncate">{{ item.source }}</div>
             <div v-if="item.status === 'online'" class="text-xs text-slate-500 dark:text-slate-400">{{ item.packageKind }}</div>
           </div>
 
-          <span>
+          <div>
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Статус</div>
             <span
               class="inline-flex rounded px-2 py-1 text-xs font-semibold"
               :class="item.status === 'online' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'"
             >
               {{ item.status === 'online' ? 'online' : 'unavailable' }}
             </span>
-          </span>
+          </div>
 
           <div v-if="item.status === 'online'" class="text-slate-700 dark:text-slate-200">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">CPU</div>
             {{ formatPercent(item.cpu.usagePercent) }}
             <div class="text-xs text-slate-500 dark:text-slate-400">{{ item.cpu.cores }} ядер</div>
           </div>
-          <div v-else class="text-slate-500 dark:text-slate-400">{{ item.reason }}</div>
+          <div v-else class="text-slate-500 dark:text-slate-400">
+            <div class="mb-1 text-xs font-semibold uppercase xl:hidden">Причина</div>
+            {{ item.reason }}
+          </div>
 
           <div v-if="item.status === 'online'" class="text-slate-700 dark:text-slate-200">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Память</div>
             {{ getMemoryPercent(item) }}%
             <div class="text-xs text-slate-500 dark:text-slate-400">
               heap {{ formatBytes(item.memory.heapUsedBytes) }}
@@ -229,6 +235,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
           <div v-else></div>
 
           <div v-if="item.status === 'online'" class="text-slate-700 dark:text-slate-200">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Диск</div>
             {{ getDiskPercent(item) }}%
             <div class="text-xs text-slate-500 dark:text-slate-400">
               свободно {{ formatBytes(item.disk.freeBytes) }}
@@ -236,7 +243,8 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
           </div>
           <div v-else></div>
 
-          <div v-if="item.status === 'online'" class="min-w-0 text-slate-700 dark:text-slate-200">
+          <div v-if="item.status === 'online'" class="col-span-2 min-w-0 text-slate-700 dark:text-slate-200 xl:col-span-1">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Runtime</div>
             <div>uptime {{ formatUptime(item.uptimeSeconds) }}</div>
             <div class="truncate text-xs text-slate-500 dark:text-slate-400">
               {{ item.hostname }} / {{ item.nodeVersion }} / {{ item.platform }}
@@ -247,7 +255,8 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
           </div>
           <div v-else></div>
 
-          <div class="min-w-0 text-slate-700 dark:text-slate-200" :class="getLogCellClass(item)">
+          <div class="col-span-2 min-w-0 text-slate-700 dark:text-slate-200 xl:col-span-1" :class="getLogCellClass(item)">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Логи</div>
             <div v-if="hasLogDetails(item)" class="mb-1 flex flex-wrap gap-2 text-xs">
               <span
                 class="rounded px-2 py-0.5 font-semibold"
@@ -282,7 +291,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="col-span-2 flex items-center justify-end gap-2 xl:col-span-1 xl:justify-start">
             <router-link
               class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               :to="{ name: 'system-package-logs', params: { packageUid: item.packageUid }, query: { source: item.source } }"

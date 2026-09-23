@@ -58,15 +58,17 @@ declare global {
       rooms: ChatRoomDto[]
     }
 
-    interface ChatMessagesListPayloadDto {
+    interface ChatMessagesListPayloadDto extends iSharedApi.PaginationPayloadDto {
       roomUid: string
     }
 
-    interface ChatMessagesListResponseDto {
+    interface ChatMessagesListResponseDto extends iSharedApi.PaginationDto {
       messages: ChatMessageDto[]
     }
 
-    interface ChatAvailableMembersListResponseDto {
+    type ChatAvailableMembersListPayloadDto = iSharedApi.PaginationPayloadDto
+
+    interface ChatAvailableMembersListResponseDto extends iSharedApi.PaginationDto {
       users: ChatAvailableMemberDto[]
     }
 

@@ -194,6 +194,7 @@ npm run project -- init <db-host> <db-admin-user> <db-admin-password>
 Полный init-flow генерирует package-local `.dev.env`, пересоздает development database,
 создает service database user, применяет миграции, выдает runtime grants из `package.config.json`,
 выполняет development seed и запускает dev-окружение.
+Database-этап выполняется одним процессом `database-migration`: одно admin connection обслуживает reset/setup/grants, а одно service connection — migrations/seed.
 
 `<db-host>` — host локального database server, который будет записан в generated `.dev.env` как `VAR_DB_HOST`.
 `<db-admin-user>` и `<db-admin-password>` — это учетные данные локального database server,
@@ -222,7 +223,7 @@ npm run project -- init <db-host> <db-admin-user> <db-admin-password>
 Режим `noNginx` не заменяет nginx в production и не выполняет CSRF/Origin policy на edge-уровне.
 
 Стандартные hostname, cookie domain, режим no-nginx и debug-логирование для init-flow задаются в локальном корневом `development.config.json`.
-Файл `development.config.json` не хранится в Git и предназначен для настроек конкретной машины.
+Файл `development.config.json` не хранится в Git и предназначен для настроек конкретной машины. Флаг `localhost.mockData` включает генерацию фиксированного набора mock-данных во время `init`: 500 пользователей, 20 ролей, 1 000 чатов и 50 000 сообщений.
 Если локальный файл отсутствует, root runner использует fallback `development.config.example.json`.
 Блок `localhost.database` необязателен; если он отсутствует, используется dialect `mysql`, port `3306` и `serviceHost` `%`.
 Если `localhost.debug` равен `true` или не задан, root runner генерирует `VAR_APP_LOG_LEVEL=debug`.

@@ -12,7 +12,7 @@ export class ChatController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "listRooms", this.listRooms.bind(this))
     }
 
-    const listAvailableMembersRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedChat.ChatAvailableMembersListResponseDto> = {
+    const listAvailableMembersRoute: iContracts.iMicroServiceRoute<iSharedChat.ChatAvailableMembersListPayloadDto, iSharedChat.ChatAvailableMembersListResponseDto> = {
       url: /^POST:\/chat\/members\/available\/?$/,
       method: "POST",
       callback: this.handle(this.service.constructor.name, "listAvailableMembers", this.listAvailableMembers.bind(this))
@@ -99,8 +99,8 @@ export class ChatController extends MicroServiceController {
     return this.service.listRooms(payload.data.userUid as UUID)
   }
 
-  private listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
-    return this.service.listAvailableMembers()
+  private listAvailableMembers(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatAvailableMembersListPayloadDto>): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
+    return this.service.listAvailableMembers(payload.data)
   }
 
   private listMessages(payload: iContracts.iMicroServiceRequestPayload<iSharedChat.ChatMessagesListPayloadDto & { userUid: string }>): Promise<iSharedChat.ChatMessagesListResponseDto> {

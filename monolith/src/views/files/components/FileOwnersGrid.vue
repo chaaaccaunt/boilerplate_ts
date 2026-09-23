@@ -14,11 +14,11 @@ const emit = defineEmits<{
       Пользователи не найдены.
     </div>
 
-    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-x-6 gap-y-7">
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(124px,1fr))] gap-x-6 gap-y-4">
       <button
         v-for="owner in owners"
         :key="owner.userUid"
-        class="group flex min-h-28 w-28 flex-col items-center justify-start gap-2 rounded-md px-2 py-2 text-center transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-blue-950/40"
+        class="group flex min-h-28 w-[124px] flex-col items-center justify-start gap-2 rounded-md px-2 py-2 text-center transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-blue-950/40"
         type="button"
         @click="emit('open-owner', owner)"
       >

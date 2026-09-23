@@ -157,13 +157,7 @@ function runLocalhostDatabaseReset(context, processRunner) {
 
   updateRuntimeDevelopmentEnvFiles(context.config, migrationWorkspaceDirectory)
 
-  return processRunner.runSequential([
-    createWorkspaceCommand(context, migrationWorkspaceName, "drop-database"),
-    createWorkspaceCommand(context, migrationWorkspaceName, "setup"),
-    createWorkspaceCommand(context, migrationWorkspaceName, "start"),
-    createWorkspaceCommand(context, migrationWorkspaceName, "grant-runtime"),
-    createWorkspaceCommand(context, migrationWorkspaceName, "seed-development")
-  ])
+  return processRunner.runCommand(createWorkspaceCommand(context, migrationWorkspaceName, "initialize-development"))
 }
 
 function handleWorkspace(context, processRunner, args) {

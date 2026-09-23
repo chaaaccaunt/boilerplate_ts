@@ -40,8 +40,6 @@ export class LogCollectorProtocol {
     const context = payload.context
     if (!context || typeof context !== "object" || Array.isArray(context)) return false
 
-    const method = context.method
-    if (method === "POST" || method === "PATCH" || method === "DELETE") return true
     if (context.mutation === true) return true
 
     const serviceMethod = context.serviceMethod

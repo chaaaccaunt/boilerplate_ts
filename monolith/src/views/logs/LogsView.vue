@@ -142,16 +142,16 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
 
 <template>
   <section class="p-4 lg:p-6">
-    <div class="mb-5 flex items-center justify-between gap-3">
-      <div class="min-w-0">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="min-w-0 max-w-full">
         <router-link class="mb-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" :to="{ name: 'system' }">
           Назад к системе
         </router-link>
-        <h1 class="truncate text-2xl font-semibold text-slate-950 dark:text-slate-50">Логи пакета {{ packageSource }}</h1>
-        <div class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ packageUid }}</div>
+        <h1 class="break-words text-2xl font-semibold text-slate-950 dark:text-slate-50 sm:truncate">Логи пакета {{ packageSource }}</h1>
+        <div class="mt-1 break-all text-sm text-slate-500 dark:text-slate-400 sm:truncate">{{ packageUid }}</div>
       </div>
       <button
-        class="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
+        class="inline-flex min-h-9 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40 sm:w-auto"
         type="button"
         :disabled="isLoading"
         @click="loadLogs"
@@ -255,7 +255,7 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
     </div>
 
     <div class="overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div class="grid grid-cols-[11rem_6rem_12rem_10rem_minmax(18rem,1fr)] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+      <div class="hidden grid-cols-[11rem_6rem_12rem_10rem_minmax(18rem,1fr)] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 xl:grid">
         <span>Время</span>
         <span>Уровень</span>
         <span>Тип</span>
@@ -279,19 +279,30 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
         <article
           v-for="log in filteredLogs"
           :key="log.uid"
-          class="grid grid-cols-[11rem_6rem_12rem_10rem_minmax(18rem,1fr)] gap-3 px-4 py-3 text-sm"
+          class="grid min-w-0 grid-cols-2 gap-4 px-4 py-4 text-sm xl:grid-cols-[11rem_6rem_12rem_10rem_minmax(18rem,1fr)] xl:gap-3 xl:py-3"
         >
-          <time class="text-slate-500 dark:text-slate-400" :datetime="log.timestamp">{{ formatDate(log.timestamp) }}</time>
-          <span>
+          <div>
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Время</div>
+            <time class="text-slate-500 dark:text-slate-400" :datetime="log.timestamp">{{ formatDate(log.timestamp) }}</time>
+          </div>
+          <div>
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Уровень</div>
             <span class="inline-flex rounded px-2 py-1 text-xs font-semibold" :class="getLevelClass(log.level)">
               {{ log.level }}
             </span>
-          </span>
-          <span class="text-slate-600 dark:text-slate-300">{{ getKindLabel(log.kind) }}</span>
-          <span class="truncate text-slate-600 dark:text-slate-300">{{ log.source }}</span>
+          </div>
           <div class="min-w-0">
-            <div class="font-medium text-slate-950 dark:text-slate-50">{{ log.message }}</div>
-            <pre class="mt-2 max-h-44 overflow-auto rounded bg-slate-950 p-3 text-xs leading-5 text-slate-100">{{ formatContext(log.context) }}</pre>
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Тип</div>
+            <div class="break-words text-slate-600 dark:text-slate-300">{{ getKindLabel(log.kind) }}</div>
+          </div>
+          <div class="min-w-0">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Источник</div>
+            <div class="break-words text-slate-600 dark:text-slate-300 xl:truncate">{{ log.source }}</div>
+          </div>
+          <div class="col-span-2 min-w-0 max-w-full xl:col-span-1">
+            <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 xl:hidden">Событие</div>
+            <div class="break-words font-medium text-slate-950 dark:text-slate-50">{{ log.message }}</div>
+            <pre class="mt-2 max-h-44 max-w-full overflow-auto rounded bg-slate-950 p-3 text-xs leading-5 text-slate-100">{{ formatContext(log.context) }}</pre>
           </div>
         </article>
       </div>

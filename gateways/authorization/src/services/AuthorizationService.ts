@@ -59,16 +59,24 @@ export class AuthorizationService {
       })
   }
 
-  listSessions(user: iContracts.iUserToken): Promise<iSharedAuthorization.UserSessionsListResponseDto> {
-    return this.userSessionModel.findAll({
+  listSessions(user: iContracts.iUserToken, payload: iSharedAuthorization.UserSessionsListPayloadDto = {}): Promise<iSharedAuthorization.UserSessionsListResponseDto> {
+    const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50)
+    const offset = Math.max(payload.offset ?? 0, 0)
+
+    return this.userSessionModel.findAndCountAll({
       where: {
         userUid: user.uid,
         revokedAt: null
       },
+      limit,
+      offset,
       order: [["lastSeenAt", "DESC"]]
     })
-      .then((sessions) => ({
-        sessions: sessions.map((session) => this.toSessionDto(session, user.sessionUid))
+      .then(({ count, rows }) => ({
+        sessions: rows.map((session) => this.toSessionDto(session, user.sessionUid)),
+        total: count,
+        limit,
+        offset
       }))
   }
 

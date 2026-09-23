@@ -34,6 +34,7 @@ function createProjectConfig() {
     localhostDatabaseServiceHost: getLocalhostDatabaseServiceHost(developmentConfig),
     localhostNoNginx: getLocalhostNoNginx(developmentConfig),
     localhostDebug: getLocalhostDebug(developmentConfig),
+    localhostMockData: getLocalhostMockData(developmentConfig),
     localhostPublicUserCookieDomain: developmentConfig.localhost.publicUserCookieDomain,
     localhostHttpOrigin: developmentConfig.localhost.httpOrigin,
     baseUrl: developmentConfig.localhost.baseUrl,
@@ -75,6 +76,7 @@ function getDevelopmentConfig() {
   validateRequiredDevelopmentConfigValue(localhost.baseUrl, "localhost.baseUrl", sourceConfigFileName)
   validateOptionalDevelopmentConfigBoolean(localhost.noNginx, "localhost.noNginx", sourceConfigFileName)
   validateOptionalDevelopmentConfigBoolean(localhost.debug, "localhost.debug", sourceConfigFileName)
+  validateOptionalDevelopmentConfigBoolean(localhost.mockData, "localhost.mockData", sourceConfigFileName)
   validateOptionalDatabaseConfig(localhost.database, sourceConfigFileName)
 
   return config
@@ -141,6 +143,10 @@ function getLocalhostNoNginx(developmentConfig) {
 
 function getLocalhostDebug(developmentConfig) {
   return developmentConfig.localhost.debug !== false
+}
+
+function getLocalhostMockData(developmentConfig) {
+  return developmentConfig.localhost.mockData === true
 }
 
 module.exports = {

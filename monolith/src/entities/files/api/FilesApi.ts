@@ -11,9 +11,13 @@ export class FilesApi {
     })
   }
 
-  listOwners(): Promise<iSharedFiles.ListFileOwnersResponseDto> {
+  listOwners(payload: iSharedFiles.ListFileOwnersPayloadDto = {}): Promise<iSharedFiles.ListFileOwnersResponseDto> {
+    const search = new URLSearchParams()
+    if (payload.limit !== undefined && Number.isFinite(payload.limit)) search.set("limit", String(payload.limit))
+    if (payload.offset !== undefined && Number.isFinite(payload.offset)) search.set("offset", String(payload.offset))
+
     return this.api.get<iSharedFiles.ListFileOwnersResponseDto>({
-      path: "/files/owners/",
+      path: `/files/owners/${search.size ? `?${search.toString()}` : ""}` as `/${string}`,
       commit: "files/setOwners"
     })
   }

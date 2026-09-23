@@ -88,7 +88,7 @@ private readonly exceptions: iLibs.Exceptions
 ```
 
 `AppConfiguration`, env helpers и готовый `config` относятся к libs и должны находиться внутри `./libs/Config`.
-Отдельный bootstrap layer не используется.
+Runtime backend packages запускаются через общий `ApplicationRunner` из `./libs/ApplicationRunner`. Runner создает экземпляр переданного package-local application-класса внутри worker callback и вызывает его метод `start()`. Создание database connections, HTTP servers, controllers и services остается внутри этого метода.
 
 ## HTTP transport для gateway и микросервисов
 

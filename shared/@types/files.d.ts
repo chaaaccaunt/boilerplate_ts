@@ -82,7 +82,9 @@ declare global {
       breadcrumbs: FileFolderDto[]
     }
 
-    interface ListFileOwnersResponseDto {
+    type ListFileOwnersPayloadDto = iSharedApi.PaginationPayloadDto
+
+    interface ListFileOwnersResponseDto extends iSharedApi.PaginationDto {
       owners: FileOwnerDto[]
     }
 

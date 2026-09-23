@@ -19,12 +19,18 @@
 
     interface UsersState {
       users: iSharedUser.PublicUserDto[]
+      total: number
+      limit: number
+      offset: number
       roles: iSharedUserRole.UserRoleDto[]
       permissions: iSharedPermission.PermissionDto[]
     }
 
     interface FilesState {
       owners: iSharedFiles.FileOwnerDto[]
+      ownersTotal: number
+      ownersLimit: number
+      ownersOffset: number
       files: iSharedFiles.UploadedFileDto[]
       folders: iSharedFiles.FileFolderDto[]
       documents: iSharedFiles.StoredDocumentListItemDto[]
@@ -49,6 +55,7 @@
       rooms: iSharedChat.ChatRoomDto[]
       activeRoomUid: string | null
       messagesByRoomUid: Record<string, iSharedChat.ChatMessageDto[]>
+      messagePaginationByRoomUid: Record<string, iSharedApi.PaginationDto>
     }
 
     interface RootState {

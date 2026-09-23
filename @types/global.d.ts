@@ -103,6 +103,7 @@ declare global {
       url: RegExp
       method: "GET" | "POST" | "PATCH" | "DELETE"
       callback: iMicroServiceRouteCallback<iMicroServiceRequestPayload<P>, R>
+      logSuccessfulResult?: boolean
     }
 
     interface iCommonValues {

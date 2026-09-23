@@ -29,6 +29,8 @@ export interface DatabaseRuntimeUserGrant {
   operations: string[]
 }
 
+export type DevelopmentDatabaseInitializationStep = "drop-database" | "setup" | "runtime-grants"
+
 const allowedGrantNames = new Set([
   "SELECT",
   "INSERT",
@@ -59,6 +61,31 @@ export class DatabaseSetupService {
       dialectModule: this.getDialectModule(),
       logging: false
     })
+  }
+
+  initializeDevelopmentDatabase(
+    initializeDatabase: () => Promise<void>,
+    handleStepCompleted: (step: DevelopmentDatabaseInitializationStep) => void = () => undefined
+  ): Promise<void> {
+    this.assertDevelopmentMode()
+    this.validateDropConfig()
+    this.validateConfig()
+
+    return this.sequelize.authenticate()
+      .then(() => this.dropDatabase())
+      .then(() => handleStepCompleted("drop-database"))
+      .then(() => this.createServiceUser())
+      .then(() => this.createDatabase())
+      .then(() => this.revokeUserPermissions(this.config.serviceUserName, this.config.serviceUserHost))
+      .then(() => this.grantServiceUserPermissions())
+      .then(() => handleStepCompleted("setup"))
+      .then(() => initializeDatabase())
+      .then(() => this.createRuntimeUsers())
+      .then(() => handleStepCompleted("runtime-grants"))
+      .then(() => this.sequelize.close())
+      .catch((error) => this.sequelize.close()
+        .catch(() => undefined)
+        .then(() => Promise.reject(error)))
   }
 
   setup(): Promise<void> {

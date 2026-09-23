@@ -14,20 +14,28 @@ export class ChatApi {
       })
   }
 
-  listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
+  listAvailableMembers(payload: iSharedChat.ChatAvailableMembersListPayloadDto = {}): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
+    const search = new URLSearchParams()
+    if (payload.limit !== undefined) search.set("limit", String(payload.limit))
+    if (payload.offset !== undefined) search.set("offset", String(payload.offset))
+
     return this.api.get<iSharedChat.ChatAvailableMembersListResponseDto>({
-      path: "/chat/members/available"
+      path: `/chat/members/available${search.size ? `?${search.toString()}` : ""}` as `/${string}`
     })
   }
 
-  listMessages(roomUid: string): Promise<iSharedChat.ChatMessagesListResponseDto> {
+  listMessages(payload: iSharedChat.ChatMessagesListPayloadDto): Promise<iSharedChat.ChatMessagesListResponseDto> {
+    const search = new URLSearchParams({ roomUid: payload.roomUid })
+    if (payload.limit !== undefined) search.set("limit", String(payload.limit))
+    if (payload.offset !== undefined) search.set("offset", String(payload.offset))
+
     return this.api.get<iSharedChat.ChatMessagesListResponseDto>({
-      path: `/chat/messages?roomUid=${encodeURIComponent(roomUid)}` as `/${string}`
+      path: `/chat/messages?${search.toString()}` as `/${string}`
     })
       .then((result) => {
         this.api.commit("chat/setMessages", {
-          roomUid,
-          messages: result.messages
+          roomUid: payload.roomUid,
+          ...result
         })
 
         return result

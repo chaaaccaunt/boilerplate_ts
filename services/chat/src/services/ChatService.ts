@@ -27,18 +27,30 @@ export class ChatService {
       }))
   }
 
-  listAvailableMembers(): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
-    return this.models.User.findAll({
+  listAvailableMembers(payload: iSharedChat.ChatAvailableMembersListPayloadDto = {}): Promise<iSharedChat.ChatAvailableMembersListResponseDto> {
+    const limit = Math.min(Math.max(payload.limit ?? 25, 1), 100)
+    const offset = Math.max(payload.offset ?? 0, 0)
+
+    return this.models.User.findAndCountAll({
+      limit,
+      offset,
       order: [["lastName", "ASC"], ["firstName", "ASC"]]
     })
-      .then((users) => ({
-        users: users.map((user) => this.toAvailableMemberDto(user))
+      .then(({ count, rows }) => ({
+        users: rows.map((user) => this.toAvailableMemberDto(user)),
+        total: count,
+        limit,
+        offset
       }))
   }
 
   listMessages(userUid: UUID, payload: iSharedChat.ChatMessagesListPayloadDto): Promise<iSharedChat.ChatMessagesListResponseDto> {
+    const limit = Math.min(Math.max(payload.limit ?? 50, 1), 100)
+    const offset = Math.max(payload.offset ?? 0, 0)
+
     return this.assertRoomAccess(userUid, payload.roomUid)
-      .then(() => this.models.ChatMessage.findAll({
+      .then(() => this.models.ChatMessage.findAndCountAll({
+        distinct: true,
         where: { roomUid: payload.roomUid },
         include: [
           { association: this.models.ChatMessage.associations.sender },
@@ -47,11 +59,15 @@ export class ChatService {
             include: [{ association: this.models.ChatMessageFile.associations.storedFile }]
           }
         ],
-        order: [["createdAt", "ASC"]],
-        limit: 100
+        order: [["createdAt", "DESC"]],
+        limit,
+        offset
       }))
-      .then((messages) => ({
-        messages: messages.map((message) => this.toMessageDto(message, userUid))
+      .then(({ count, rows }) => ({
+        messages: rows.reverse().map((message) => this.toMessageDto(message, userUid)),
+        total: count,
+        limit,
+        offset
       }))
   }
 

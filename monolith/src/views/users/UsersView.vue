@@ -5,6 +5,7 @@ import { useApiClient } from "@/application/api"
 import ModalHost from "@/application/providers/ModalHost.vue"
 import { useStore } from "@/application/store"
 import { ApiError } from "@/shared/api"
+import PaginationControls from "@/shared/ui/PaginationControls.vue"
 import UserCreateForm from "./components/UserCreateForm.vue"
 import UserEditForm from "./components/UserEditForm.vue"
 import RolesPanel from "./components/RolesPanel.vue"
@@ -19,8 +20,13 @@ const isCreateModalOpen = ref(false)
 const editedUser = ref<iSharedUser.PublicUserDto | null>(null)
 const deletedUser = ref<iSharedUser.PublicUserDto | null>(null)
 const isDeleting = ref(false)
+const pageSize = 25
 
 const users = computed(() => store.state.users.users)
+const usersTotal = computed(() => store.state.users.total)
+const usersOffset = computed(() => store.state.users.offset)
+const currentPage = computed(() => Math.floor(usersOffset.value / pageSize) + 1)
+const totalPages = computed(() => Math.max(1, Math.ceil(usersTotal.value / pageSize)))
 const roles = computed(() => store.state.users.roles)
 const permissions = computed(() => store.state.users.permissions)
 const currentUser = computed(() => store.state.authorization.user)
@@ -36,14 +42,14 @@ onMounted(() => {
   loadUsers()
 })
 
-function loadUsers(): void {
+function loadUsers(loadReferences = true, offset = usersOffset.value): void {
   isLoading.value = true
   errorMessage.value = ""
 
   Promise.all([
-    canReadUsers.value ? apiClient.users.list() : Promise.resolve(),
-    canReadRoles.value ? apiClient.users.listRoles() : Promise.resolve(),
-    canReadPermissions.value ? apiClient.users.listPermissions() : Promise.resolve()
+    canReadUsers.value ? apiClient.users.list({ limit: pageSize, offset }) : Promise.resolve(),
+    loadReferences && canReadRoles.value ? apiClient.users.listRoles() : Promise.resolve(),
+    loadReferences && canReadPermissions.value ? apiClient.users.listPermissions() : Promise.resolve()
   ])
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось загрузить пользователей"
@@ -51,6 +57,11 @@ function loadUsers(): void {
     .finally(() => {
       isLoading.value = false
     })
+}
+
+function changePage(page: number): void {
+  const normalizedPage = Math.min(Math.max(page, 1), totalPages.value)
+  loadUsers(false, (normalizedPage - 1) * pageSize)
 }
 
 function openEditModal(user: iSharedUser.PublicUserDto): void {
@@ -104,11 +115,14 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
 
 <template>
   <section class="p-4 lg:p-6">
-    <div class="mb-5 flex items-center justify-between gap-3">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Пользователи</h1>
-      <div class="flex items-center gap-2">
+      <div
+        class="grid w-full gap-2 sm:flex sm:w-auto sm:items-center"
+        :class="canCreateUsers ? 'grid-cols-2' : 'grid-cols-1'"
+      >
         <button
-          class="inline-flex min-h-9 items-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
+          class="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
           type="button"
           :disabled="isLoading"
           @click="loadUsers"
@@ -118,7 +132,7 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
         </button>
         <button
           v-if="canCreateUsers"
-          class="inline-flex min-h-9 items-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           type="button"
           @click="isCreateModalOpen = true"
         >
@@ -151,7 +165,14 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
       @delete="openDeleteModal"
     />
 
-    <ModalHost v-model="isCreateModalOpen" labelled-by="user-create-modal-title" panel-class="max-h-[92vh] overflow-hidden">
+    <div v-if="canReadUsers && usersTotal > pageSize" class="mt-4 grid justify-items-start gap-2">
+      <span class="text-sm text-slate-500 dark:text-slate-400">
+        Страница {{ currentPage }} из {{ totalPages }} · всего {{ usersTotal }}
+      </span>
+      <PaginationControls :current-page="currentPage" :total-pages="totalPages" :disabled="isLoading" @change="changePage" />
+    </div>
+
+    <ModalHost v-model="isCreateModalOpen" labelled-by="user-create-modal-title" panel-class="max-h-[92vh] max-w-2xl overflow-hidden">
       <template #default="{ close }">
         <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 id="user-create-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50">
@@ -170,7 +191,7 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
       </template>
     </ModalHost>
 
-    <ModalHost :model-value="Boolean(editedUser)" labelled-by="user-edit-modal-title" panel-class="max-h-[92vh] overflow-hidden" @update:model-value="closeEditModal">
+    <ModalHost :model-value="Boolean(editedUser)" labelled-by="user-edit-modal-title" panel-class="max-h-[92vh] max-w-2xl overflow-hidden" @update:model-value="closeEditModal">
       <template #default="{ close }">
         <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 id="user-edit-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50">

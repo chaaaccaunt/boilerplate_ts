@@ -19,6 +19,7 @@ const mutations: MutationTree<iSharedState.ChatState> = {
   removeRoom(state, roomUid: string) {
     state.rooms = state.rooms.filter((room) => room.uid !== roomUid)
     delete state.messagesByRoomUid[roomUid]
+    delete state.messagePaginationByRoomUid[roomUid]
 
     if (state.activeRoomUid === roomUid) {
       const publicRoom = state.rooms.find((room) => room.type === "public")
@@ -30,8 +31,16 @@ const mutations: MutationTree<iSharedState.ChatState> = {
     state.activeRoomUid = roomUid
   },
 
-  setMessages(state, payload: { roomUid: string, messages: iSharedChat.ChatMessageDto[] }) {
-    state.messagesByRoomUid[payload.roomUid] = payload.messages
+  setMessages(state, payload: { roomUid: string } & iSharedChat.ChatMessagesListResponseDto) {
+    const currentMessages = state.messagesByRoomUid[payload.roomUid] || []
+    state.messagesByRoomUid[payload.roomUid] = payload.offset === 0
+      ? payload.messages
+      : payload.messages.concat(currentMessages.filter((message) => !payload.messages.some((item) => item.uid === message.uid)))
+    state.messagePaginationByRoomUid[payload.roomUid] = {
+      total: payload.total,
+      limit: payload.limit,
+      offset: payload.offset
+    }
   },
 
   addMessage(state, message: iSharedChat.ChatMessageDto) {
@@ -57,7 +66,8 @@ export const chat: Module<iSharedState.ChatState, iSharedState.RootState> = {
   state: () => ({
     rooms: [],
     activeRoomUid: null,
-    messagesByRoomUid: {}
+    messagesByRoomUid: {},
+    messagePaginationByRoomUid: {}
   }),
 
   mutations

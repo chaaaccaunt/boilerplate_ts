@@ -38,8 +38,8 @@ export class AuthorizationGatewayController extends HTTPController {
       callback: this.handle("state", this.state.bind(this))
     }
 
-    const sessionsRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedAuthorization.UserSessionsListResponseDto>> = {
-      url: /^\/authorization\/sessions\/?$/,
+    const sessionsRoute: iContracts.iRoute<iSharedAuthorization.UserSessionsListPayloadDto, iContracts.iControllerResult<iSharedAuthorization.UserSessionsListResponseDto>> = {
+      url: /^\/authorization\/sessions(?:\?.*)?$/,
       method: "GET",
       requireAuthorization: true,
       clearCookiesOnError: this.getAuthorizationCookieNames(),
@@ -121,11 +121,25 @@ export class AuthorizationGatewayController extends HTTPController {
       }))
   }
 
-  private sessions(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedAuthorization.UserSessionsListResponseDto>> {
+  private sessions(payload: iContracts.iRequestContextPayload<iSharedAuthorization.UserSessionsListPayloadDto>): Promise<iContracts.iControllerResult<iSharedAuthorization.UserSessionsListResponseDto>> {
     if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
 
-    return this.service.listSessions(payload.user)
+    return this.service.listSessions(payload.user, {
+      limit: this.getPaginationNumber(payload.data?.limit, 10, 1, 50),
+      offset: this.getPaginationNumber(payload.data?.offset, 0, 0, Number.MAX_SAFE_INTEGER)
+    })
       .then((result) => ({ data: result }))
+  }
+
+  private getPaginationNumber(value: unknown, defaultValue: number, minimum: number, maximum: number): number {
+    if (value === undefined || value === null || value === "") return defaultValue
+
+    const numberValue = typeof value === "number" ? value : Number(value)
+    if (!Number.isSafeInteger(numberValue) || numberValue < minimum || numberValue > maximum) {
+      throw new Exceptions.ControllerError.ConflictError("Некорректные параметры пагинации сессий")
+    }
+
+    return numberValue
   }
 
   private revokeSession(payload: iContracts.iRequestContextPayload<iSharedAuthorization.RevokeUserSessionPayloadDto>): Promise<iContracts.iControllerResult<iSharedAuthorization.RevokeUserSessionResponseDto>> {

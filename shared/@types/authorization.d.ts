@@ -44,7 +44,9 @@
       isCurrent: boolean
     }
 
-    interface UserSessionsListResponseDto {
+    type UserSessionsListPayloadDto = iSharedApi.PaginationPayloadDto
+
+    interface UserSessionsListResponseDto extends iSharedApi.PaginationDto {
       sessions: UserSessionDto[]
     }
 

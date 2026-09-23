@@ -31,8 +31,8 @@ export class FilesController extends HTTPController {
       callback: this.handle("list", this.list.bind(this))
     }
 
-    const ownersRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedFiles.ListFileOwnersResponseDto>> = {
-      url: /^\/files\/owners\/?$/,
+    const ownersRoute: iContracts.iRoute<iSharedFiles.ListFileOwnersPayloadDto, iContracts.iControllerResult<iSharedFiles.ListFileOwnersResponseDto>> = {
+      url: /^\/files\/owners\/?(?:\?.*)?$/,
       method: "GET",
       requireAuthorization: true,
       callback: this.handle("listOwners", this.listOwners.bind(this))
@@ -236,11 +236,25 @@ export class FilesController extends HTTPController {
       }))
   }
 
-  private listOwners(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedFiles.ListFileOwnersResponseDto>> {
+  private listOwners(payload: iContracts.iRequestContextPayload<iSharedFiles.ListFileOwnersPayloadDto>): Promise<iContracts.iControllerResult<iSharedFiles.ListFileOwnersResponseDto>> {
     if (!payload.user) throw new Exceptions.ControllerError.UnauthorizedError()
 
-    return this.service.listOwners(payload.user)
+    return this.service.listOwners(payload.user, {
+      limit: this.getPaginationNumber(payload.data?.limit, 25, 1, 100),
+      offset: this.getPaginationNumber(payload.data?.offset, 0, 0, Number.MAX_SAFE_INTEGER)
+    })
       .then((data) => ({ data }))
+  }
+
+  private getPaginationNumber(value: unknown, defaultValue: number, minimum: number, maximum: number): number {
+    if (value === undefined || value === null || value === "") return defaultValue
+
+    const numberValue = typeof value === "number" ? value : Number(value)
+    if (!Number.isSafeInteger(numberValue) || numberValue < minimum || numberValue > maximum) {
+      throw new Exceptions.ControllerError.ConflictError("Некорректные параметры пагинации владельцев файлов")
+    }
+
+    return numberValue
   }
 
   private getMetadata(payload: iContracts.iRequestContextPayload<iSharedFiles.GetFileMetadataPayloadDto>): Promise<iContracts.iControllerResult<iSharedFiles.GetFileMetadataResponseDto>> {

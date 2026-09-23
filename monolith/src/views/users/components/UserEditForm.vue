@@ -71,12 +71,12 @@ function updateUser(): void {
 </script>
 
 <template>
-  <form class="max-h-[calc(92vh-4.5rem)] overflow-y-auto px-5 py-4" @submit.prevent="updateUser">
+  <form class="grid max-h-[calc(92vh-4.5rem)] gap-4 overflow-y-auto px-5 py-4" @submit.prevent="updateUser">
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
     </div>
 
-    <div class="mb-4">
+    <div>
       <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="edit-user-login">Логин</label>
       <input id="edit-user-login" v-model="login" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="email" required>
     </div>
@@ -92,18 +92,18 @@ function updateUser(): void {
       </div>
     </div>
 
-    <div class="my-4">
+    <div>
       <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="edit-user-surname">Отчество</label>
       <input id="edit-user-surname" v-model="surname" class="h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:focus:ring-blue-950" type="text">
     </div>
 
-    <div class="mb-5">
+    <div>
       <div class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">Роли</div>
-      <div class="grid gap-2 rounded-md border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-950">
+      <div class="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-slate-300 p-2 sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-950">
         <label
           v-for="role in roles"
           :key="role.uid"
-          class="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+          class="flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
         >
           <input
             v-model="selectedRoleNames"
@@ -111,7 +111,7 @@ function updateUser(): void {
             type="checkbox"
             :value="role.name"
           >
-          <span>{{ role.name }}</span>
+          <span class="truncate">{{ role.name }}</span>
         </label>
       </div>
     </div>

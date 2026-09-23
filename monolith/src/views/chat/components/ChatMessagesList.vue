@@ -9,10 +9,13 @@ const props = defineProps<{
   messages: iSharedChat.ChatMessageDto[]
   activeRoomUid: string | null
   errorMessage: string
+  hasOlderMessages: boolean
+  isLoadingOlder: boolean
   resolveFileUrl: (path: string) => string
 }>()
 
 const emit = defineEmits<{
+  (event: "load-older"): void
   (event: "update-message", payload: iSharedChat.ChatMessageUpdatePayloadDto): void
   (event: "delete-message", payload: iSharedChat.ChatMessageDeletePayloadDto): void
   (event: "delete-message-file", payload: iSharedChat.ChatMessageFileDeletePayloadDto): void
@@ -226,6 +229,17 @@ function extractFileUid(url: string): string | null {
   <div ref="messagesContainer" class="relative min-h-0 min-w-0 overflow-auto p-4" @scroll="updateAutoScrollLock">
     <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
       {{ errorMessage }}
+    </div>
+
+    <div v-if="hasOlderMessages" class="mb-4 flex justify-center">
+      <button
+        class="min-h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        type="button"
+        :disabled="isLoadingOlder"
+        @click="emit('load-older')"
+      >
+        {{ isLoadingOlder ? "Загрузка..." : "Загрузить предыдущие" }}
+      </button>
     </div>
 
     <div

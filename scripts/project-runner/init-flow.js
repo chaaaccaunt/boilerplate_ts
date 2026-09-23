@@ -110,7 +110,8 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
     VAR_DB_ADMIN_PASSWORD: databaseAdminPassword,
     VAR_DB_SERVICE_HOST: config.localhostDatabaseServiceHost,
     VAR_DB_SERVICE_GRANTS: "SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,DROP,INDEX,REFERENCES",
-    VAR_DB_RUNTIME_GRANTS: JSON.stringify(runtimeGrants)
+    VAR_DB_RUNTIME_GRANTS: JSON.stringify(runtimeGrants),
+    VAR_DB_GENERATE_MOCK_DATA: config.localhostMockData ? "true" : "false"
   })
 
   writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts, options)

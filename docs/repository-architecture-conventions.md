@@ -347,6 +347,8 @@ npm run project -- init <db-host> <db-admin-user> <db-admin-password>
 4. выдать runtime database grants на созданные таблицы;
 5. выполнить development seed.
 
+Root runner выполняет эти шаги одним package-local процессом `initialize-development`. Admin connection сохраняется на время всей цепочки, а миграции и seed используют одно service connection; отдельные scripts остаются доступны для точечных операций.
+
 Отдельная root-команда для пересоздания базы данных не используется.
 Пересоздание базы данных не должно иметь production/dist-вариант.
 Оно обязано завершаться ошибкой при `NODE_ENV=production` и дополнительно проверять, что имя базы данных явно относится к development/test/local окружению.

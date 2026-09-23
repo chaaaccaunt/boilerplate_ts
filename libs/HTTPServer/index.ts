@@ -261,13 +261,22 @@ export class HTTPServer {
       method: request.method,
       path: request.url,
       status,
+      mutation: request.method === "POST" || request.method === "PATCH" || request.method === "DELETE",
       trace: context.traceContext.getTrace()
     })
   }
 
   private shouldLogRequest(request: IncomingMessage, status: number): boolean {
+    if (this.isExpectedUnauthorizedStateRequest(request, status)) return false
     if (status >= 400) return true
     return request.method === "POST" || request.method === "PATCH" || request.method === "DELETE"
+  }
+
+  private isExpectedUnauthorizedStateRequest(request: IncomingMessage, status: number): boolean {
+    if (status !== 401 || request.method !== "GET" || !request.url) return false
+
+    const path = request.url.split("?")[0]
+    return /^\/v1\/gateway\/authorization\/state\/?$/.test(path)
   }
 
   private shouldHandlePreflight(request: IncomingMessage): boolean {

@@ -6,8 +6,8 @@ export class UsersGatewayController extends HTTPController {
   constructor(private readonly usersServiceClient: MicroServiceHTTPClient) {
     super()
 
-    const listRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> = {
-      url: /^\/users\/?$/,
+    const listRoute: iContracts.iRoute<iSharedUser.ListUsersPayloadDto, iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> = {
+      url: /^\/users(?:\?.*)?$/,
       method: "GET",
       requireAuthorization: true,
       callback: this.handle("list", this.list.bind(this))
@@ -159,17 +159,39 @@ export class UsersGatewayController extends HTTPController {
       callback: this.handle("updateSuperadministratorUsers", this.updateSuperadministratorUsers.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute])
+    const listSuperadministratorUsersRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedUser.ListSuperadministratorUsersResponseDto>> = {
+      url: /^\/users\/superadministrators\/?$/,
+      method: "GET",
+      requireAuthorization: true,
+      callback: this.handle("listSuperadministratorUsers", this.listSuperadministratorUsers.bind(this))
+    }
+
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute, listSuperadministratorUsersRoute])
   }
 
-  private list(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> {
+  private list(payload: iContracts.iRequestContextPayload<iSharedUser.ListUsersPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.ListUsersResponseDto>> {
     this.accessPermissions(payload, ["users.read", "users.update", "users.delete"], ["superadministrator"])
 
-    return this.usersServiceClient.request<iSharedUser.ListUsersResponseDto>({
+    return this.usersServiceClient.request<iSharedUser.ListUsersResponseDto, iSharedUser.ListUsersPayloadDto>({
       requestId: payload.requestId,
-      path: "/users/list"
+      path: "/users/list",
+      payload: {
+        limit: this.getPaginationNumber(payload.data?.limit, 25, 1, 100),
+        offset: this.getPaginationNumber(payload.data?.offset, 0, 0, Number.MAX_SAFE_INTEGER)
+      }
     })
       .then((data) => ({ data }))
+  }
+
+  private getPaginationNumber(value: unknown, defaultValue: number, minimum: number, maximum: number): number {
+    if (value === undefined || value === null || value === "") return defaultValue
+
+    const numberValue = typeof value === "number" ? value : Number(value)
+    if (!Number.isSafeInteger(numberValue) || numberValue < minimum || numberValue > maximum) {
+      throw new Exceptions.ControllerError.ConflictError("Некорректные параметры пагинации пользователей")
+    }
+
+    return numberValue
   }
 
   private create(payload: iContracts.iRequestContextPayload<iSharedUser.CreateUserPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.CreateUserResponseDto>> {
@@ -293,6 +315,16 @@ export class UsersGatewayController extends HTTPController {
       requestId: payload.requestId,
       path: "/users/superadministrators/update",
       payload: payload.data
+    })
+      .then((data) => ({ data }))
+  }
+
+  private listSuperadministratorUsers(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedUser.ListSuperadministratorUsersResponseDto>> {
+    this.access(payload, ["superadministrator"])
+
+    return this.usersServiceClient.request<iSharedUser.ListSuperadministratorUsersResponseDto>({
+      requestId: payload.requestId,
+      path: "/users/superadministrators/list"
     })
       .then((data) => ({ data }))
   }

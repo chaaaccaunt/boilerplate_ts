@@ -5,6 +5,7 @@
     "baseUrl": "http://localhost:4200",
     "noNginx": false,
     "debug": true,
+    "mockData": false,
     "database": {
       "dialect": "mysql",
       "port": "3306",

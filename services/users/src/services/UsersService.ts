@@ -10,15 +10,26 @@ export class UsersService {
     private readonly databaseTools: iLibs.DatabaseServiceTools
   ) { }
 
-  list(): Promise<iSharedUser.PublicUserDto[]> {
-    return this.userModel.findAll({
+  list(payload: iSharedUser.ListUsersPayloadDto = {}): Promise<iSharedUser.ListUsersResponseDto> {
+    const limit = Math.min(Math.max(payload.limit ?? 25, 1), 100)
+    const offset = Math.max(payload.offset ?? 0, 0)
+
+    return this.userModel.findAndCountAll({
+      distinct: true,
+      limit,
+      offset,
       order: [["createdAt", "DESC"]],
       include: [{
         association: this.userModel.associations.roles,
         include: [this.createUserRoleRoleInclude()]
       }]
     })
-      .then((users) => users.map((user) => this.toPublicUserDto(user)))
+      .then(({ count, rows }) => ({
+        users: rows.map((user) => this.toPublicUserDto(user)),
+        total: count,
+        limit,
+        offset
+      }))
   }
   create(payload: iSharedUser.CreateUserPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
     return this.assertLoginAvailable(payload.login)
@@ -101,7 +112,17 @@ export class UsersService {
             return this.updateRoleUsers(role.uid, uniqueUserUids, requestId)
           })
       })
-      .then(() => this.list())
+      .then(() => Promise.all(uniqueUserUids.map((userUid) => this.findPublicUser(userUid as UUID))))
+  }
+
+  listSuperadministratorUserUids(): Promise<string[]> {
+    return this.roleModel.findOne({ where: { name: "superadministrator" } })
+      .then((role) => {
+        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль superadministrator не найдена")
+
+        return this.userRoleModel.findAll({ where: { roleUid: role.uid } })
+      })
+      .then((userRoles) => userRoles.map((userRole) => String(userRole.userUid)))
   }
 
   private assertLoginAvailable(login: string, currentUserUid?: string): Promise<void> {

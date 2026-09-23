@@ -102,6 +102,7 @@ GET /v1/gateway/authorization/state
 ```
 
 Backend route `/authorization/state` должен использовать `requireAuthorization: true`, а `httpServer` должен выполнить `httpTokenValidator` на pre-controller этапе.
+Ожидаемый ответ `401 Unauthorized` от `GET /authorization/state` для неавторизованного пользователя не записывается в журнал запросов. Остальные ответы `401` продолжают логироваться.
 
 Если authorization cookie и JWT валидны, endpoint должен вернуть `200 OK` и стандартный response envelope:
 
@@ -155,7 +156,7 @@ Runtime backend в production отвечает за подключение к Б
 
 ## Кластеризация процессов
 
-Обычные HTTP services и gateways могут запускаться через общий `ProcessCluster` из `@/libs`.
+Runtime HTTP services и gateways запускаются через общий `ApplicationRunner` из `@/libs`. Для обычных HTTP packages runner получает `config.process` и делегирует кластеризацию в `ProcessCluster`.
 Кластеризация управляется package-local env: `VAR_PROCESS_CLUSTER_ENABLED` по умолчанию равен `false`, а `VAR_PROCESS_CLUSTER_WORKERS` принимает `auto` или положительное целое число.
 Создание database connections, HTTP servers, controllers и service instances выполняется только внутри worker callback; primary process не инициализирует application runtime.
 Realtime gateway, log collector и migration utility не кластеризуются без отдельной архитектуры для разделяемого состояния.
@@ -494,6 +495,7 @@ nginx не включается в logging map.
 
 При `VAR_APP_LOG_LEVEL=debug` backend packages отправляют в `log-collector` все записи, включая `debug`, обычные `GET` requests, read-only internal calls и события подключения/отключения WebSocket.
 В этом режиме все записи печатаются в консоль, но в `log_records` сохраняются только важные события: mutation, ошибки, lifecycle подключения/отключения packages к `log-collector` и авторизации пользователей.
+Internal transport использует `POST` и для чтения, поэтому HTTP method сам по себе не является признаком mutation. Public gateway помечает state-changing request через `context.mutation`, а service result определяется по mutating-префиксу метода.
 При обычном log level `debug`-логи используются только как локальная диагностическая детализация runtime и не отправляются в `log-collector`.
 При обычном log level HTTP-запросы `GET`, `POST`, `PATCH`, `DELETE` и SQL-запросы печатаются в консоль; в `log_records` сохраняются только важные события по той же политике отбора.
 
@@ -516,6 +518,7 @@ Root runner прокидывает это значение в package-local env 
 
 Подключение backend-сервиса или gateway к `log-collector` выделяется записью `kind: collector_connection`, `level: info`, `message: Подключение к log collector установлено`.
 Отключение backend-сервиса или gateway от `log-collector` фиксируется самим `log-collector` как `kind: collector_disconnection`, `level: error`, `message: Потеряно подключение к log collector`, потому что потеря канала доставки логов является тревожным событием.
+Realtime relay package lifecycle не должен сохранять общий transport-log `результат работы сервиса`. Вместо него записывается предметное сообщение о подключении или отключении с `source`, `packageUid`, типом события и временем.
 
 `log-collector` использует двусторонний TCP protocol с подключенными backend-сервисами и gateway.
 По этому соединению разрешены только:
@@ -696,6 +699,13 @@ Service result log пишется для mutating methods с префиксам�
 - Runtime SQL-запросы, которые меняют данные, должны логироваться с `mutation: true` и проходить через `sanitizeSql`.
 - Read-only SQL-запросы можно логировать только как `debug` для диагностики, если это нужно конкретному сервисному методу.
 - `sanitizeSql` обязан скрывать пароль в SQL. Если в SQL могут появиться token, cookie, secret или другие чувствительные поля, очистку нужно расширить до включения такого логирования.
+
+## Пагинация списков
+
+- Потенциально растущие списки должны принимать `limit` и `offset` и возвращать `total`, фактические `limit` и `offset`.
+- Публичная boundary обязана проверять целочисленные значения параметров, а service — повторно применять безопасный верхний предел.
+- Списки пользователей и владельцев файлов загружаются по 25 записей с максимумом 100, история чата — по 50 сообщений с максимумом 100, доступные участники чата — по 25 с максимумом 100, пользовательские сессии — по 10 с максимумом 50.
+- Справочники ролей и permissions передаются целиком, поскольку используются как единый набор выбора; при существенном росте их необходимо переводить на отдельный поиск и пагинацию.
 
 ## Ограничения
 

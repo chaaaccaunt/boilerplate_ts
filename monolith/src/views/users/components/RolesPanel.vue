@@ -22,8 +22,10 @@ const editedRoleName = ref("")
 const isSubmitting = ref(false)
 const errorMessage = ref("")
 const isModalOpen = ref(false)
+const isDiscardConfirmationOpen = ref(false)
 const activeRoleUid = ref<string | null>(null)
 const selectedPermissionKeys = reactive<Record<string, string[]>>({})
+const savedPermissionKeys = reactive<Record<string, string[]>>({})
 
 const canCreate = computed(() => Boolean(props.canCreateRole && newRoleName.value.trim() && !isSubmitting.value))
 const customRolesCount = computed(() => props.roles.filter((role) => !isSystemRole(role)).length)
@@ -33,6 +35,15 @@ const sortedRoles = computed(() => props.roles.slice().sort((firstRole, secondRo
   return firstRole.name.localeCompare(secondRole.name)
 }))
 const activeRole = computed(() => sortedRoles.value.find((role) => role.uid === activeRoleUid.value) || sortedRoles.value[0] || null)
+const activeRolePermissionsChanged = computed(() => activeRole.value
+  ? havePermissionKeysChanged(activeRole.value.uid)
+  : false)
+const hasUnsavedChanges = computed(() => {
+  const roleNameChanged = editedRoleUid.value !== null
+    && props.roles.some((role) => role.uid === editedRoleUid.value && role.name !== editedRoleName.value.trim())
+
+  return roleNameChanged || props.roles.some((role) => havePermissionKeysChanged(role.uid))
+})
 const permissionGroups = computed(() => {
   const groups = new Map<string, {
     key: string
@@ -71,11 +82,26 @@ function openModal(): void {
   isModalOpen.value = true
 }
 
-function closeModal(): void {
+function requestCloseModal(): void {
   if (isSubmitting.value) return
+
+  if (hasUnsavedChanges.value) {
+    isDiscardConfirmationOpen.value = true
+    return
+  }
+
+  closeModal()
+}
+
+function closeModal(): void {
   cancelEdit()
   errorMessage.value = ""
+  isDiscardConfirmationOpen.value = false
   isModalOpen.value = false
+}
+
+function cancelDiscardChanges(): void {
+  isDiscardConfirmationOpen.value = false
 }
 
 function createRole(): void {
@@ -161,6 +187,9 @@ function saveRolePermissions(role: iSharedUserRole.UserRoleDto): void {
     uid: role.uid,
     permissionKeys: selectedPermissionKeys[role.uid] || []
   })
+    .then(() => {
+      savedPermissionKeys[role.uid] = [...(selectedPermissionKeys[role.uid] || [])]
+    })
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось обновить права роли"
     })
@@ -171,7 +200,10 @@ function saveRolePermissions(role: iSharedUserRole.UserRoleDto): void {
 
 function syncSelectedPermissionKeys(): void {
   props.roles.forEach((role) => {
-    selectedPermissionKeys[role.uid] = role.permissions.map((permission) => permission.key)
+    const permissionKeys = role.permissions.map((permission) => permission.key)
+
+    selectedPermissionKeys[role.uid] = [...permissionKeys]
+    savedPermissionKeys[role.uid] = [...permissionKeys]
   })
 
   if (activeRoleUid.value && !props.roles.some((role) => role.uid === activeRoleUid.value)) {
@@ -183,6 +215,14 @@ watch(() => props.roles, syncSelectedPermissionKeys, { immediate: true, deep: tr
 
 function getSelectedPermissionsCount(role: iSharedUserRole.UserRoleDto): number {
   return selectedPermissionKeys[role.uid]?.length || 0
+}
+
+function havePermissionKeysChanged(roleUid: string): boolean {
+  const selectedKeys = selectedPermissionKeys[roleUid] || []
+  const savedKeys = savedPermissionKeys[roleUid] || []
+
+  return selectedKeys.length !== savedKeys.length
+    || selectedKeys.some((permissionKey) => !savedKeys.includes(permissionKey))
 }
 
 function selectRole(role: iSharedUserRole.UserRoleDto): void {
@@ -254,9 +294,9 @@ function getPermissionGroupOrder(groupKey: string): number {
       :model-value="isModalOpen"
       labelled-by="roles-management-modal-title"
       panel-class="max-h-[92vh] max-w-6xl overflow-hidden"
-      :close-on-backdrop="!isSubmitting"
-      :close-on-escape="!isSubmitting"
-      @update:model-value="$event ? openModal() : closeModal()"
+      :close-on-backdrop="!isSubmitting && !isDiscardConfirmationOpen"
+      :close-on-escape="!isSubmitting && !isDiscardConfirmationOpen"
+      @update:model-value="$event ? openModal() : requestCloseModal()"
     >
       <template #default>
         <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
@@ -273,7 +313,7 @@ function getPermissionGroupOrder(groupKey: string): number {
             type="button"
             aria-label="Закрыть окно"
             :disabled="isSubmitting"
-            @click="closeModal"
+            @click="requestCloseModal"
           >
             <XIcon class="h-5 w-5" aria-hidden="true" />
           </button>
@@ -334,7 +374,7 @@ function getPermissionGroupOrder(groupKey: string): number {
             </div>
           </div>
 
-          <div v-if="activeRole" class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+          <div v-if="activeRole" class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
             <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div class="min-w-0">
                 <input
@@ -428,17 +468,18 @@ function getPermissionGroupOrder(groupKey: string): number {
                 </section>
               </div>
 
-              <div v-if="!isSystemRole(activeRole) && props.canManageRolePermissions" class="sticky bottom-0 mt-4 flex justify-end border-t border-slate-200 bg-white pt-4 dark:border-slate-700 dark:bg-slate-900">
-                <button
-                  class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  type="button"
-                  :disabled="isSubmitting"
-                  @click="saveRolePermissions(activeRole)"
-                >
-                  <SaveIcon class="h-4 w-4" aria-hidden="true" />
-                  Сохранить права
-                </button>
-              </div>
+            </div>
+
+            <div v-if="!isSystemRole(activeRole) && props.canManageRolePermissions && activeRolePermissionsChanged" class="flex justify-end border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900">
+              <button
+                class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                :disabled="isSubmitting"
+                @click="saveRolePermissions(activeRole)"
+              >
+                <SaveIcon class="h-4 w-4" aria-hidden="true" />
+                Сохранить права
+              </button>
             </div>
           </div>
         </div>
@@ -448,9 +489,45 @@ function getPermissionGroupOrder(groupKey: string): number {
             class="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             type="button"
             :disabled="isSubmitting"
-            @click="closeModal"
+            @click="requestCloseModal"
           >
             Закрыть
+          </button>
+        </footer>
+      </template>
+    </ModalHost>
+
+    <ModalHost
+      :model-value="isDiscardConfirmationOpen"
+      labelled-by="roles-discard-confirmation-title"
+      :close-on-backdrop="!isSubmitting"
+      :close-on-escape="!isSubmitting"
+      @update:model-value="$event ? isDiscardConfirmationOpen = true : cancelDiscardChanges()"
+    >
+      <template #default>
+        <div class="p-5">
+          <h2 id="roles-discard-confirmation-title" class="text-lg font-semibold text-slate-950 dark:text-slate-50">
+            Закрыть без сохранения?
+          </h2>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            Изменения роли будут потеряны.
+          </p>
+        </div>
+
+        <footer class="flex justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-700">
+          <button
+            class="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            type="button"
+            @click="cancelDiscardChanges"
+          >
+            Остаться
+          </button>
+          <button
+            class="inline-flex min-h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            type="button"
+            @click="closeModal"
+          >
+            Закрыть без сохранения
           </button>
         </footer>
       </template>

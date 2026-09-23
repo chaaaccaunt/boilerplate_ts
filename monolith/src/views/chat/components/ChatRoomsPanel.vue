@@ -2,10 +2,13 @@
 import { ref } from "vue"
 import { LogOutIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon, XIcon } from "@lucide/vue"
 import ModalHost from "@/application/providers/ModalHost.vue"
+import PaginationControls from "@/shared/ui/PaginationControls.vue"
 
 const props = defineProps<{
   rooms: iSharedChat.ChatRoomDto[]
   availableMembers: iSharedChat.ChatAvailableMemberDto[]
+  availableMembersPage: number
+  availableMembersTotalPages: number
   activeRoomUid: string | null
   isLoading: boolean
   currentUserUid: string | null
@@ -18,6 +21,7 @@ const emit = defineEmits<{
   (event: "update", payload: iSharedChat.ChatRoomUpdatePayloadDto): void
   (event: "delete", payload: iSharedChat.ChatRoomDeletePayloadDto): void
   (event: "leave", payload: iSharedChat.ChatRoomLeavePayloadDto): void
+  (event: "members-page", page: number): void
 }>()
 
 const newRoomMemberUserUids = ref<string[]>([])
@@ -161,7 +165,7 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
       </div>
     </div>
 
-    <ModalHost v-model="isCreateModalOpen" labelled-by="chat-room-create-modal-title">
+    <ModalHost v-model="isCreateModalOpen" labelled-by="chat-room-create-modal-title" panel-class="h-[34rem] max-h-[calc(100vh-2rem)] max-w-xl overflow-hidden">
       <template #default="{ close }">
         <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 id="chat-room-create-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50">
@@ -177,10 +181,10 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
           </button>
         </header>
 
-        <form class="px-5 py-4" @submit.prevent="createRoom">
-          <div class="mb-5">
+        <form class="flex h-[calc(34rem-4.5rem)] max-h-[calc(100vh-6.5rem)] flex-col px-5 py-4" @submit.prevent="createRoom">
+          <div class="mb-5 flex min-h-0 flex-1 flex-col">
             <div class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">Участники</div>
-            <div class="max-h-64 overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+            <div class="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
               <label
                 v-for="user in availableMembers.filter((item) => item.uid !== currentUserUid)"
                 :key="user.uid"
@@ -198,6 +202,10 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
                 Нет доступных пользователей
               </div>
             </div>
+            <div v-if="availableMembersTotalPages > 1" class="mt-2 grid justify-items-start gap-2 text-sm">
+              <span class="text-slate-500 dark:text-slate-400">{{ availableMembersPage }} / {{ availableMembersTotalPages }}</span>
+              <PaginationControls :current-page="availableMembersPage" :total-pages="availableMembersTotalPages" @change="emit('members-page', $event)" />
+            </div>
           </div>
 
           <button
@@ -212,7 +220,7 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
       </template>
     </ModalHost>
 
-    <ModalHost :model-value="Boolean(editingRoom)" labelled-by="chat-room-edit-modal-title" @update:model-value="editingRoom = $event ? editingRoom : null">
+    <ModalHost :model-value="Boolean(editingRoom)" labelled-by="chat-room-edit-modal-title" panel-class="h-[38rem] max-h-[calc(100vh-2rem)] max-w-xl overflow-hidden" @update:model-value="editingRoom = $event ? editingRoom : null">
       <template #default="{ close }">
         <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 id="chat-room-edit-modal-title" class="min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50">
@@ -228,7 +236,7 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
           </button>
         </header>
 
-        <form class="px-5 py-4" @submit.prevent="updateRoom">
+        <form class="flex h-[calc(38rem-4.5rem)] max-h-[calc(100vh-6.5rem)] flex-col px-5 py-4" @submit.prevent="updateRoom">
           <div class="mb-5">
             <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="chat-room-edit-title">Название комнаты</label>
             <input
@@ -240,9 +248,9 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
             >
           </div>
 
-          <div class="mb-5">
+          <div class="mb-5 flex min-h-0 flex-1 flex-col">
             <div class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">Участники</div>
-            <div class="max-h-56 overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
+            <div class="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 dark:border-slate-700">
               <label
                 v-for="user in availableMembers.filter((item) => item.uid !== currentUserUid)"
                 :key="user.uid"
@@ -259,6 +267,10 @@ function canLeaveRoom(room: iSharedChat.ChatRoomDto): boolean {
               <div v-if="availableMembers.length <= 1" class="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
                 Нет доступных пользователей
               </div>
+            </div>
+            <div v-if="availableMembersTotalPages > 1" class="mt-2 grid justify-items-start gap-2 text-sm">
+              <span class="text-slate-500 dark:text-slate-400">{{ availableMembersPage }} / {{ availableMembersTotalPages }}</span>
+              <PaginationControls :current-page="availableMembersPage" :total-pages="availableMembersTotalPages" @change="emit('members-page', $event)" />
             </div>
           </div>
 

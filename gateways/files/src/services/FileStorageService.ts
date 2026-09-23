@@ -84,12 +84,20 @@ export class FileStorageService {
           }))))
   }
 
-  listOwners(user: iContracts.iUserToken): Promise<iSharedFiles.ListFileOwnersResponseDto> {
-    return this.models.User.findAll({
+  listOwners(user: iContracts.iUserToken, payload: iSharedFiles.ListFileOwnersPayloadDto = {}): Promise<iSharedFiles.ListFileOwnersResponseDto> {
+    const limit = Math.min(Math.max(payload.limit ?? 25, 1), 100)
+    const offset = Math.max(payload.offset ?? 0, 0)
+
+    return this.models.User.findAndCountAll({
+      limit,
+      offset,
       order: [["lastName", "ASC"], ["firstName", "ASC"], ["login", "ASC"]]
     })
-      .then((users) => ({
-        owners: users.map((item) => this.dtoMapper.toOwner(item))
+      .then(({ count, rows }) => ({
+        owners: rows.map((item) => this.dtoMapper.toOwner(item)),
+        total: count,
+        limit,
+        offset
       }))
   }
 

@@ -3,9 +3,13 @@ import type { ApiRequester } from "@/shared/api"
 export class UsersApi {
   constructor(private readonly api: ApiRequester) { }
 
-  list(): Promise<iSharedUser.ListUsersResponseDto> {
+  list(payload: iSharedUser.ListUsersPayloadDto = {}): Promise<iSharedUser.ListUsersResponseDto> {
+    const search = new URLSearchParams()
+    if (payload.limit !== undefined) search.set("limit", String(payload.limit))
+    if (payload.offset !== undefined) search.set("offset", String(payload.offset))
+
     return this.api.get<iSharedUser.ListUsersResponseDto>({
-      path: "/users",
+      path: `/users${search.size ? `?${search.toString()}` : ""}` as `/${string}`,
       commit: "users/setUsers"
     })
   }
@@ -83,8 +87,13 @@ export class UsersApi {
   updateSuperadministratorUsers(payload: iSharedUser.UpdateSuperadministratorUsersPayloadDto): Promise<iSharedUser.UpdateSuperadministratorUsersResponseDto> {
     return this.api.patch<iSharedUser.UpdateSuperadministratorUsersResponseDto, iSharedUser.UpdateSuperadministratorUsersPayloadDto>({
       path: "/users/superadministrators",
-      payload,
-      commit: "users/setUsers"
+      payload
+    })
+  }
+
+  listSuperadministratorUsers(): Promise<iSharedUser.ListSuperadministratorUsersResponseDto> {
+    return this.api.get<iSharedUser.ListSuperadministratorUsersResponseDto>({
+      path: "/users/superadministrators"
     })
   }
 }

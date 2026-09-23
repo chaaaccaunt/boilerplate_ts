@@ -1,57 +1,60 @@
 import { LogsController, SystemMetricsController } from "../controllers"
 import { Database } from "../database"
-import { config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, LogCollectorConnectionRegistry, LogCollectorProtocol, LogCollectorSocketServer, MicroServiceHTTPServer, RuntimeMetrics } from "@/libs"
+import { ApplicationRunner, config, DatabaseServiceTools, getRequiredDatabaseConfig, Logger, LogCollectorConnectionRegistry, LogCollectorProtocol, LogCollectorSocketServer, MicroServiceHTTPServer, RuntimeMetrics } from "@/libs"
 import { LogCollectorService } from "../services/LogCollectorService"
 import { RuntimePackageEventGatewayClient } from "../services/RuntimePackageEventGatewayClient"
 
-const logger = Logger.createLocal()
-const database = new Database(getRequiredDatabaseConfig())
-const httpServer = new MicroServiceHTTPServer({ port: config.http.port }, logger)
-const databaseTools = new DatabaseServiceTools(database.Sequelize, logger)
-const service = new LogCollectorService(database.models, databaseTools)
-const socketPort = process.env.VAR_LOG_COLLECTOR_SOCKET_PORT
+class LogCollectorApplication {
+  private readonly logger = Logger.createLocal()
 
-if (!socketPort) {
-  throw new Error("Не задан VAR_LOG_COLLECTOR_SOCKET_PORT для log collector")
+  start(): Promise<void> {
+    const database = new Database(getRequiredDatabaseConfig())
+    const httpServer = new MicroServiceHTTPServer({ port: config.http.port }, this.logger)
+    const databaseTools = new DatabaseServiceTools(database.Sequelize, this.logger)
+    const service = new LogCollectorService(database.models, databaseTools)
+    const socketPort = process.env.VAR_LOG_COLLECTOR_SOCKET_PORT
+
+    if (!socketPort) {
+      throw new Error("Не задан VAR_LOG_COLLECTOR_SOCKET_PORT для log collector")
+    }
+
+    const runtimePackageEventGatewayClient = config.internalServices.chatRealtimeGatewayUrl
+      ? new RuntimePackageEventGatewayClient(config.internalServices.chatRealtimeGatewayUrl)
+      : null
+
+    return database.sequelize.authenticate()
+      .then(() => service.listRuntimePackages())
+      .then((runtimePackages) => {
+        if (!runtimePackages.length) {
+          throw new Error("Не найдены разрешенные runtime packages в таблице runtime_packages")
+        }
+
+        const socketServer = new LogCollectorSocketServer(
+          socketPort,
+          service,
+          runtimePackages,
+          runtimePackageEventGatewayClient,
+          this.logger,
+          new LogCollectorConnectionRegistry(),
+          new LogCollectorProtocol(),
+          new RuntimeMetrics()
+        )
+
+        httpServer.use([
+          ...new LogsController(service).getRoutes(),
+          ...new SystemMetricsController(socketServer).getRoutes()
+        ])
+
+        httpServer.listen(config.http.port)
+        socketServer.listen()
+      })
+  }
 }
 
-const socketPortValue = socketPort
-const runtimePackageEventGatewayClient = config.internalServices.chatRealtimeGatewayUrl
-  ? new RuntimePackageEventGatewayClient(config.internalServices.chatRealtimeGatewayUrl)
-  : null
-
-start().catch((error) => {
-  logger.error("Не удалось запустить log collector service", { error })
-  process.exit(1)
+ApplicationRunner.run({
+  application: LogCollectorApplication,
+  applicationName: "log collector service",
+  createLogger: () => Logger.createLocal()
 })
-
-function start(): Promise<void> {
-  return database.sequelize.authenticate()
-    .then(() => service.listRuntimePackages())
-    .then((runtimePackages) => {
-      if (!runtimePackages.length) {
-        throw new Error("Не найдены разрешенные runtime packages в таблице runtime_packages")
-      }
-
-      const socketServer = new LogCollectorSocketServer(
-        socketPortValue,
-        service,
-        runtimePackages,
-        runtimePackageEventGatewayClient,
-        logger,
-        new LogCollectorConnectionRegistry(),
-        new LogCollectorProtocol(),
-        new RuntimeMetrics()
-      )
-
-      httpServer.use([
-        ...new LogsController(service).getRoutes(),
-        ...new SystemMetricsController(socketServer).getRoutes()
-      ])
-
-      httpServer.listen(config.http.port)
-      socketServer.listen()
-    })
-}
 
 export interface iDefaultEnvs {}

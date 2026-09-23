@@ -1,24 +1,34 @@
-import { config, MicroServiceHTTPClient, MicroServiceHTTPServer, WebSocketServer } from "@/libs"
+import { ApplicationRunner, config, Logger, MicroServiceHTTPClient, MicroServiceHTTPServer, WebSocketServer } from "@/libs"
 import { ChatSocketController, FileEventsController, SystemPackageEventsController } from "../controller"
 
-if (!config.internalServices.chatUrl) {
-  throw new Error("Missing VAR_CHAT_SERVICE_URL for chat realtime gateway")
+class ChatRealtimeGatewayApplication {
+  start(): void {
+    if (!config.internalServices.chatUrl) {
+      throw new Error("Не задан VAR_CHAT_SERVICE_URL для chat realtime gateway")
+    }
+
+    const logger = new Logger()
+    const internalEventServer = new MicroServiceHTTPServer({
+      port: config.http.port
+    }, logger)
+    const webSocketServer = new WebSocketServer(internalEventServer.getNativeServer(), config.http)
+
+    webSocketServer.use([
+      new ChatSocketController(new MicroServiceHTTPClient(config.internalServices.chatUrl))
+    ])
+    internalEventServer.use([
+      new FileEventsController(webSocketServer).getRoutes(),
+      new SystemPackageEventsController(webSocketServer, logger).getRoutes()
+    ].flat())
+
+    internalEventServer.listen(config.http.port)
+    webSocketServer.listen()
+  }
 }
 
-const internalEventServer = new MicroServiceHTTPServer({
-  port: config.http.port
+ApplicationRunner.run({
+  application: ChatRealtimeGatewayApplication,
+  applicationName: "chat realtime gateway"
 })
-const webSocketServer = new WebSocketServer(internalEventServer.getNativeServer(), config.http)
-
-webSocketServer.use([
-  new ChatSocketController(new MicroServiceHTTPClient(config.internalServices.chatUrl))
-])
-internalEventServer.use([
-  new FileEventsController(webSocketServer).getRoutes(),
-  new SystemPackageEventsController(webSocketServer).getRoutes()
-].flat())
-
-internalEventServer.listen(config.http.port)
-webSocketServer.listen()
 
 export interface iDefaultEnvs { }

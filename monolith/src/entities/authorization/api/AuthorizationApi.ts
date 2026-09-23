@@ -25,9 +25,13 @@ export class AuthorizationApi {
     })
   }
 
-  listSessions(): Promise<iSharedAuthorization.UserSessionsListResponseDto> {
+  listSessions(payload: iSharedAuthorization.UserSessionsListPayloadDto = {}): Promise<iSharedAuthorization.UserSessionsListResponseDto> {
+    const search = new URLSearchParams()
+    if (payload.limit !== undefined) search.set("limit", String(payload.limit))
+    if (payload.offset !== undefined) search.set("offset", String(payload.offset))
+
     return this.api.get<iSharedAuthorization.UserSessionsListResponseDto>({
-      path: "/authorization/sessions"
+      path: `/authorization/sessions${search.size ? `?${search.toString()}` : ""}` as `/${string}`
     })
   }
 

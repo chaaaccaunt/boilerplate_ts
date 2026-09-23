@@ -40,17 +40,18 @@ interface DocumentPageMargins {
   left: number
 }
 
-const defaultDocumentPageMargins: DocumentPageMargins = {
-  top: 18,
-  right: 20,
-  bottom: 18,
-  left: 20
-}
-const documentPageWidthMillimeters = 210
-const documentPageHeightMillimeters = 297
-const minimumDocumentContentSizeMillimeters = 10
-
 export class DocumentExportService {
+  private static readonly defaultDocumentPageMargins: DocumentPageMargins = {
+    top: 18,
+    right: 20,
+    bottom: 18,
+    left: 20
+  }
+
+  private static readonly documentPageWidthMillimeters = 210
+  private static readonly documentPageHeightMillimeters = 297
+  private static readonly minimumDocumentContentSizeMillimeters = 10
+
   create(document: { title: string, contentJson: string }): Promise<Buffer> {
     const rootNode = this.parseDocumentJson(document.contentJson)
     const file = new DocxDocument({
@@ -124,7 +125,7 @@ export class DocumentExportService {
     return {
       type: "doc",
       attrs: {
-        pageMargins: defaultDocumentPageMargins
+        pageMargins: DocumentExportService.defaultDocumentPageMargins
       },
       content: [
         {
@@ -156,16 +157,16 @@ export class DocumentExportService {
 
   private normalizeDocumentPageMargins(value: Partial<DocumentPageMargins>): DocumentPageMargins {
     const margins = {
-      top: this.normalizePageMarginValue(value.top, defaultDocumentPageMargins.top),
-      right: this.normalizePageMarginValue(value.right, defaultDocumentPageMargins.right),
-      bottom: this.normalizePageMarginValue(value.bottom, defaultDocumentPageMargins.bottom),
-      left: this.normalizePageMarginValue(value.left, defaultDocumentPageMargins.left)
+      top: this.normalizePageMarginValue(value.top, DocumentExportService.defaultDocumentPageMargins.top),
+      right: this.normalizePageMarginValue(value.right, DocumentExportService.defaultDocumentPageMargins.right),
+      bottom: this.normalizePageMarginValue(value.bottom, DocumentExportService.defaultDocumentPageMargins.bottom),
+      left: this.normalizePageMarginValue(value.left, DocumentExportService.defaultDocumentPageMargins.left)
     }
 
-    const left = Math.min(margins.left, documentPageWidthMillimeters - minimumDocumentContentSizeMillimeters)
-    const right = Math.min(margins.right, documentPageWidthMillimeters - left - minimumDocumentContentSizeMillimeters)
-    const top = Math.min(margins.top, documentPageHeightMillimeters - minimumDocumentContentSizeMillimeters)
-    const bottom = Math.min(margins.bottom, documentPageHeightMillimeters - top - minimumDocumentContentSizeMillimeters)
+    const left = Math.min(margins.left, DocumentExportService.documentPageWidthMillimeters - DocumentExportService.minimumDocumentContentSizeMillimeters)
+    const right = Math.min(margins.right, DocumentExportService.documentPageWidthMillimeters - left - DocumentExportService.minimumDocumentContentSizeMillimeters)
+    const top = Math.min(margins.top, DocumentExportService.documentPageHeightMillimeters - DocumentExportService.minimumDocumentContentSizeMillimeters)
+    const bottom = Math.min(margins.bottom, DocumentExportService.documentPageHeightMillimeters - top - DocumentExportService.minimumDocumentContentSizeMillimeters)
 
     return {
       top,
@@ -461,7 +462,7 @@ export class DocumentExportService {
     return JSON.stringify({
       type: "doc",
       attrs: {
-        pageMargins: defaultDocumentPageMargins
+        pageMargins: DocumentExportService.defaultDocumentPageMargins
       },
       content: [
         {

@@ -11,8 +11,8 @@ export class ChatHTTPGatewayController extends HTTPController {
       callback: this.handle("listRooms", this.listRooms.bind(this))
     }
 
-    const availableMembersRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedChat.ChatAvailableMembersListResponseDto>> = {
-      url: /^\/chat\/members\/available\/?$/,
+    const availableMembersRoute: iContracts.iRoute<iSharedChat.ChatAvailableMembersListPayloadDto, iContracts.iControllerResult<iSharedChat.ChatAvailableMembersListResponseDto>> = {
+      url: /^\/chat\/members\/available(?:\?.*)?$/,
       method: "GET",
       requireAuthorization: true,
       callback: this.handle("listAvailableMembers", this.listAvailableMembers.bind(this))
@@ -30,7 +30,9 @@ export class ChatHTTPGatewayController extends HTTPController {
               maxLength: 36
             }
           }
-        }
+        },
+        limit: { optional: true, isPrimitive: { number: { min: 1, max: 100 }, asNumber: true } },
+        offset: { optional: true, isPrimitive: { number: { min: 0 }, asNumber: true } }
       },
       callback: this.handle("listMessages", this.listMessages.bind(this))
     }
@@ -82,12 +84,16 @@ export class ChatHTTPGatewayController extends HTTPController {
       .then((data) => ({ data }))
   }
 
-  private listAvailableMembers(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedChat.ChatAvailableMembersListResponseDto>> {
+  private listAvailableMembers(payload: iContracts.iRequestContextPayload<iSharedChat.ChatAvailableMembersListPayloadDto>): Promise<iContracts.iControllerResult<iSharedChat.ChatAvailableMembersListResponseDto>> {
     this.access(payload)
 
-    return this.chatServiceClient.request<iSharedChat.ChatAvailableMembersListResponseDto>({
+    return this.chatServiceClient.request<iSharedChat.ChatAvailableMembersListResponseDto, iSharedChat.ChatAvailableMembersListPayloadDto>({
       requestId: payload.requestId,
-      path: "/chat/members/available"
+      path: "/chat/members/available",
+      payload: {
+        limit: this.getPaginationNumber(payload.data?.limit, 25, 1, 100),
+        offset: this.getPaginationNumber(payload.data?.offset, 0, 0, Number.MAX_SAFE_INTEGER)
+      }
     })
       .then((data) => ({ data }))
   }
@@ -101,10 +107,23 @@ export class ChatHTTPGatewayController extends HTTPController {
       path: "/chat/messages/list",
       payload: {
         ...payload.data,
+        limit: this.getPaginationNumber(payload.data.limit, 50, 1, 100),
+        offset: this.getPaginationNumber(payload.data.offset, 0, 0, Number.MAX_SAFE_INTEGER),
         userUid: payload.user.uid
       }
     })
       .then((data) => ({ data }))
+  }
+
+  private getPaginationNumber(value: unknown, defaultValue: number, minimum: number, maximum: number): number {
+    if (value === undefined || value === null || value === "") return defaultValue
+
+    const numberValue = typeof value === "number" ? value : Number(value)
+    if (!Number.isSafeInteger(numberValue) || numberValue < minimum || numberValue > maximum) {
+      throw new Exceptions.ControllerError.ConflictError("Некорректные параметры пагинации сообщений")
+    }
+
+    return numberValue
   }
 
   private updateMessage(payload: iContracts.iRequestContextPayload<iSharedChat.ChatMessageUpdatePayloadDto>): Promise<iContracts.iControllerResult<iSharedChat.ChatMessageUpdateResponseDto>> {

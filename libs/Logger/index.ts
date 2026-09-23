@@ -31,6 +31,7 @@ interface LogContext {
   sessionUid?: string
   functionName?: string
   event?: string
+  eventTimestamp?: string
   stack?: string[]
   durationMs?: number
   status?: number

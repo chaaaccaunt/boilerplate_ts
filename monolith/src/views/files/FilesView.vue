@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { FileTextIcon, FolderPlusIcon } from "@lucide/vue"
 import { useApiClient } from "@/application/api"
@@ -8,6 +8,7 @@ import { useStore } from "@/application/store"
 import { FileUploadField } from "@/features/file-upload"
 import { MediaViewerModal, type MediaViewerFile } from "@/features/media-viewer"
 import { ApiError } from "@/shared/api"
+import PaginationControls from "@/shared/ui/PaginationControls.vue"
 import { copyText, runLimited, saveBlob } from "@/shared/lib"
 import FileFolderCreateModal from "./components/FileFolderCreateModal.vue"
 import FileOwnersGrid from "./components/FileOwnersGrid.vue"
@@ -43,6 +44,10 @@ const isBulkDownloading = ref(false)
 const bulkDownloadPhase = ref<"idle" | "preparing" | "downloading" | "finalizing">("idle")
 const bulkDownloadProgress = ref<number | null>(null)
 const bulkOperationConcurrency = 4
+const filesViewport = ref<HTMLElement | null>(null)
+const ownersPagination = ref<HTMLElement | null>(null)
+const ownersPageSize = ref(25)
+let ownersResizeObserver: ResizeObserver | null = null
 
 const routeName = computed(() => typeof route.name === "string" ? route.name : "files")
 const isOwnersOverview = computed(() => routeName.value === "files")
@@ -57,6 +62,10 @@ const currentFolderUid = computed(() => {
   return typeof value === "string" && value.trim() ? value : null
 })
 const owners = computed(() => store.state.files.owners)
+const ownersTotal = computed(() => Number.isFinite(store.state.files.ownersTotal) ? store.state.files.ownersTotal : 0)
+const ownersOffset = computed(() => Number.isFinite(store.state.files.ownersOffset) ? store.state.files.ownersOffset : 0)
+const ownersPage = computed(() => Math.floor(ownersOffset.value / ownersPageSize.value) + 1)
+const ownersTotalPages = computed(() => Math.max(1, Math.ceil(ownersTotal.value / ownersPageSize.value)))
 const currentOwner = computed(() => store.state.files.currentOwner)
 const currentFolder = computed(() => store.state.files.currentFolder)
 const folders = computed(() => store.state.files.folders)
@@ -95,7 +104,19 @@ const title = computed(() => {
 })
 
 onMounted(() => {
-  loadContent()
+  nextTick(() => {
+    updateOwnersPageSize(false)
+    if (filesViewport.value) {
+      ownersResizeObserver = new ResizeObserver(() => updateOwnersPageSize(true))
+      ownersResizeObserver.observe(filesViewport.value)
+    }
+    loadContent()
+  })
+})
+
+onBeforeUnmount(() => {
+  ownersResizeObserver?.disconnect()
+  ownersResizeObserver = null
 })
 
 useFilesRealtimeReload(webSocketClient, () => {
@@ -108,22 +129,59 @@ watch(() => route.fullPath, () => {
   loadContent()
 })
 
-function loadContent(): void {
+function loadContent(ownerOffset = ownersOffset.value): void {
   isLoading.value = true
   errorMessage.value = ""
   failedPreviewFileUids.value = []
 
   const request = isOwnersOverview.value
-    ? apiClient.files.listOwners()
+    ? apiClient.files.listOwners({ limit: ownersPageSize.value, offset: ownerOffset })
     : apiClient.files.list(currentFolderUid.value, selectedOwnerUserUid.value)
 
   request
+    .then(() => {
+      if (isOwnersOverview.value) nextTick(() => updateOwnersPageSize(true))
+    })
     .catch((error) => {
       errorMessage.value = getErrorMessage(error, "Не удалось загрузить файлы")
     })
     .finally(() => {
       isLoading.value = false
     })
+}
+
+function updateOwnersPageSize(reload: boolean): void {
+  const viewport = filesViewport.value
+  if (!viewport) return
+
+  const viewportStyle = window.getComputedStyle(viewport)
+  const horizontalPadding = Number.parseFloat(viewportStyle.paddingLeft) + Number.parseFloat(viewportStyle.paddingRight)
+  const verticalPadding = Number.parseFloat(viewportStyle.paddingTop) + Number.parseFloat(viewportStyle.paddingBottom)
+  const paginationHeight = ownersPagination.value
+    ? ownersPagination.value.getBoundingClientRect().height + 12
+    : 72
+  const bottomSafetyGap = 48
+  const tileWidth = 124
+  const tileHeight = 112
+  const columnGap = 24
+  const rowGap = 16
+  const availableWidth = Math.max(0, viewport.clientWidth - horizontalPadding)
+  const availableHeight = Math.max(0, viewport.clientHeight - verticalPadding - paginationHeight - bottomSafetyGap)
+  const columns = Math.max(1, Math.floor((availableWidth + columnGap) / (tileWidth + columnGap)))
+  const rows = Math.max(1, Math.floor((availableHeight + rowGap) / (tileHeight + rowGap)))
+  const nextPageSize = Math.min(100, columns * rows)
+
+  if (nextPageSize === ownersPageSize.value) return
+
+  const nextOffset = Math.floor(ownersOffset.value / nextPageSize) * nextPageSize
+  ownersPageSize.value = nextPageSize
+
+  if (reload && isOwnersOverview.value) loadContent(nextOffset)
+}
+
+function changeOwnersPage(page: number): void {
+  const normalizedPage = Math.min(Math.max(page, 1), ownersTotalPages.value)
+  loadContent((normalizedPage - 1) * ownersPageSize.value)
 }
 
 function openRoot(): void {
@@ -475,7 +533,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
 </script>
 
 <template>
-  <section class="grid min-h-[calc(100vh-3.5rem)] grid-rows-[auto_minmax(0,1fr)] bg-slate-50 dark:bg-slate-950">
+  <section class="grid h-[calc(100dvh-3.5rem)] min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-slate-50 dark:bg-slate-950">
     <FilesHeader
       :title="title"
       :is-owners-overview="isOwnersOverview"
@@ -488,7 +546,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
       @open-folder="openFolder"
     />
 
-    <div class="min-h-0 overflow-auto p-4">
+    <div ref="filesViewport" class="min-h-0 overflow-auto p-4">
       <div v-if="errorMessage" class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
         {{ errorMessage }}
       </div>
@@ -497,14 +555,22 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
         Загрузка файлов
       </div>
 
-      <div v-else class="grid gap-3">
-        <FileOwnersGrid
-          v-if="isOwnersOverview"
-          :owners="owners"
-          @open-owner="openOwner"
-        />
+      <div v-else class="min-h-full">
+        <div v-if="isOwnersOverview" class="flex min-h-full flex-col">
+          <FileOwnersGrid
+            :owners="owners"
+            @open-owner="openOwner"
+          />
 
-        <template v-else>
+          <div ref="ownersPagination" v-if="ownersTotal > ownersPageSize" class="mt-auto grid justify-items-start gap-2 pt-3">
+            <span class="text-sm text-slate-500 dark:text-slate-400">
+              Страница {{ ownersPage }} из {{ ownersTotalPages }} · всего {{ ownersTotal }}
+            </span>
+            <PaginationControls :current-page="ownersPage" :total-pages="ownersTotalPages" :disabled="isLoading" @change="changeOwnersPage" />
+          </div>
+        </div>
+
+        <div v-else class="grid gap-3">
           <div v-if="canCreateInCurrentLocation" class="flex flex-wrap items-center gap-2">
             <button
               class="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -563,7 +629,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
             @delete-document="deleteDocument"
             @preview-error="markPreviewFailed"
           />
-        </template>
+        </div>
       </div>
     </div>
 

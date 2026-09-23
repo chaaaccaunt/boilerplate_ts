@@ -3,6 +3,9 @@ import { Module, MutationTree } from "vuex"
 const mutations: MutationTree<iSharedState.FilesState> = {
   setOwners(state, payload: iSharedFiles.ListFileOwnersResponseDto) {
     state.owners = payload.owners
+    state.ownersTotal = payload.total
+    state.ownersLimit = payload.limit
+    state.ownersOffset = payload.offset
     state.files = []
     state.folders = []
     state.documents = []
@@ -67,6 +70,9 @@ export const files: Module<iSharedState.FilesState, iSharedState.RootState> = {
 
   state: () => ({
     owners: [],
+    ownersTotal: 0,
+    ownersLimit: 25,
+    ownersOffset: 0,
     files: [],
     folders: [],
     documents: [],

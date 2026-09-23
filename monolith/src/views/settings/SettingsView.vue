@@ -1,23 +1,34 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useApiClient } from "@/application/api"
 import { useStore } from "@/application/store"
 import { ApiError } from "@/shared/api"
+import PaginationControls from "@/shared/ui/PaginationControls.vue"
 import { ThemePreferenceControl } from "@/features/theme"
 
 const apiClient = useApiClient()
 const store = useStore()
 const sessions = ref<iSharedAuthorization.UserSessionDto[]>([])
+const sessionsTotal = ref(0)
+const sessionsOffset = ref(0)
+const sessionsPageSize = 10
 const loading = ref(false)
 const actionSessionUid = ref<string | null>(null)
 const revokeOthersLoading = ref(false)
 const superadministratorSaving = ref(false)
 const superadministratorErrorMessage = ref("")
 const selectedSuperadministratorUids = ref<string[]>([])
+const usersPageSize = 25
+const usersOffset = ref(0)
 
 const currentUser = computed(() => store.state.authorization.user)
 const isSuperadministrator = computed(() => Boolean(currentUser.value?.roles.some((role) => role.name === "superadministrator")))
 const users = computed(() => store.state.users.users)
+const usersTotal = computed(() => store.state.users.total)
+const usersPage = computed(() => Math.floor(usersOffset.value / usersPageSize) + 1)
+const usersTotalPages = computed(() => Math.max(1, Math.ceil(usersTotal.value / usersPageSize)))
+const sessionsPage = computed(() => Math.floor(sessionsOffset.value / sessionsPageSize) + 1)
+const sessionsTotalPages = computed(() => Math.max(1, Math.ceil(sessionsTotal.value / sessionsPageSize)))
 
 onMounted(() => {
   loadSessions()
@@ -27,26 +38,43 @@ onMounted(() => {
   }
 })
 
-watch(users, syncSuperadministratorSelection, { immediate: true })
-
-function loadSuperadministratorSettings(): void {
+function loadSuperadministratorSettings(loadSelection = true): void {
   superadministratorErrorMessage.value = ""
 
-  apiClient.users.list()
+  Promise.all([
+    apiClient.users.list({ limit: usersPageSize, offset: usersOffset.value }),
+    loadSelection ? apiClient.users.listSuperadministratorUsers() : Promise.resolve(null)
+  ])
+    .then(([, superadministratorResult]) => {
+      if (superadministratorResult) selectedSuperadministratorUids.value = superadministratorResult.userUids
+    })
     .catch((error) => {
       superadministratorErrorMessage.value = getErrorMessage(error, "Не удалось загрузить настройки суперадминистратора")
     })
 }
 
-function loadSessions(): void {
+function changeUsersPage(page: number): void {
+  const normalizedPage = Math.min(Math.max(page, 1), usersTotalPages.value)
+  usersOffset.value = (normalizedPage - 1) * usersPageSize
+  loadSuperadministratorSettings(false)
+}
+
+function loadSessions(offset = sessionsOffset.value): void {
   loading.value = true
-  apiClient.authorization.listSessions()
+  apiClient.authorization.listSessions({ limit: sessionsPageSize, offset })
     .then((result) => {
       sessions.value = result.sessions
+      sessionsTotal.value = result.total
+      sessionsOffset.value = result.offset
     })
     .finally(() => {
       loading.value = false
     })
+}
+
+function changeSessionsPage(page: number): void {
+  const normalizedPage = Math.min(Math.max(page, 1), sessionsTotalPages.value)
+  loadSessions((normalizedPage - 1) * sessionsPageSize)
 }
 
 function revokeSession(session: iSharedAuthorization.UserSessionDto): void {
@@ -103,6 +131,7 @@ function saveSuperadministrators(): void {
           })
       }
 
+      loadSuperadministratorSettings()
       return undefined
     })
     .catch((error) => {
@@ -111,12 +140,6 @@ function saveSuperadministrators(): void {
     .finally(() => {
       superadministratorSaving.value = false
     })
-}
-
-function syncSuperadministratorSelection(): void {
-  selectedSuperadministratorUids.value = users.value
-    .filter((user) => user.roles.some((role) => role.name === "superadministrator"))
-    .map((user) => user.uid)
 }
 
 function getSessionTitle(session: iSharedAuthorization.UserSessionDto): string {
@@ -172,7 +195,7 @@ function formatDate(value: string): string {
               {{ superadministratorErrorMessage }}
             </div>
 
-            <div class="grid gap-2">
+            <div class="grid max-h-80 gap-2 overflow-y-auto pr-1">
               <label v-for="user in users" :key="user.uid" class="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
                 <span class="min-w-0">
                   <span class="block truncate text-sm font-medium text-slate-950 dark:text-slate-50">{{ user.fullName }}</span>
@@ -180,6 +203,11 @@ function formatDate(value: string): string {
                 </span>
                 <input class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600" type="checkbox" :checked="selectedSuperadministratorUids.includes(user.uid)" @change="toggleSuperadministrator(user.uid)" />
               </label>
+            </div>
+
+            <div v-if="usersTotal > usersPageSize" class="mt-3 grid justify-items-start gap-2 text-sm">
+              <span class="text-slate-500 dark:text-slate-400">{{ usersPage }} / {{ usersTotalPages }}</span>
+              <PaginationControls :current-page="usersPage" :total-pages="usersTotalPages" @change="changeUsersPage" />
             </div>
 
             <button class="mt-4 inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white" type="button" :disabled="superadministratorSaving || !selectedSuperadministratorUids.length" @click="saveSuperadministrators">
@@ -246,6 +274,10 @@ function formatDate(value: string): string {
                 </button>
               </div>
             </template>
+          </div>
+          <div v-if="sessionsTotal > sessionsPageSize" class="grid justify-items-start gap-2 border-t border-slate-200 px-5 py-3 text-sm dark:border-slate-700">
+            <span class="text-slate-500 dark:text-slate-400">{{ sessionsPage }} / {{ sessionsTotalPages }}</span>
+            <PaginationControls :current-page="sessionsPage" :total-pages="sessionsTotalPages" :disabled="loading" @change="changeSessionsPage" />
           </div>
         </div>
       </div>

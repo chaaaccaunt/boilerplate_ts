@@ -3,6 +3,9 @@ import { Module, MutationTree } from "vuex"
 const mutations: MutationTree<iSharedState.UsersState> = {
   setUsers(state, payload: iSharedUser.ListUsersResponseDto) {
     state.users = payload.users
+    state.total = payload.total
+    state.limit = payload.limit
+    state.offset = payload.offset
   },
 
   setRoles(state, payload: iSharedUser.ListRolesResponseDto) {
@@ -15,6 +18,8 @@ const mutations: MutationTree<iSharedState.UsersState> = {
 
   addUser(state, user: iSharedUser.PublicUserDto) {
     state.users = [user, ...state.users.filter((item) => item.uid !== user.uid)]
+      .slice(0, state.limit)
+    state.total += 1
   },
 
   updateUser(state, user: iSharedUser.PublicUserDto) {
@@ -23,6 +28,7 @@ const mutations: MutationTree<iSharedState.UsersState> = {
 
   deleteUser(state, payload: iSharedUser.DeleteUserResponseDto) {
     state.users = state.users.filter((item) => item.uid !== payload.uid)
+    state.total = Math.max(0, state.total - 1)
   },
 
   addRole(state, role: iSharedUserRole.UserRoleDto) {
@@ -53,6 +59,9 @@ export const users: Module<iSharedState.UsersState, iSharedState.RootState> = {
 
   state: () => ({
     users: [],
+    total: 0,
+    limit: 25,
+    offset: 0,
     roles: [],
     permissions: []
   }),

@@ -14,15 +14,23 @@ const webSocketClient = useWebSocketClient()
 
 const isLoading = ref(false)
 const isSending = ref(false)
+const isLoadingMessages = ref(false)
 const errorMessage = ref("")
 const lastActiveRoomStorageKeyPrefix = "chat:last-active-room-uid"
 const realtimeUnsubscribeCallbacks: Array<() => void> = []
 
 const rooms = computed(() => store.state.chat.rooms)
 const availableMembers = ref<iSharedChat.ChatAvailableMemberDto[]>([])
+const availableMembersTotal = ref(0)
+const availableMembersOffset = ref(0)
+const availableMembersPageSize = 25
+const availableMembersPage = computed(() => Math.floor(availableMembersOffset.value / availableMembersPageSize) + 1)
+const availableMembersTotalPages = computed(() => Math.max(1, Math.ceil(availableMembersTotal.value / availableMembersPageSize)))
 const activeRoomUid = computed(() => store.state.chat.activeRoomUid)
 const activeRoom = computed(() => rooms.value.find((room) => room.uid === activeRoomUid.value) || null)
 const messages = computed(() => activeRoomUid.value ? store.state.chat.messagesByRoomUid[activeRoomUid.value] || [] : [])
+const messagePagination = computed(() => activeRoomUid.value ? store.state.chat.messagePaginationByRoomUid[activeRoomUid.value] : null)
+const hasOlderMessages = computed(() => Boolean(messagePagination.value && messages.value.length < messagePagination.value.total))
 
 onMounted(() => {
   realtimeUnsubscribeCallbacks.push(webSocketClient.on<iSharedChat.ChatMessageSendResponseDto>("chat:message:created", ({ message }) => {
@@ -73,9 +81,30 @@ function loadRooms(): void {
 }
 
 function loadMessages(roomUid: string): void {
-  apiClient.chat.listMessages(roomUid)
+  isLoadingMessages.value = true
+  apiClient.chat.listMessages({ roomUid, limit: 50, offset: 0 })
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось загрузить сообщения"
+    })
+    .finally(() => {
+      isLoadingMessages.value = false
+    })
+}
+
+function loadOlderMessages(): void {
+  if (!activeRoomUid.value || !hasOlderMessages.value || isLoadingMessages.value) return
+
+  isLoadingMessages.value = true
+  apiClient.chat.listMessages({
+    roomUid: activeRoomUid.value,
+    limit: 50,
+    offset: messages.value.length
+  })
+    .catch((error) => {
+      errorMessage.value = error instanceof ApiError ? error.message : "Не удалось загрузить предыдущие сообщения"
+    })
+    .finally(() => {
+      isLoadingMessages.value = false
     })
 }
 
@@ -156,14 +185,21 @@ function deleteMessageFile(payload: iSharedChat.ChatMessageFileDeletePayloadDto)
     })
 }
 
-function loadAvailableMembers(): void {
-  apiClient.chat.listAvailableMembers()
+function loadAvailableMembers(offset = 0): void {
+  apiClient.chat.listAvailableMembers({ limit: availableMembersPageSize, offset })
     .then((result) => {
       availableMembers.value = result.users
+      availableMembersTotal.value = result.total
+      availableMembersOffset.value = result.offset
     })
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось загрузить пользователей для чата"
     })
+}
+
+function changeAvailableMembersPage(page: number): void {
+  const normalizedPage = Math.min(Math.max(page, 1), availableMembersTotalPages.value)
+  loadAvailableMembers((normalizedPage - 1) * availableMembersPageSize)
 }
 
 function updateRoom(payload: iSharedChat.ChatRoomUpdatePayloadDto): void {
@@ -253,6 +289,8 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
     <ChatRoomsPanel
       :rooms="rooms"
       :available-members="availableMembers"
+      :available-members-page="availableMembersPage"
+      :available-members-total-pages="availableMembersTotalPages"
       :active-room-uid="activeRoomUid"
       :is-loading="isLoading"
       :current-user-uid="store.state.authorization.user?.uid || null"
@@ -262,6 +300,7 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
       @update="updateRoom"
       @delete="deleteRoom"
       @leave="leaveRoom"
+      @members-page="changeAvailableMembersPage"
     />
 
     <div class="grid min-h-0 min-w-0 grid-rows-[57px_minmax(0,1fr)_auto] overflow-hidden">
@@ -273,7 +312,10 @@ function getErrorMessage(error: unknown, defaultMessage: string): string {
         :messages="messages"
         :active-room-uid="activeRoomUid"
         :error-message="errorMessage"
+        :has-older-messages="hasOlderMessages"
+        :is-loading-older="isLoadingMessages"
         :resolve-file-url="resolveFileUrl"
+        @load-older="loadOlderMessages"
         @update-message="updateMessage"
         @delete-message="deleteMessage"
         @delete-message-file="deleteMessageFile"

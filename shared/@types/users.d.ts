@@ -99,11 +99,17 @@ declare global {
       users: PublicUserDto[]
     }
 
+    interface ListSuperadministratorUsersResponseDto {
+      userUids: string[]
+    }
+
     interface UserCreatedEventDto {
       user: PublicUserDto
     }
 
-    interface ListUsersResponseDto {
+    type ListUsersPayloadDto = iSharedApi.PaginationPayloadDto
+
+    interface ListUsersResponseDto extends iSharedApi.PaginationDto {
       users: PublicUserDto[]
     }
 

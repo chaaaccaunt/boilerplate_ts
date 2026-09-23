@@ -52,7 +52,7 @@ npm install
 
 Полный init-flow готовит локальное окружение разработки и запускает dev-режим.
 Аргументы команды — host локальной СУБД и admin credentials локальной СУБД, а не пользователь приложения.
-Режим прямого запуска без nginx задается в `development.config.json` через `localhost.noNginx`, debug-логирование — через `localhost.debug`.
+Режим прямого запуска без nginx задается в `development.config.json` через `localhost.noNginx`, debug-логирование — через `localhost.debug`. Флаг `localhost.mockData` включает создание фиксированного набора объемных mock-данных при `init`.
 
 ```bash
 npm run project -- init <db-host> <db-admin-user> <db-admin-password>

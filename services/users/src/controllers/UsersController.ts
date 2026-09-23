@@ -9,7 +9,7 @@ export class UsersController extends MicroServiceController {
   ) {
     super()
 
-    const listRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListUsersResponseDto> = {
+    const listRoute: iContracts.iMicroServiceRoute<iSharedUser.ListUsersPayloadDto, iSharedUser.ListUsersResponseDto> = {
       url: /^POST:\/users\/list\/?$/,
       method: "POST",
       callback: this.handle(this.service.constructor.name, "list", this.list.bind(this))
@@ -75,12 +75,17 @@ export class UsersController extends MicroServiceController {
       callback: this.handle(this.service.constructor.name, "updateSuperadministratorUsers", this.updateSuperadministratorUsers.bind(this))
     }
 
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute])
+    const listSuperadministratorUsersRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListSuperadministratorUsersResponseDto> = {
+      url: /^POST:\/users\/superadministrators\/list\/?$/,
+      method: "POST",
+      callback: this.handle(this.service.constructor.name, "listSuperadministratorUserUids", this.listSuperadministratorUsers.bind(this))
+    }
+
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute, listSuperadministratorUsersRoute])
   }
 
-  private list(): Promise<iSharedUser.ListUsersResponseDto> {
-    return this.service.list()
-      .then((users) => ({ users }))
+  private list(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.ListUsersPayloadDto>): Promise<iSharedUser.ListUsersResponseDto> {
+    return this.service.list(payload.data)
   }
 
   private create(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.CreateUserPayloadDto>): Promise<iSharedUser.CreateUserResponseDto> {
@@ -156,6 +161,11 @@ export class UsersController extends MicroServiceController {
 
     return this.service.updateSuperadministratorUsers(payload.data, payload.requestId)
       .then((users) => ({ users }))
+  }
+
+  private listSuperadministratorUsers(): Promise<iSharedUser.ListSuperadministratorUsersResponseDto> {
+    return this.service.listSuperadministratorUserUids()
+      .then((userUids) => ({ userUids }))
   }
 
 }
