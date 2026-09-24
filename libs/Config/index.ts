@@ -19,6 +19,7 @@ export interface iAppConfig {
     chatUrl?: string
     logCollectorUrl?: string
     chatRealtimeGatewayUrl?: string
+    notificationsUrl?: string
   }
 }
 
@@ -42,7 +43,8 @@ export class AppConfiguration {
     "VAR_USERS_SERVICE_URL",
     "VAR_CHAT_SERVICE_URL",
     "VAR_CHAT_REALTIME_GATEWAY_URL",
-    "VAR_LOG_COLLECTOR_SERVICE_URL"
+    "VAR_LOG_COLLECTOR_SERVICE_URL",
+    "VAR_NOTIFICATIONS_SERVICE_URL"
   ] as const
 
   readonly config: iAppConfig
@@ -77,7 +79,8 @@ export class AppConfiguration {
         usersUrl: this.requiredEnvKeys.VAR_USERS_SERVICE_URL,
         chatUrl: this.requiredEnvKeys.VAR_CHAT_SERVICE_URL,
         logCollectorUrl: this.requiredEnvKeys.VAR_LOG_COLLECTOR_SERVICE_URL,
-        chatRealtimeGatewayUrl: this.requiredEnvKeys.VAR_CHAT_REALTIME_GATEWAY_URL
+        chatRealtimeGatewayUrl: this.requiredEnvKeys.VAR_CHAT_REALTIME_GATEWAY_URL,
+        notificationsUrl: this.requiredEnvKeys.VAR_NOTIFICATIONS_SERVICE_URL
       }
     }
   }
@@ -106,6 +109,7 @@ export class AppConfiguration {
       VAR_CHAT_SERVICE_URL: this.getProcessEnvValue("VAR_CHAT_SERVICE_URL"),
       VAR_CHAT_REALTIME_GATEWAY_URL: this.getProcessEnvValue("VAR_CHAT_REALTIME_GATEWAY_URL"),
       VAR_LOG_COLLECTOR_SERVICE_URL: this.getProcessEnvValue("VAR_LOG_COLLECTOR_SERVICE_URL"),
+      VAR_NOTIFICATIONS_SERVICE_URL: this.getProcessEnvValue("VAR_NOTIFICATIONS_SERVICE_URL"),
       VAR_PROCESS_CLUSTER_ENABLED: this.getProcessEnvValue("VAR_PROCESS_CLUSTER_ENABLED"),
       VAR_PROCESS_CLUSTER_WORKERS: this.getProcessEnvValue("VAR_PROCESS_CLUSTER_WORKERS")
     }

@@ -5,7 +5,18 @@
       password: string
     }
 
-    type LoginResponseDto = iSharedUser.PublicUserDto
+    interface TwoFactorRequiredResponseDto {
+      status: "two_factor_required"
+      challengeUid: string
+      expiresAt: string
+    }
+
+    type LoginResponseDto = iSharedUser.PublicUserDto | TwoFactorRequiredResponseDto
+
+    interface VerifyTwoFactorLoginPayloadDto {
+      challengeUid: string
+      code: string
+    }
 
     interface PublicUserCookieRoleDto {
       uid: string

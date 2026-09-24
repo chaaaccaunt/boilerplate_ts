@@ -5,9 +5,10 @@ const rootDirectory = resolve(__dirname, "../..")
 const frontendPackageDirectory = join(rootDirectory, "monolith")
 const servicesDirectory = join(rootDirectory, "services")
 const gatewaysDirectory = join(rootDirectory, "gateways")
+const nginxDirectory = join(rootDirectory, "nginx")
 const packageConfigFileName = "package.config.json"
 const rootDevelopmentConfigFileName = "development.config.json"
-const rootDevelopmentConfigExampleFileName = "development.config.example.json"
+const rootDevelopmentConfigExampleFileName = "development.config_example.json"
 const localhostNoNginxHttpOrigin = "http://localhost:8080"
 const defaultDatabaseDialect = "mysql"
 const defaultDatabaseHost = "localhost"
@@ -24,6 +25,7 @@ function createProjectConfig() {
     frontendPackageDirectory,
     servicesDirectory,
     gatewaysDirectory,
+    nginxDirectory,
     packageConfigFileName,
     rootDevelopmentConfigFileName,
     rootDevelopmentConfigExampleFileName,
@@ -39,6 +41,7 @@ function createProjectConfig() {
     localhostHttpOrigin: developmentConfig.localhost.httpOrigin,
     baseUrl: developmentConfig.localhost.baseUrl,
     localhostNoNginxHttpOrigin,
+    localhostFrontendDevServerPort: "8081",
     localhostCookieName: "authorization",
     localhostPublicUserCookieName: "authorization_user",
     localhostJwtSecret: "localhost-development-jwt-secret",

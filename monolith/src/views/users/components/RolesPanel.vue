@@ -232,17 +232,13 @@ function selectRole(role: iSharedUserRole.UserRoleDto): void {
 }
 
 function getPermissionGroupKey(permissionKey: string): string {
-  const prefix = permissionKey.split(".")[0] || "other"
-
-  if (prefix === "roles") return "users"
-  if (prefix === "logs") return "system"
-
-  return prefix
+  return permissionKey.split(".")[0] || "other"
 }
 
 function getPermissionGroupTitle(groupKey: string): string {
   const titles: Record<string, string> = {
-    users: "Пользователи и роли",
+    users: "Пользователи",
+    roles: "Роли",
     system: "Система"
   }
 
@@ -252,6 +248,7 @@ function getPermissionGroupTitle(groupKey: string): string {
 function getPermissionGroupOrder(groupKey: string): number {
   const order: Record<string, number> = {
     users: 10,
+    roles: 20,
     system: 30
   }
 
@@ -434,34 +431,34 @@ function getPermissionGroupOrder(groupKey: string): number {
             </div>
 
             <div class="min-h-0 overflow-y-auto p-4">
-              <div class="grid gap-4 xl:grid-cols-2">
+              <div class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
                 <section
                   v-for="group in permissionGroups"
                   :key="group.key"
-                  class="rounded-md border border-slate-200 dark:border-slate-700"
+                  class="border-b border-slate-200 last:border-b-0 dark:border-slate-700"
                 >
-                  <header class="border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+                  <header class="flex items-center gap-2 bg-slate-50 px-3 py-2 dark:bg-slate-800/70">
+                    <span class="text-slate-400" aria-hidden="true">▾</span>
                     <h4 class="text-sm font-semibold text-slate-950 dark:text-slate-50">{{ group.title }}</h4>
-                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ group.permissions.length }} прав</p>
                   </header>
-                  <div class="grid gap-1 p-2">
+                  <div class="divide-y divide-slate-100 dark:divide-slate-800">
                     <label
                       v-for="permission in group.permissions"
                       :key="permission.uid"
-                      class="flex min-w-0 items-start gap-2 rounded-md px-2 py-2 text-xs text-slate-600 dark:text-slate-300"
-                      :class="isSystemRole(activeRole) ? 'opacity-60' : 'hover:bg-slate-50 dark:hover:bg-slate-950'"
+                      class="flex min-w-0 items-center gap-2 py-2 pl-7 pr-3 text-xs text-slate-600 dark:text-slate-300"
+                      :class="isSystemRole(activeRole) ? 'opacity-60' : 'hover:bg-slate-50 dark:hover:bg-slate-950/60'"
+                      :title="permission.description || permission.title"
                     >
                       <input
                         v-model="selectedPermissionKeys[activeRole.uid]"
-                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                        class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                         type="checkbox"
                         :value="permission.key"
                         :disabled="isSystemRole(activeRole) || !props.canManageRolePermissions || isSubmitting"
                       >
-                      <span class="min-w-0">
-                        <span class="block font-medium text-slate-800 dark:text-slate-100">{{ permission.title }}</span>
-                        <span class="block break-all text-slate-500 dark:text-slate-400">{{ permission.key }}</span>
-                        <span v-if="permission.description" class="mt-1 block text-slate-500 dark:text-slate-400">{{ permission.description }}</span>
+                      <span class="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+                        <span class="truncate font-medium text-slate-800 dark:text-slate-100">{{ permission.title }}</span>
+                        <span class="shrink-0 text-slate-400 dark:text-slate-500">{{ permission.key }}</span>
                       </span>
                     </label>
                   </div>

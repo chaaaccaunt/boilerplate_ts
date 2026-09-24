@@ -91,16 +91,12 @@ declare global {
       uid: string
     }
 
-    interface UpdateSuperadministratorUsersPayloadDto {
-      userUids: string[]
+    interface TransferSuperadministratorPayloadDto {
+      userUid: string
     }
 
-    interface UpdateSuperadministratorUsersResponseDto {
-      users: PublicUserDto[]
-    }
-
-    interface ListSuperadministratorUsersResponseDto {
-      userUids: string[]
+    interface TransferSuperadministratorResponseDto {
+      user: PublicUserDto
     }
 
     interface UserCreatedEventDto {

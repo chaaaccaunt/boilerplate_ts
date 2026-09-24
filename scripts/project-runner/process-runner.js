@@ -503,7 +503,9 @@ function getCommandWindowTitle(command) {
   const runIndex = command.args.indexOf("run")
 
   if (command.workspaceName && runIndex !== -1) {
-    return `${command.workspaceName}:${command.args[runIndex + 1]}`
+    const workspaceTitle = command.workspaceName.replace(/^boilerplate-ts-(?:service-|gateway-)?/, "")
+
+    return `${workspaceTitle}:${command.args[runIndex + 1]}`
   }
 
   return "boilerplate-ts"

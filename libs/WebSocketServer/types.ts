@@ -28,6 +28,7 @@ export interface iWebSocketBroadcastOptions {
   excludeUserUid?: iContracts.iUserToken["uid"]
   allowedPermissions?: readonly iSharedPermission.PermissionKey[]
   allowedRoles?: readonly iSharedUserRole.UserRoleName[]
+  allowedUserUids?: readonly iContracts.iUserToken["uid"][]
 }
 
 export interface iWebSocketEventHandler<TPayload = iContracts.iPayload, TResult = unknown> {

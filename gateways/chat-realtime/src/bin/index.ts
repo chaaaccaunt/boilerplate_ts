@@ -1,5 +1,5 @@
 import { ApplicationRunner, config, Logger, MicroServiceHTTPClient, MicroServiceHTTPServer, WebSocketServer } from "@/libs"
-import { ChatSocketController, FileEventsController, SystemPackageEventsController } from "../controller"
+import { ChatSocketController, FileEventsController, NotificationEventsController, SystemPackageEventsController } from "../controller"
 
 class ChatRealtimeGatewayApplication {
   start(): void {
@@ -18,6 +18,7 @@ class ChatRealtimeGatewayApplication {
     ])
     internalEventServer.use([
       new FileEventsController(webSocketServer).getRoutes(),
+      new NotificationEventsController(webSocketServer).getRoutes(),
       new SystemPackageEventsController(webSocketServer, logger).getRoutes()
     ].flat())
 

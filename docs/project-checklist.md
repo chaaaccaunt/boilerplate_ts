@@ -74,10 +74,12 @@
 ## Пользователи и роли
 
 - Базовая роль `superadministrator` должна существовать в справочнике `roles`.
+- Роль `superadministrator` должна принадлежать ровно одному пользователю и изменяться только отдельной транзакционной операцией передачи с отзывом затронутых сессий.
 - Development seed должен сохранять пароль суперадминистратора как bcrypt hash.
-- Создание пользователей должно быть доступно по праву `users.create` или роли `superadministrator`.
-- Управление пользователями должно быть разделено по правам `users.read`, `users.create`, `users.update`, `users.delete`.
-- Управление ролями должно быть разделено по правам `roles.read`, `roles.create`, `roles.update`, `roles.delete`, `roles.permissions.manage`.
+- Просмотр пользователей и ролей должен быть доступен любому авторизованному пользователю.
+- Создание, редактирование и удаление пользователей должно быть доступно по праву `users.manage` или роли `superadministrator`.
+- Создание, редактирование, удаление ролей и назначение прав должно быть доступно по праву `roles.manage` или роли `superadministrator`.
+- Просмотр runtime metrics и журналов должен использовать единое право `system.read`.
 - Frontend должен получать пользователей и роли через `monolith/src/entities/users/api`.
 
 ## Проверки перед завершением задачи
@@ -135,7 +137,7 @@
   - `runtime_package_connections` получает события подключения и отключения package;
   - чувствительные данные не попадают в context.
 - Если задача меняла runtime metrics:
-  - metrics доступны через право `system.metrics.read` или роль `superadministrator`;
+  - metrics доступны через право `system.read` или роль `superadministrator`;
   - public gateway обращается только к `services/log-collector`;
   - services/gateways не получают отдельные публичные metrics endpoints;
   - metrics DTO не содержит secrets, env values, tokens, cookies или database credentials;

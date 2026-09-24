@@ -22,6 +22,7 @@ const surname = ref("")
 const selectedRoleNames = ref<iSharedUserRole.UserRoleName[]>([])
 const isSubmitting = ref(false)
 const errorMessage = ref("")
+const assignableRoles = computed(() => props.roles.filter((role) => role.name !== "superadministrator"))
 
 const canSubmit = computed(() => Boolean(
   login.value.trim() &&
@@ -101,7 +102,7 @@ function updateUser(): void {
       <div class="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">Роли</div>
       <div class="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-slate-300 p-2 sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-950">
         <label
-          v-for="role in roles"
+          v-for="role in assignableRoles"
           :key="role.uid"
           class="flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
         >

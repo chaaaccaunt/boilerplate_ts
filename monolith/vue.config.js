@@ -40,6 +40,7 @@ module.exports = defineConfig({
   },
   devServer: {
     host: '0.0.0.0',
+    port: Number(process.env.VUE_APP_DEV_SERVER_PORT || 8081),
     ...getExternalDevServerConfig()
   }
 })

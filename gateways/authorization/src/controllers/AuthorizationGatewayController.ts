@@ -22,6 +22,16 @@ export class AuthorizationGatewayController extends HTTPController {
       callback: this.handle("login", this.login.bind(this))
     }
 
+    const verifyTwoFactorRoute: iContracts.iRoute<iSharedAuthorization.VerifyTwoFactorLoginPayloadDto, iContracts.iControllerResult<iSharedUser.PublicUserDto>> = {
+      url: /^\/authorization\/login\/two-factor\/?$/,
+      method: "POST",
+      validator: {
+        challengeUid: { isPrimitive: { string: { minLength: 36, maxLength: 36 } } },
+        code: { isPrimitive: { string: { minLength: 6, maxLength: 8 } } }
+      },
+      callback: this.handle("verifyTwoFactor", this.verifyTwoFactor.bind(this))
+    }
+
     const logoutRoute: iContracts.iRoute<iContracts.iPayload, iContracts.iControllerResult<iSharedAuthorization.LogoutResponseDto>> = {
       url: /^\/authorization\/logout\/?$/,
       method: "POST",
@@ -65,7 +75,7 @@ export class AuthorizationGatewayController extends HTTPController {
       callback: this.handle("revokeOtherSessions", this.revokeOtherSessions.bind(this))
     }
 
-    this.addRoutes([loginRoute, logoutRoute, stateRoute, sessionsRoute, revokeSessionRoute, revokeOtherSessionsRoute])
+    this.addRoutes([loginRoute, verifyTwoFactorRoute, logoutRoute, stateRoute, sessionsRoute, revokeSessionRoute, revokeOtherSessionsRoute])
   }
 
   private login(payload: iContracts.iRequestContextPayload<iSharedAuthorization.LoginPayloadDto>): Promise<iContracts.iControllerResult<iSharedAuthorization.LoginResponseDto>> {
@@ -76,9 +86,20 @@ export class AuthorizationGatewayController extends HTTPController {
       remoteAddress: payload.remoteAddress,
       requestId: payload.requestId
     })
-      .then((result) => ({
-        data: result.user,
-        setCookies: [
+      .then((result) => "twoFactor" in result
+        ? { data: result.twoFactor }
+        : { data: result.user, setCookies: this.getLoginCookies(result) })
+  }
+
+  private verifyTwoFactor(payload: iContracts.iRequestContextPayload<iSharedAuthorization.VerifyTwoFactorLoginPayloadDto>): Promise<iContracts.iControllerResult<iSharedUser.PublicUserDto>> {
+    if (!payload.data) throw new Exceptions.ControllerError.InternalError("Отсутствуют данные 2FA")
+
+    return this.service.verifyTwoFactor(payload.data, { headers: payload.headers, remoteAddress: payload.remoteAddress, requestId: payload.requestId })
+      .then((result) => ({ data: result.user, setCookies: this.getLoginCookies(result) }))
+  }
+
+  private getLoginCookies(result: iAuthorization.iLoginResult): iContracts.iSetCookie[] {
+    return [
           {
             name: this.httpConfig.cookie_name,
             value: result.accessToken,
@@ -97,7 +118,6 @@ export class AuthorizationGatewayController extends HTTPController {
             }
           }
         ]
-      }))
   }
 
   private logout(payload: iContracts.iRequestContextPayload): Promise<iContracts.iControllerResult<iSharedAuthorization.LogoutResponseDto>> {
@@ -164,7 +184,7 @@ export class AuthorizationGatewayController extends HTTPController {
     return [this.httpConfig.cookie_name, this.publicUserCookieName]
   }
 
-  private toPublicUserCookieDto(user: iSharedAuthorization.LoginResponseDto): iSharedAuthorization.PublicUserCookieDto {
+  private toPublicUserCookieDto(user: iSharedUser.PublicUserDto): iSharedAuthorization.PublicUserCookieDto {
     return {
       uid: user.uid,
       login: user.login,

@@ -181,6 +181,7 @@ export class WebSocketServer {
 
     const user = socket.data.user as iContracts.iUserToken | undefined
     if (options.excludeUserUid && user?.uid === options.excludeUserUid) return true
+    if (options.allowedUserUids?.length && (!user || !options.allowedUserUids.includes(user.uid))) return true
     if (!this.hasAllowedAccess(user, options.allowedPermissions, options.allowedRoles)) return true
 
     return false

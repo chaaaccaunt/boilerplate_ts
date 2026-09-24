@@ -16,12 +16,16 @@ class PublicGatewayApplication {
     if (!config.internalServices.logCollectorUrl) {
       throw new Error("Не задан VAR_LOG_COLLECTOR_SERVICE_URL для public gateway")
     }
+    if (!config.internalServices.notificationsUrl) {
+      throw new Error("Не задан VAR_NOTIFICATIONS_SERVICE_URL для public gateway")
+    }
 
     new Controllers(
       httpServer,
       config.internalServices.usersUrl,
       config.internalServices.chatUrl,
-      config.internalServices.logCollectorUrl
+      config.internalServices.logCollectorUrl,
+      config.internalServices.notificationsUrl
     )
 
     httpServer.listen(config.http.port)

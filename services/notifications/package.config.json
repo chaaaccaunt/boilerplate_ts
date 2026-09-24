@@ -1,0 +1,12 @@
+{
+  "runtime": { "packageUid": "00000000-0000-4000-8000-000000000408" },
+  "database": {
+    "runtimeGrants": [
+      { "table": "notifications", "operations": ["SELECT", "INSERT", "UPDATE"] },
+      { "table": "max_accounts", "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"] },
+      { "table": "max_bot_configuration", "operations": ["SELECT", "INSERT", "UPDATE"] },
+      { "table": "notification_challenges", "operations": ["SELECT", "INSERT", "UPDATE"] }
+    ]
+  },
+  "development": { "localhost": { "port": "4105" } }
+}

@@ -84,16 +84,10 @@ export class UsersApi {
     })
   }
 
-  updateSuperadministratorUsers(payload: iSharedUser.UpdateSuperadministratorUsersPayloadDto): Promise<iSharedUser.UpdateSuperadministratorUsersResponseDto> {
-    return this.api.patch<iSharedUser.UpdateSuperadministratorUsersResponseDto, iSharedUser.UpdateSuperadministratorUsersPayloadDto>({
-      path: "/users/superadministrators",
+  transferSuperadministrator(payload: iSharedUser.TransferSuperadministratorPayloadDto): Promise<iSharedUser.TransferSuperadministratorResponseDto> {
+    return this.api.post<iSharedUser.TransferSuperadministratorResponseDto, iSharedUser.TransferSuperadministratorPayloadDto>({
+      path: "/users/superadministrator/transfer",
       payload
-    })
-  }
-
-  listSuperadministratorUsers(): Promise<iSharedUser.ListSuperadministratorUsersResponseDto> {
-    return this.api.get<iSharedUser.ListSuperadministratorUsersResponseDto>({
-      path: "/users/superadministrators"
     })
   }
 }

@@ -13,8 +13,10 @@ const login = ref("")
 const password = ref("")
 const isSubmitting = ref(false)
 const errorMessage = ref("")
+const challengeUid = ref("")
+const code = ref("")
 
-const canSubmit = computed(() => Boolean(login.value.trim() && password.value && !isSubmitting.value))
+const canSubmit = computed(() => challengeUid.value ? Boolean(code.value.trim().length >= 6 && !isSubmitting.value) : Boolean(login.value.trim() && password.value && !isSubmitting.value))
 
 function submit(): void {
   if (!canSubmit.value) return
@@ -22,11 +24,18 @@ function submit(): void {
   errorMessage.value = ""
   isSubmitting.value = true
 
-  apiClient.authorization.login({
+  const request = challengeUid.value
+    ? apiClient.authorization.verifyTwoFactor({ challengeUid: challengeUid.value, code: code.value.trim() })
+    : apiClient.authorization.login({
     login: login.value.trim(),
     password: password.value
   })
-    .then(() => {
+  request.then((result) => {
+      if ("status" in result && result.status === "two_factor_required") {
+        challengeUid.value = result.challengeUid
+        password.value = ""
+        return undefined
+      }
       const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/home"
       return router.replace(redirect)
     })
@@ -47,7 +56,7 @@ function submit(): void {
       {{ errorMessage }}
     </div>
 
-    <div class="mb-4">
+    <div v-if="!challengeUid" class="mb-4">
       <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="login">Логин</label>
       <input
         id="login"
@@ -59,7 +68,7 @@ function submit(): void {
       >
     </div>
 
-    <div class="mb-6">
+    <div v-if="!challengeUid" class="mb-6">
       <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="password">Пароль</label>
       <input
         id="password"
@@ -71,13 +80,19 @@ function submit(): void {
       >
     </div>
 
+    <div v-else class="mb-6">
+      <p class="mb-4 text-sm text-slate-600 dark:text-slate-300">Код отправлен в привязанный MAX.</p>
+      <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200" for="two-factor-code">Код подтверждения</label>
+      <input id="two-factor-code" v-model="code" class="h-10 w-full rounded-md border border-slate-300 px-3 text-center font-mono text-lg tracking-[0.3em] dark:border-slate-700 dark:bg-slate-950" inputmode="text" autocomplete="one-time-code" maxlength="8" required>
+    </div>
+
     <button
       class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
       type="submit"
       :disabled="!canSubmit"
     >
       <LogInIcon class="h-4 w-4" aria-hidden="true" />
-      {{ isSubmitting ? "Вход..." : "Войти" }}
+      {{ isSubmitting ? "Проверка..." : challengeUid ? "Подтвердить код" : "Войти" }}
     </button>
   </form>
 </template>

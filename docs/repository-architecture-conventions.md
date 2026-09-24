@@ -256,7 +256,7 @@ Root runner должен запускать package-local scripts, но не д�
 Если package является одноразовым utility process и не должен запускаться вместе с `dev all`, в его `package.json` нужно явно указать `boilerplate.runWithDevAll: false`, а root runner обязан учитывать этот флаг.
 Если добавляется новый gateway или существующий gateway становится публичной boundary, агент обязан проверить nginx-конфиги в `./nginx` и обновить upstream/location routing в той же задаче, чтобы публичный edge соответствовал package-local `VAR_HTTP_PORT`.
 Root runner может поддерживать отдельный development-only режим быстрого запуска без nginx через `localhost.noNginx: true` в `development.config.json`.
-Такой режим должен генерировать только package-local `.dev.env`, не менять production flow и не отменять требование проверять nginx для публичных gateway.
+Такой режим меняет только runtime-использование package-local `.dev.env`, не меняет production flow и не отменяет генерацию или проверку development nginx-конфигов для публичных gateway.
 
 Новый package подключается к корневому orchestration через расположение:
 

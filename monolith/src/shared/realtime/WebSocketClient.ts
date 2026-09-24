@@ -30,6 +30,7 @@ type WebSocketServerEvent =
   | "files:document:updated"
   | "files:document:deleted"
   | "system:package-connection"
+  | "notification:created"
 
 type WebSocketServerEventHandler<TResult> = (result: TResult) => void
 

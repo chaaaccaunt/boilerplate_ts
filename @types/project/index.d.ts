@@ -9,6 +9,7 @@
 /// <reference path="../../shared/@types/chat.d.ts" />
 /// <reference path="../../shared/@types/files.d.ts" />
 /// <reference path="../../shared/@types/logs.d.ts" />
+/// <reference path="../../shared/@types/notifications.d.ts" />
 /// <reference path="../../shared/@types/state.d.ts" />
 /// <reference path="../../shared/@types/system.d.ts" />
 /// <reference path="../../shared/@types/users.d.ts" />

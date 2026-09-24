@@ -8,6 +8,10 @@ Boilerplate содержит только одну системную роль:
 
 - `superadministrator` — суперадминистратор базового приложения.
 
+В системе одновременно должен быть ровно один пользователь с ролью `superadministrator`.
+Эта роль не назначается и не снимается через обычное создание или редактирование пользователя.
+Текущий суперадминистратор передает ее выбранному пользователю отдельной операцией: в одной транзакции роль снимается со всех прежних владельцев, назначается единственному получателю, а сессии затронутых пользователей отзываются для обновления JWT claims.
+
 Boilerplate содержит базовую permission infrastructure, чтобы пользовательские роли могли получать доступ через назначенные права, а не через hardcoded role names.
 
 Project-specific роли, дополнительные permissions, ownership rules и endpoint access policy должны добавляться конкретным проектом отдельно.
@@ -39,22 +43,15 @@ interface UserRoleDto {
 Permission key должен быть стабильной строкой в доменном формате:
 
 ```text
-users.read
-system.metrics.read
+system.read
 ```
 
 Для пользователей и ролей используются раздельные права:
 
 ```text
-users.read
-users.create
-users.update
-users.delete
-roles.read
-roles.create
-roles.update
-roles.delete
-roles.permissions.manage
+users.manage
+roles.manage
+system.read
 ```
 
 Роль доступа является набором permissions. Endpoint access policy и frontend route/navigation checks должны по возможности проверять permission key, а role name использовать только как fallback для совместимости с существующими системными ролями.
@@ -90,7 +87,7 @@ Seed development-пользователей должен также сохран
 Backend endpoint создания пользователя должен:
 
 - требовать авторизацию;
-- проверять permission `users.create` на уровне controller, с fallback на системную роль `superadministrator` для совместимости;
+- проверять permission `users.manage` на уровне controller, с fallback на системную роль `superadministrator` для совместимости;
 - принимать DTO из `shared/@types`;
 - хэшировать пароль в service;
 - возвращать публичный `PublicUserDto`;
@@ -98,14 +95,10 @@ Backend endpoint создания пользователя должен:
 
 Остальные endpoints управления пользователями должны проверять соответствующее действие:
 
-- просмотр пользователей — `users.read`;
-- редактирование пользователей — `users.update`;
-- удаление пользователей — `users.delete`;
-- просмотр ролей — `roles.read`;
-- создание ролей — `roles.create`;
-- редактирование ролей — `roles.update`;
-- удаление ролей — `roles.delete`;
-- изменение прав роли — `roles.permissions.manage`.
+- просмотр пользователей и ролей — любой авторизованный пользователь;
+- создание, редактирование и удаление пользователей — `users.manage`;
+- создание, редактирование, удаление ролей и изменение назначенных им прав — `roles.manage`;
+- просмотр runtime metrics и журналов — `system.read`.
 
 Frontend должен создавать пользователей через слои:
 

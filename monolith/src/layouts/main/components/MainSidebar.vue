@@ -4,7 +4,6 @@ import { useRoute } from "vue-router"
 import { ActivityIcon, FilesIcon, LayoutDashboardIcon, MenuIcon, MessageCircleIcon, SettingsIcon, UsersIcon, XIcon } from "@lucide/vue"
 
 defineProps<{
-  canManageUsers: boolean
   canViewSystem: boolean
 }>()
 
@@ -57,7 +56,6 @@ watch(() => route.fullPath, () => {
       </router-link>
 
       <router-link
-        v-if="canManageUsers"
         :class="getNavigationItemClass(['users'])"
         :to="{ name: 'users' }"
       >

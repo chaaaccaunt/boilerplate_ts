@@ -18,7 +18,7 @@ export class SystemPackageEventsController extends MicroServiceController {
     const event = this.getEventPayload(payload.data)
 
     this.webSocketServer.broadcast("system:package-connection", event, {
-      allowedPermissions: ["system.metrics.read", "logs.read"],
+      allowedPermissions: ["system.read"],
       allowedRoles: ["superadministrator"]
     })
 

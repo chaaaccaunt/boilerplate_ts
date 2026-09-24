@@ -7,6 +7,7 @@ export class UsersService {
     private readonly userModel: iDatabase.Models["User"],
     private readonly roleModel: iDatabase.Models["Role"],
     private readonly userRoleModel: iDatabase.Models["UserRole"],
+    private readonly userSessionModel: iDatabase.Models["UserSession"],
     private readonly databaseTools: iLibs.DatabaseServiceTools
   ) { }
 
@@ -34,29 +35,33 @@ export class UsersService {
   create(payload: iSharedUser.CreateUserPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
     return this.assertLoginAvailable(payload.login)
       .then(() => this.getRolesByNames(payload.roleNames))
-      .then((roles) => this.userModel.create({
-        login: payload.login,
-        password: hashSync(payload.password, 10),
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        surname: payload.surname ?? null
-      }, {
-        logging: this.createMutationQueryLogger("create", "users insert query", requestId)
-      })
-        .then((user) => Promise.all(roles.map((role) => this.userRoleModel.create({
-          userUid: user.uid,
-          roleUid: role.uid
-        }, {
-          logging: this.createMutationQueryLogger("create", "user_roles insert query", requestId)
-        })))
-          .then((userRoles) => {
-            user.roles = userRoles.map((userRole, index) => {
-              userRole.role = roles[index]
-              return userRole
-            })
+      .then((roles) => {
+        this.assertSuperadministratorRoleIsNotAssignedDirectly(roles)
 
-            return this.findPublicUser(user.uid)
+        return this.userModel.create({
+          login: payload.login,
+          password: hashSync(payload.password, 10),
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          surname: payload.surname ?? null
+        }, {
+          logging: this.createMutationQueryLogger("create", "users insert query", requestId)
+        })
+          .then((user) => Promise.all(roles.map((role) => this.userRoleModel.create({
+            userUid: user.uid,
+            roleUid: role.uid
+          }, {
+            logging: this.createMutationQueryLogger("create", "user_roles insert query", requestId)
           })))
+            .then((userRoles) => {
+              user.roles = userRoles.map((userRole, index) => {
+                userRole.role = roles[index]
+                return userRole
+              })
+
+              return this.findPublicUser(user.uid)
+            }))
+      })
   }
 
   update(payload: iSharedUser.UpdateUserPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
@@ -89,40 +94,73 @@ export class UsersService {
       .then(() => ({ uid: payload.uid })))
   }
 
-  updateSuperadministratorUsers(payload: iSharedUser.UpdateSuperadministratorUsersPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto[]> {
-    const uniqueUserUids = Array.from(new Set(payload.userUids))
-
-    if (!uniqueUserUids.length) {
-      throw new Exceptions.ServiceError.ConflictError("Нужен хотя бы один суперадминистратор")
-    }
-
+  transferSuperadministrator(payload: iSharedUser.TransferSuperadministratorPayloadDto, requestId?: string): Promise<iSharedUser.PublicUserDto> {
     return this.roleModel.findOne({ where: { name: "superadministrator" } })
       .then((role) => {
         if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль superadministrator не найдена")
 
-        return this.userModel.findAll({ where: { uid: uniqueUserUids } })
-          .then((users) => {
-            const existingUserUids = users.map((user) => String(user.uid))
-            const missingUserUids = uniqueUserUids.filter((userUid) => !existingUserUids.includes(userUid))
+        return this.userModel.findByPk(payload.userUid)
+          .then((user) => {
+            if (!user) throw new Exceptions.ServiceError.NotFoundError("Пользователь не найден")
 
-            if (missingUserUids.length) {
-              throw new Exceptions.ServiceError.ConflictError(`Не найдены пользователи: ${missingUserUids.join(", ")}`)
-            }
+            const sequelize = this.userRoleModel.sequelize
+            if (!sequelize) throw new Exceptions.ServiceError.InternalError("Не инициализировано подключение к базе данных")
 
-            return this.updateRoleUsers(role.uid, uniqueUserUids, requestId)
+            return sequelize.transaction((transaction) => this.userRoleModel.findAll({
+              where: { roleUid: role.uid },
+              paranoid: false,
+              transaction,
+              lock: transaction.LOCK.UPDATE
+            })
+              .then((userRoles) => {
+                const targetUserRole = userRoles.find((userRole) => String(userRole.userUid) === payload.userUid)
+                const removedUserUids = userRoles
+                  .filter((userRole) => !this.isSoftDeletedUserRole(userRole) && String(userRole.userUid) !== payload.userUid)
+                  .map((userRole) => userRole.userUid)
+                const affectedUserUids = Array.from(new Set([...removedUserUids, user.uid]))
+                const operations: Promise<unknown>[] = []
+
+                if (removedUserUids.length) {
+                  operations.push(this.userRoleModel.destroy({
+                    where: { roleUid: role.uid, userUid: removedUserUids },
+                    transaction,
+                    logging: this.createMutationQueryLogger("transferSuperadministrator", "superadministrator user_roles delete query", requestId)
+                  }))
+                }
+
+                if (targetUserRole && this.isSoftDeletedUserRole(targetUserRole)) {
+                  operations.push(targetUserRole.restore({
+                    transaction,
+                    logging: this.createMutationQueryLogger("transferSuperadministrator", "superadministrator user_roles restore query", requestId)
+                  }))
+                }
+
+                if (!targetUserRole) {
+                  operations.push(this.userRoleModel.create({
+                    userUid: user.uid,
+                    roleUid: role.uid
+                  }, {
+                    transaction,
+                    logging: this.createMutationQueryLogger("transferSuperadministrator", "superadministrator user_roles insert query", requestId)
+                  }))
+                }
+
+                operations.push(this.userSessionModel.update({
+                  revokedAt: new Date()
+                }, {
+                  where: {
+                    userUid: affectedUserUids,
+                    revokedAt: null
+                  },
+                  transaction,
+                  logging: this.createMutationQueryLogger("transferSuperadministrator", "user_sessions revoke query", requestId)
+                }))
+
+                return Promise.all(operations).then(() => undefined)
+              }))
           })
       })
-      .then(() => Promise.all(uniqueUserUids.map((userUid) => this.findPublicUser(userUid as UUID))))
-  }
-
-  listSuperadministratorUserUids(): Promise<string[]> {
-    return this.roleModel.findOne({ where: { name: "superadministrator" } })
-      .then((role) => {
-        if (!role) throw new Exceptions.ServiceError.NotFoundError("Роль superadministrator не найдена")
-
-        return this.userRoleModel.findAll({ where: { roleUid: role.uid } })
-      })
-      .then((userRoles) => userRoles.map((userRole) => String(userRole.userUid)))
+      .then(() => this.findPublicUser(payload.userUid as UUID))
   }
 
   private assertLoginAvailable(login: string, currentUserUid?: string): Promise<void> {
@@ -165,37 +203,6 @@ export class UsersService {
       })
   }
 
-  private updateRoleUsers(roleUid: UUID, userUids: string[], requestId?: string): Promise<void> {
-    return this.userRoleModel.findAll({ where: { roleUid }, paranoid: false })
-      .then((userRoles) => {
-        const activeUserRoles = userRoles.filter((userRole) => !this.isSoftDeletedUserRole(userRole))
-        const activeUserUids = activeUserRoles.map((userRole) => String(userRole.userUid))
-        const removedUserUids = activeUserUids.filter((userUid) => !userUids.includes(userUid))
-        const restoredUserRoles = userRoles.filter((userRole) => this.isSoftDeletedUserRole(userRole) && userUids.includes(String(userRole.userUid)))
-        const existingUserUids = userRoles.map((userRole) => String(userRole.userUid))
-        const addedUserUids = userUids.filter((userUid) => !existingUserUids.includes(userUid))
-
-        return Promise.all([
-          removedUserUids.length
-            ? this.userRoleModel.destroy({
-              where: { roleUid, userUid: removedUserUids },
-              logging: this.createMutationQueryLogger("updateRoleUsers", "user_roles delete query", requestId)
-            })
-            : Promise.resolve(0),
-          ...restoredUserRoles.map((userRole) => userRole.restore({
-            logging: this.createMutationQueryLogger("updateRoleUsers", "user_roles restore query", requestId)
-          })),
-          ...addedUserUids.map((userUid) => this.userRoleModel.create({
-            userUid: userUid as UUID,
-            roleUid
-          }, {
-            logging: this.createMutationQueryLogger("updateRoleUsers", "user_roles insert query", requestId)
-          }))
-        ])
-          .then(() => undefined)
-      })
-  }
-
   private isSoftDeletedUserRole(userRole: iDatabase.Models["UserRole"]["prototype"]): boolean {
     return Boolean((userRole as unknown as { deletedAt?: Date | null }).deletedAt)
   }
@@ -218,49 +225,26 @@ export class UsersService {
 
     if (!isSuperadministrator) return Promise.resolve()
 
-    return this.countSuperadministrators()
-      .then((superadministratorsCount) => {
-        if (superadministratorsCount <= 1) {
-          throw new Exceptions.ServiceError.ConflictError("Нельзя удалить последнего суперадминистратора")
-        }
-      })
-  }
-
-  private countSuperadministrators(): Promise<number> {
-    return this.userModel.count({
-      distinct: true,
-      include: [{
-        association: this.userModel.associations.roles,
-        required: true,
-        include: [{
-          association: "role",
-          required: true,
-          where: {
-            name: "superadministrator"
-          }
-        }]
-      }]
-    })
+    return Promise.reject(new Exceptions.ServiceError.ConflictError("Сначала передайте права суперадминистратора другому пользователю"))
   }
 
   private assertSuperadministratorRoleCanBeUpdated(userUid: UUID, nextRoles: iDatabase.Models["Role"]["prototype"][]): Promise<void> {
     const hasNextSuperadministratorRole = nextRoles.some((role) => role.name === "superadministrator")
 
-    if (hasNextSuperadministratorRole) return Promise.resolve()
-
     return this.findUserWithRoles(String(userUid))
       .then((user) => {
         const isCurrentSuperadministrator = user.roles.some((userRole) => userRole.role.name === "superadministrator")
 
-        if (!isCurrentSuperadministrator) return undefined
-
-        return this.countSuperadministrators()
-          .then((superadministratorsCount) => {
-            if (superadministratorsCount <= 1) {
-              throw new Exceptions.ServiceError.ConflictError("Нельзя снять права последнего суперадминистратора")
-            }
-          })
+        if (isCurrentSuperadministrator !== hasNextSuperadministratorRole) {
+          throw new Exceptions.ServiceError.ConflictError("Права суперадминистратора изменяются только через отдельную операцию передачи")
+        }
       })
+  }
+
+  private assertSuperadministratorRoleIsNotAssignedDirectly(roles: iDatabase.Models["Role"]["prototype"][]): void {
+    if (roles.some((role) => role.name === "superadministrator")) {
+      throw new Exceptions.ServiceError.ConflictError("Права суперадминистратора изменяются только через отдельную операцию передачи")
+    }
   }
 
   private findPublicUser(userUid: UUID): Promise<iSharedUser.PublicUserDto> {

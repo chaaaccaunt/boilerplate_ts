@@ -23,6 +23,10 @@
       {
         "table": "user_roles",
         "operations": ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      },
+      {
+        "table": "user_sessions",
+        "operations": ["UPDATE"]
       }
     ]
   },

@@ -161,9 +161,13 @@ declare global {
     }
 
     interface iLoginResult {
-      user: iSharedAuthorization.LoginResponseDto
+      user: iSharedUser.PublicUserDto
       session: iSharedAuthorization.UserSessionDto
       accessToken: string
+    }
+
+    interface iTwoFactorLoginResult {
+      twoFactor: iSharedAuthorization.TwoFactorRequiredResponseDto
     }
   }
 }

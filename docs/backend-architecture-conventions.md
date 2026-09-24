@@ -557,7 +557,7 @@ admin UI
 `GET /v1/gateway/system/metrics` должен:
 
 - требовать authorization;
-- проверять право `system.metrics.read` на уровне controller с fallback на роль `superadministrator`;
+- проверять право `system.read` на уровне controller с fallback на роль `superadministrator`;
 - обращаться только к `services/log-collector`;
 - не проксировать запросы напрямую к остальным services/gateways.
 

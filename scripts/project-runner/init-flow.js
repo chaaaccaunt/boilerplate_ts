@@ -3,6 +3,7 @@ const { join } = require("path")
 const { getPackageDirectoryNames } = require("./workspaces")
 const { getDatabaseRuntimeUserConfigItems, getRuntimePackageUid, getLocalhostPackagePort, getLocalhostPackagePorts } = require("./package-config")
 const { getPackageLocalEnv, parseEnvFile, updateEnvFile, writeDevelopmentEnvFile } = require("./env-files")
+const { writeDevelopmentNginxConfigFiles } = require("./nginx-config")
 
 function parseInitOptions(args, config) {
   if (args.length !== 3) {
@@ -118,6 +119,7 @@ function writeLocalhostDevelopmentEnvFiles(config, databaseAdminUserName, databa
   writeLocalhostGatewayDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts, options)
 
   writeDevelopmentEnvFile(config.frontendPackageDirectory, createFrontendDevelopmentEnv(config, localhostPackagePorts, options))
+  writeDevelopmentNginxConfigFiles(config, localhostPackagePorts)
 }
 
 function writeLocalhostServiceDevelopmentEnvFiles(config, runtimeUsers, localhostPackagePorts, options) {
@@ -189,20 +191,31 @@ function getLocalhostPackageSpecificDevelopmentEnv(config, packageKind, packageN
   }
 
   if (packageKind === "gateway" && packageName === "authorization") {
-    return {}
+    return {
+      VAR_NOTIFICATIONS_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "notifications")}`
+    }
   }
 
   if (packageKind === "gateway" && packageName === "public") {
     return {
       VAR_USERS_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "users")}`,
       VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`,
-      VAR_LOG_COLLECTOR_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "log-collector")}`
+      VAR_LOG_COLLECTOR_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "log-collector")}`,
+      VAR_NOTIFICATIONS_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "notifications")}`
     }
   }
 
   if (packageKind === "gateway" && packageName === "chat-realtime") {
     return {
       VAR_CHAT_SERVICE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "service", "chat")}`
+    }
+  }
+
+  if (packageKind === "service" && packageName === "notifications") {
+    return {
+      VAR_CHAT_REALTIME_GATEWAY_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "chat-realtime")}`,
+      VAR_MAX_BOT_API_URL: "https://platform-api2.max.ru/",
+      NODE_EXTRA_CA_CERTS: "./certificates/russian-trusted-ca-bundle.pem"
     }
   }
 
@@ -251,7 +264,8 @@ function createFrontendDevelopmentEnv(config, localhostPackagePorts, options = {
     return {
       VUE_APP_BASE_URL: config.baseUrl,
       VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: config.localhostPublicUserCookieName,
-      VUE_APP_HOSTNAME: config.localhostHttpOrigin
+      VUE_APP_HOSTNAME: config.localhostHttpOrigin,
+      VUE_APP_DEV_SERVER_PORT: config.localhostFrontendDevServerPort
     }
   }
 
@@ -261,7 +275,8 @@ function createFrontendDevelopmentEnv(config, localhostPackagePorts, options = {
     VUE_APP_FILES_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "files")}`,
     VUE_APP_WEBSOCKET_BASE_URL: `http://localhost:${getLocalhostPackagePort(localhostPackagePorts, "gateway", "chat-realtime")}`,
     VUE_APP_AUTHORIZATION_PUBLIC_USER_COOKIE_NAME: config.localhostPublicUserCookieName,
-    VUE_APP_HOSTNAME: config.localhostNoNginxHttpOrigin
+    VUE_APP_HOSTNAME: config.localhostNoNginxHttpOrigin,
+    VUE_APP_DEV_SERVER_PORT: config.localhostFrontendDevServerPort
   }
 }
 

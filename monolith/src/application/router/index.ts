@@ -54,7 +54,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/users',
     name: 'users',
-    meta: { requiresAuthorization: true, allowedPermissions: ["users.read", "users.create", "users.update", "users.delete", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage"], allowedRoles: ["superadministrator"] },
+    meta: { requiresAuthorization: true },
     component: () => import(/* webpackChunkName: "users" */ '@/views/users/UsersView.vue')
   },
   {
@@ -65,13 +65,13 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: "",
         name: "system",
-        meta: { requiresAuthorization: true, allowedPermissions: ["system.metrics.read"], allowedRoles: ["superadministrator"] },
+        meta: { requiresAuthorization: true, allowedPermissions: ["system.read"], allowedRoles: ["superadministrator"] },
         component: () => import(/* webpackChunkName: "system" */ "@/views/system/SystemMetricsView.vue")
       },
       {
         path: "packages/:packageUid/logs",
         name: "system-package-logs",
-        meta: { requiresAuthorization: true, allowedPermissions: ["logs.read"], allowedRoles: ["superadministrator"] },
+        meta: { requiresAuthorization: true, allowedPermissions: ["system.read"], allowedRoles: ["superadministrator"] },
         component: () => import(/* webpackChunkName: "logs" */ "@/views/logs/LogsView.vue")
       }
     ]
@@ -81,6 +81,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'settings',
     meta: { requiresAuthorization: true },
     component: () => import(/* webpackChunkName: "settings" */ '@/views/settings/SettingsView.vue')
+  },
+  {
+    path: "/notifications",
+    name: "notifications",
+    meta: { requiresAuthorization: true },
+    component: () => import(/* webpackChunkName: "notifications" */ "@/views/notifications/NotificationsView.vue")
   },
   {
     path: "/:pathMatch(.*)*",

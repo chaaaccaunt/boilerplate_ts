@@ -7,9 +7,16 @@ export class AuthorizationApi {
     return this.api.post<iSharedAuthorization.LoginResponseDto, iSharedAuthorization.LoginPayloadDto>({
       path: "/authorization/login",
       payload,
-      commit: "authorization/setUser",
       reportError: false
+    }).then((result) => {
+      if (!("status" in result)) this.api.commit("authorization/setUser", result)
+      return result
     })
+  }
+
+  verifyTwoFactor(payload: iSharedAuthorization.VerifyTwoFactorLoginPayloadDto): Promise<iSharedUser.PublicUserDto> {
+    return this.api.post<iSharedUser.PublicUserDto, iSharedAuthorization.VerifyTwoFactorLoginPayloadDto>({ path: "/authorization/login/two-factor", payload, reportError: false })
+      .then((user) => { this.api.commit("authorization/setUser", user); return user })
   }
 
   logout(): Promise<iSharedAuthorization.LogoutResponseDto> {

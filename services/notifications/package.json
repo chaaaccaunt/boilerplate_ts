@@ -1,0 +1,35 @@
+{
+  "name": "boilerplate-ts-service-notifications",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/bin/index.ts",
+  "scripts": {
+    "start": "nodemon",
+    "start:dist": "cd ../../build/service/notifications && node app.js",
+    "test": "node -r ts-node/register -r tsconfig-paths/register --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "webpack --config webpack.config.ts"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.3",
+    "@types/node": "^24.12.2",
+    "@types/webpack": "^5.28.5",
+    "babel-loader": "^8.4.1",
+    "nodemon": "^3.1.10",
+    "terser-webpack-plugin": "^5.5.0",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1",
+    "@types/pg": "^8.20.0"
+  },
+  "dependencies": {
+    "@maxhub/max-bot-api": "^0.3.1",
+    "mysql2": "^3.22.2",
+    "sequelize": "^6.37.7",
+    "pg": "^8.21.0"
+  }
+}

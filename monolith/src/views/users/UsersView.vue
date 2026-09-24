@@ -30,13 +30,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(usersTotal.value / pageS
 const roles = computed(() => store.state.users.roles)
 const permissions = computed(() => store.state.users.permissions)
 const currentUser = computed(() => store.state.authorization.user)
-const canReadUsers = computed(() => hasAnyPermission(["users.read", "users.update", "users.delete"]) || hasRole("superadministrator"))
-const canCreateUsers = computed(() => hasPermission("users.create") || hasRole("superadministrator"))
-const canUpdateUsers = computed(() => hasPermission("users.update") || hasRole("superadministrator"))
-const canDeleteUsers = computed(() => hasPermission("users.delete") || hasRole("superadministrator"))
-const canReadRoles = computed(() => hasAnyPermission(["roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage", "users.create", "users.update"]) || hasRole("superadministrator"))
-const canReadPermissions = computed(() => hasAnyPermission(["roles.read", "roles.permissions.manage"]) || hasRole("superadministrator"))
-const canManageRolesPanel = computed(() => hasAnyPermission(["roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage"]) || hasRole("superadministrator"))
+const canManageUsers = computed(() => hasPermission("users.manage") || hasRole("superadministrator"))
 
 onMounted(() => {
   loadUsers()
@@ -47,9 +41,9 @@ function loadUsers(loadReferences = true, offset = usersOffset.value): void {
   errorMessage.value = ""
 
   Promise.all([
-    canReadUsers.value ? apiClient.users.list({ limit: pageSize, offset }) : Promise.resolve(),
-    loadReferences && canReadRoles.value ? apiClient.users.listRoles() : Promise.resolve(),
-    loadReferences && canReadPermissions.value ? apiClient.users.listPermissions() : Promise.resolve()
+    apiClient.users.list({ limit: pageSize, offset }),
+    loadReferences ? apiClient.users.listRoles() : Promise.resolve(),
+    loadReferences ? apiClient.users.listPermissions() : Promise.resolve()
   ])
     .catch((error) => {
       errorMessage.value = error instanceof ApiError ? error.message : "Не удалось загрузить пользователей"
@@ -104,10 +98,6 @@ function hasPermission(permissionKey: iSharedPermission.PermissionKey): boolean 
   return Boolean(currentUser.value?.permissions.some((permission) => permission.key === permissionKey))
 }
 
-function hasAnyPermission(permissionKeys: iSharedPermission.PermissionKey[]): boolean {
-  return permissionKeys.some((permissionKey) => hasPermission(permissionKey))
-}
-
 function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
   return Boolean(currentUser.value?.roles.some((role) => role.name === roleName))
 }
@@ -119,7 +109,7 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
       <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Пользователи</h1>
       <div
         class="grid w-full gap-2 sm:flex sm:w-auto sm:items-center"
-        :class="canCreateUsers ? 'grid-cols-2' : 'grid-cols-1'"
+        :class="canManageUsers ? 'grid-cols-2' : 'grid-cols-1'"
       >
         <button
           class="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
@@ -131,7 +121,7 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
           Обновить
         </button>
         <button
-          v-if="canCreateUsers"
+          v-if="canManageUsers"
           class="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           type="button"
           @click="isCreateModalOpen = true"
@@ -147,25 +137,23 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
     </div>
 
     <RolesPanel
-      v-if="canManageRolesPanel"
       :roles="roles"
       :permissions="permissions"
-      :can-create-role="hasPermission('roles.create') || hasRole('superadministrator')"
-      :can-update-role="hasPermission('roles.update') || hasRole('superadministrator')"
-      :can-delete-role="hasPermission('roles.delete') || hasRole('superadministrator')"
-      :can-manage-role-permissions="hasPermission('roles.permissions.manage') || hasRole('superadministrator')"
+      :can-create-role="hasPermission('roles.manage') || hasRole('superadministrator')"
+      :can-update-role="hasPermission('roles.manage') || hasRole('superadministrator')"
+      :can-delete-role="hasPermission('roles.manage') || hasRole('superadministrator')"
+      :can-manage-role-permissions="hasPermission('roles.manage') || hasRole('superadministrator')"
     />
 
     <UsersTable
-      v-if="canReadUsers"
       :users="users"
-      :can-update-users="canUpdateUsers"
-      :can-delete-users="canDeleteUsers"
+      :can-update-users="canManageUsers"
+      :can-delete-users="canManageUsers"
       @edit="openEditModal"
       @delete="openDeleteModal"
     />
 
-    <div v-if="canReadUsers && usersTotal > pageSize" class="mt-4 grid justify-items-start gap-2">
+    <div v-if="usersTotal > pageSize" class="mt-4 grid justify-items-start gap-2">
       <span class="text-sm text-slate-500 dark:text-slate-400">
         Страница {{ currentPage }} из {{ totalPages }} · всего {{ usersTotal }}
       </span>

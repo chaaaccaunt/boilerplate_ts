@@ -5,6 +5,12 @@
 Документ фиксирует внешние требования окружения для запуска проекта в development и production.
 Он не заменяет package-local `.dev.env`, `.prod.env`, `.env.example` и checklist-документы, а описывает зависимости, которые должны быть доступны до запуска orchestration-команд.
 
+## MAX Bot API
+
+Для отправки уведомлений и кодов 2FA используется сервис `services/notifications`. Токен задаётся суперадминистратором на странице настроек, проверяется через MAX Bot API и сохраняется в таблице `max_bot_configuration`; клиент получает только состояние запуска и username бота. После перезапуска `notifications` service загружает сохранённую конфигурацию и запускает polling автоматически. Без настроенного бота внутренние уведомления продолжают работать, но привязка MAX и отправка кодов недоступны.
+
+TLS-соединение с MAX API использует комплект российских доверенных сертификатов `services/notifications/certificates/russian-trusted-ca-bundle.pem`. Переменная `NODE_EXTRA_CA_CERTS` должна указывать на этот файл до запуска Node.js; localhost init-flow задаёт её автоматически. Адрес API задаётся через `VAR_MAX_BOT_API_URL` и по умолчанию равен `https://platform-api2.max.ru/`. Отключение проверки сертификатов через `NODE_TLS_REJECT_UNAUTHORIZED=0` запрещено.
+
 ## Общие требования
 
 - Node.js и npm должны быть установлены в окружении запуска.
@@ -175,7 +181,7 @@ Frontend использует `monolith/src/features/media-viewer` для пол
 Перед запуском development окружения нужно:
 
 - установить npm dependencies;
-- проверить корневой `development.config.json` с локальными настройками стандартного init-flow или fallback `development.config.example.json`;
+- проверить корневой `development.config.json` с локальными настройками стандартного init-flow или fallback `development.config_example.json`;
 - проверить package-local `package.config.json` у services/gateways;
 - подготовить package-local `.dev.env` для frontend, gateway и backend-сервисов;
 - проверить, что `.dev.env` не указывает production database;
@@ -191,7 +197,7 @@ Frontend использует `monolith/src/features/media-viewer` для пол
 npm run project -- init <db-host> <db-admin-user> <db-admin-password>
 ```
 
-Полный init-flow генерирует package-local `.dev.env`, пересоздает development database,
+Полный init-flow генерирует package-local `.dev.env`, перезаписывает development nginx-конфиги из шаблонов, пересоздает development database,
 создает service database user, применяет миграции, выдает runtime grants из `package.config.json`,
 выполняет development seed и запускает dev-окружение.
 Database-этап выполняется одним процессом `database-migration`: одно admin connection обслуживает reset/setup/grants, а одно service connection — migrations/seed.
@@ -223,8 +229,9 @@ Database-этап выполняется одним процессом `database
 Режим `noNginx` не заменяет nginx в production и не выполняет CSRF/Origin policy на edge-уровне.
 
 Стандартные hostname, cookie domain, режим no-nginx и debug-логирование для init-flow задаются в локальном корневом `development.config.json`.
+При каждом `init` значения `localhost.httpOrigin` и `localhost.baseUrl` используются для генерации `nginx/development.frontend.conf` и `nginx/development.api.conf`; upstream ports gateway берутся из package-local `package.config.json`.
 Файл `development.config.json` не хранится в Git и предназначен для настроек конкретной машины. Флаг `localhost.mockData` включает генерацию фиксированного набора mock-данных во время `init`: 500 пользователей, 20 ролей, 1 000 чатов и 50 000 сообщений.
-Если локальный файл отсутствует, root runner использует fallback `development.config.example.json`.
+Если локальный файл отсутствует, root runner использует fallback `development.config_example.json`.
 Блок `localhost.database` необязателен; если он отсутствует, используется dialect `mysql`, port `3306` и `serviceHost` `%`.
 Если `localhost.debug` равен `true` или не задан, root runner генерирует `VAR_APP_LOG_LEVEL=debug`.
 Если `localhost.debug` равен `false`, root runner генерирует `VAR_APP_LOG_LEVEL=info`.

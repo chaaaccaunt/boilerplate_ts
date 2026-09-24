@@ -69,19 +69,13 @@ export class UsersController extends MicroServiceController {
       callback: this.handle(this.roleService.constructor.name, "updateRolePermissions", this.updateRolePermissions.bind(this))
     }
 
-    const updateSuperadministratorUsersRoute: iContracts.iMicroServiceRoute<iSharedUser.UpdateSuperadministratorUsersPayloadDto, iSharedUser.UpdateSuperadministratorUsersResponseDto> = {
-      url: /^POST:\/users\/superadministrators\/update\/?$/,
+    const transferSuperadministratorRoute: iContracts.iMicroServiceRoute<iSharedUser.TransferSuperadministratorPayloadDto, iSharedUser.TransferSuperadministratorResponseDto> = {
+      url: /^POST:\/users\/superadministrator\/transfer\/?$/,
       method: "POST",
-      callback: this.handle(this.service.constructor.name, "updateSuperadministratorUsers", this.updateSuperadministratorUsers.bind(this))
+      callback: this.handle(this.service.constructor.name, "transferSuperadministrator", this.transferSuperadministrator.bind(this))
     }
 
-    const listSuperadministratorUsersRoute: iContracts.iMicroServiceRoute<iContracts.iPayload, iSharedUser.ListSuperadministratorUsersResponseDto> = {
-      url: /^POST:\/users\/superadministrators\/list\/?$/,
-      method: "POST",
-      callback: this.handle(this.service.constructor.name, "listSuperadministratorUserUids", this.listSuperadministratorUsers.bind(this))
-    }
-
-    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, updateSuperadministratorUsersRoute, listSuperadministratorUsersRoute])
+    this.addRoutes([listRoute, createRoute, updateRoute, deleteRoute, rolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute, permissionsRoute, updateRolePermissionsRoute, transferSuperadministratorRoute])
   }
 
   private list(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.ListUsersPayloadDto>): Promise<iSharedUser.ListUsersResponseDto> {
@@ -154,18 +148,13 @@ export class UsersController extends MicroServiceController {
     return this.roleService.updateRolePermissions(payload.data, payload.requestId)
   }
 
-  private updateSuperadministratorUsers(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.UpdateSuperadministratorUsersPayloadDto>): Promise<iSharedUser.UpdateSuperadministratorUsersResponseDto> {
+  private transferSuperadministrator(payload: iContracts.iMicroServiceRequestPayload<iSharedUser.TransferSuperadministratorPayloadDto>): Promise<iSharedUser.TransferSuperadministratorResponseDto> {
     if (!payload.data) {
-      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.updateSuperadministratorUsers"))
+      return Promise.reject(new Error("Отсутствуют данные запроса для UsersService.transferSuperadministrator"))
     }
 
-    return this.service.updateSuperadministratorUsers(payload.data, payload.requestId)
-      .then((users) => ({ users }))
-  }
-
-  private listSuperadministratorUsers(): Promise<iSharedUser.ListSuperadministratorUsersResponseDto> {
-    return this.service.listSuperadministratorUserUids()
-      .then((userUids) => ({ userUids }))
+    return this.service.transferSuperadministrator(payload.data, payload.requestId)
+      .then((user) => ({ user }))
   }
 
 }

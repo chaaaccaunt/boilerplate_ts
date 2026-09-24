@@ -7,6 +7,7 @@ import { FilesApi } from "@/entities/files/api/FilesApi"
 import { LogsApi } from "@/entities/logs/api/LogsApi"
 import { SystemApi } from "@/entities/system/api/SystemApi"
 import { UsersApi } from "@/entities/users/api/UsersApi"
+import { NotificationsApi } from "@/entities/notifications/api"
 
 export interface ApiTransport {
   matches(path: ApiPath): boolean
@@ -20,6 +21,7 @@ export class ApiClient implements ApiRequester {
   readonly logs: LogsApi
   readonly system: SystemApi
   readonly users: UsersApi
+  readonly notifications: NotificationsApi
 
   constructor(
     private readonly defaultHttpClient: HttpClient,
@@ -32,6 +34,7 @@ export class ApiClient implements ApiRequester {
     this.logs = new LogsApi(this)
     this.system = new SystemApi(this)
     this.users = new UsersApi(this)
+    this.notifications = new NotificationsApi(this)
   }
 
   commit(type: string, payload?: unknown): void {

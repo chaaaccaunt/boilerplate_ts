@@ -5,6 +5,7 @@ import { useStore } from "@/application/store"
 import { ApiError } from "@/shared/api"
 import PaginationControls from "@/shared/ui/PaginationControls.vue"
 import { ThemePreferenceControl } from "@/features/theme"
+import SuperadministratorTransferModal from "./components/SuperadministratorTransferModal.vue"
 
 const apiClient = useApiClient()
 const store = useStore()
@@ -15,48 +16,56 @@ const sessionsPageSize = 10
 const loading = ref(false)
 const actionSessionUid = ref<string | null>(null)
 const revokeOthersLoading = ref(false)
-const superadministratorSaving = ref(false)
-const superadministratorErrorMessage = ref("")
-const selectedSuperadministratorUids = ref<string[]>([])
-const usersPageSize = 25
-const usersOffset = ref(0)
+const isSuperadministratorTransferModalOpen = ref(false)
+const maxStatus = ref<iSharedNotifications.MaxAccountStatusDto>({ linked: false, twoFactorEnabled: false, maxDisplayName: null, botAvailable: false })
+const maxLink = ref<iSharedNotifications.MaxLinkCodeResponseDto | null>(null)
+const maxBotStatus = ref<iSharedNotifications.MaxBotStatusDto>({ configured: false, running: false, botUsername: null, updatedAt: null })
+const maxBotToken = ref("")
+const maxBotLoading = ref(false)
+const maxBotErrorMessage = ref("")
+const maxBotSuccessMessage = ref("")
 
 const currentUser = computed(() => store.state.authorization.user)
 const isSuperadministrator = computed(() => Boolean(currentUser.value?.roles.some((role) => role.name === "superadministrator")))
-const users = computed(() => store.state.users.users)
-const usersTotal = computed(() => store.state.users.total)
-const usersPage = computed(() => Math.floor(usersOffset.value / usersPageSize) + 1)
-const usersTotalPages = computed(() => Math.max(1, Math.ceil(usersTotal.value / usersPageSize)))
 const sessionsPage = computed(() => Math.floor(sessionsOffset.value / sessionsPageSize) + 1)
 const sessionsTotalPages = computed(() => Math.max(1, Math.ceil(sessionsTotal.value / sessionsPageSize)))
 
 onMounted(() => {
   loadSessions()
-
-  if (isSuperadministrator.value) {
-    loadSuperadministratorSettings()
-  }
+  loadMaxStatus()
+  if (isSuperadministrator.value) loadMaxBotStatus()
 })
 
-function loadSuperadministratorSettings(loadSelection = true): void {
-  superadministratorErrorMessage.value = ""
+function loadMaxStatus(): void { apiClient.notifications.maxStatus().then((result) => { maxStatus.value = result }) }
+function loadMaxBotStatus(): void { apiClient.notifications.maxBotStatus().then((result) => { maxBotStatus.value = result }) }
+function createMaxLinkCode(): void { apiClient.notifications.createMaxLinkCode().then((result) => { maxLink.value = result }) }
+function unlinkMax(): void { apiClient.notifications.unlinkMax().then(() => { maxLink.value = null; loadMaxStatus() }) }
+function setTwoFactor(enabled: boolean): void { apiClient.notifications.setTwoFactor(enabled).then((result) => { maxStatus.value = result }) }
 
-  Promise.all([
-    apiClient.users.list({ limit: usersPageSize, offset: usersOffset.value }),
-    loadSelection ? apiClient.users.listSuperadministratorUsers() : Promise.resolve(null)
-  ])
-    .then(([, superadministratorResult]) => {
-      if (superadministratorResult) selectedSuperadministratorUids.value = superadministratorResult.userUids
+function configureMaxBot(): void {
+  const token = maxBotToken.value.trim()
+  maxBotErrorMessage.value = ""
+  maxBotSuccessMessage.value = ""
+
+  if (!token) {
+    maxBotErrorMessage.value = "Введите токен MAX-бота"
+    return
+  }
+
+  maxBotLoading.value = true
+  apiClient.notifications.configureMaxBot(token)
+    .then((result) => {
+      maxBotStatus.value = result
+      maxBotToken.value = ""
+      maxBotSuccessMessage.value = `MAX-бот @${result.botUsername || "без имени"} запущен`
+      loadMaxStatus()
     })
     .catch((error) => {
-      superadministratorErrorMessage.value = getErrorMessage(error, "Не удалось загрузить настройки суперадминистратора")
+      maxBotErrorMessage.value = getErrorMessage(error, "Не удалось запустить MAX-бота")
     })
-}
-
-function changeUsersPage(page: number): void {
-  const normalizedPage = Math.min(Math.max(page, 1), usersTotalPages.value)
-  usersOffset.value = (normalizedPage - 1) * usersPageSize
-  loadSuperadministratorSettings(false)
+    .finally(() => {
+      maxBotLoading.value = false
+    })
 }
 
 function loadSessions(offset = sessionsOffset.value): void {
@@ -103,45 +112,6 @@ function revokeOtherSessions(): void {
     })
 }
 
-function toggleSuperadministrator(userUid: string): void {
-  if (selectedSuperadministratorUids.value.includes(userUid)) {
-    selectedSuperadministratorUids.value = selectedSuperadministratorUids.value.filter((uid) => uid !== userUid)
-    return
-  }
-
-  selectedSuperadministratorUids.value = selectedSuperadministratorUids.value.concat(userUid)
-}
-
-function saveSuperadministrators(): void {
-  if (!selectedSuperadministratorUids.value.length) {
-    superadministratorErrorMessage.value = "Нужен хотя бы один суперадминистратор"
-    return
-  }
-
-  superadministratorSaving.value = true
-  superadministratorErrorMessage.value = ""
-
-  apiClient.users.updateSuperadministratorUsers({ userUids: selectedSuperadministratorUids.value })
-    .then(() => {
-      if (currentUser.value && !selectedSuperadministratorUids.value.includes(currentUser.value.uid)) {
-        return apiClient.authorization.logout()
-          .then(() => {
-            apiClient.commit("authorization/clearUser")
-            window.location.assign("/login")
-          })
-      }
-
-      loadSuperadministratorSettings()
-      return undefined
-    })
-    .catch((error) => {
-      superadministratorErrorMessage.value = getErrorMessage(error, "Не удалось обновить суперадминистраторов")
-    })
-    .finally(() => {
-      superadministratorSaving.value = false
-    })
-}
-
 function getSessionTitle(session: iSharedAuthorization.UserSessionDto): string {
   return `${getDeviceTypeLabel(session.deviceType)} · ${session.operatingSystem} · ${session.browser}`
 }
@@ -169,67 +139,101 @@ function formatDate(value: string): string {
 
 <template>
   <section class="min-h-[calc(100vh-57px)] bg-slate-50 p-4 text-slate-950 dark:bg-slate-950 dark:text-slate-50 lg:p-6">
-    <div class="mx-auto max-w-7xl space-y-5">
-      <header>
+    <div class="w-full space-y-5">
+      <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 class="text-2xl font-semibold">Настройки</h1>
+        <button
+          v-if="isSuperadministrator"
+          class="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+          type="button"
+          @click="isSuperadministratorTransferModalOpen = true"
+        >
+          Передать права суперадминистратора
+        </button>
       </header>
 
-      <div class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-          <h2 class="text-base font-semibold">Оформление</h2>
-        </div>
-
-        <div class="px-5 py-4">
-          <ThemePreferenceControl />
-        </div>
-      </div>
-
       <div class="grid gap-5 xl:grid-cols-2">
-        <div v-if="isSuperadministrator" class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-            <h2 class="text-base font-semibold">Передача прав суперадминистратора</h2>
+            <h2 class="text-base font-semibold">Оформление</h2>
           </div>
 
           <div class="px-5 py-4">
-            <div v-if="superadministratorErrorMessage" class="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200" role="alert">
-              {{ superadministratorErrorMessage }}
-            </div>
-
-            <div class="grid max-h-80 gap-2 overflow-y-auto pr-1">
-              <label v-for="user in users" :key="user.uid" class="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700">
-                <span class="min-w-0">
-                  <span class="block truncate text-sm font-medium text-slate-950 dark:text-slate-50">{{ user.fullName }}</span>
-                  <span class="block truncate text-xs text-slate-500 dark:text-slate-400">{{ user.login }}</span>
-                </span>
-                <input class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600" type="checkbox" :checked="selectedSuperadministratorUids.includes(user.uid)" @change="toggleSuperadministrator(user.uid)" />
-              </label>
-            </div>
-
-            <div v-if="usersTotal > usersPageSize" class="mt-3 grid justify-items-start gap-2 text-sm">
-              <span class="text-slate-500 dark:text-slate-400">{{ usersPage }} / {{ usersTotalPages }}</span>
-              <PaginationControls :current-page="usersPage" :total-pages="usersTotalPages" @change="changeUsersPage" />
-            </div>
-
-            <button class="mt-4 inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white" type="button" :disabled="superadministratorSaving || !selectedSuperadministratorUids.length" @click="saveSuperadministrators">
-              Сохранить суперадминистраторов
-            </button>
+            <ThemePreferenceControl />
           </div>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Устройства и сессии</h2>
-            <button
-              class="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-              type="button"
-              :disabled="revokeOthersLoading || loading"
-              @click="revokeOtherSessions"
-            >
-              Выйти со всех остальных
-            </button>
+        <div v-if="isSuperadministrator" class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+            <h2 class="text-base font-semibold">MAX-бот</h2>
           </div>
+          <form class="space-y-4 px-5 py-4" @submit.prevent="configureMaxBot">
+            <div>
+              <p class="text-sm text-slate-600 dark:text-slate-300">
+                <template v-if="maxBotStatus.running">Запущен: @{{ maxBotStatus.botUsername }}</template>
+                <template v-else-if="maxBotStatus.configured">Настроен, но сейчас не запущен</template>
+                <template v-else>Не настроен</template>
+              </p>
+              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Токен сохраняется на сервере и не отображается после сохранения.</p>
+            </div>
+            <label class="block">
+              <span class="mb-1 block text-sm font-medium">Токен бота</span>
+              <input
+                v-model="maxBotToken"
+                class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-950"
+                type="password"
+                autocomplete="off"
+                placeholder="Вставьте токен MAX Bot API"
+              >
+            </label>
+            <p v-if="maxBotErrorMessage" class="text-sm text-rose-600 dark:text-rose-300">{{ maxBotErrorMessage }}</p>
+            <p v-if="maxBotSuccessMessage" class="text-sm text-emerald-600 dark:text-emerald-300">{{ maxBotSuccessMessage }}</p>
+            <button
+              class="rounded-md bg-slate-900 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950"
+              type="submit"
+              :disabled="maxBotLoading || !maxBotToken.trim()"
+            >
+              {{ maxBotLoading ? 'Подключение...' : (maxBotStatus.configured ? 'Заменить токен и перезапустить' : 'Сохранить и запустить') }}
+            </button>
+          </form>
+        </div>
 
-          <div class="divide-y divide-slate-200 dark:divide-slate-700">
+        <div class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-700"><h2 class="text-base font-semibold">MAX и двухфакторная защита</h2></div>
+          <div class="space-y-4 px-5 py-4">
+            <template v-if="maxStatus.linked">
+              <p class="text-sm text-slate-600 dark:text-slate-300">Привязан: {{ maxStatus.maxDisplayName || 'аккаунт MAX' }}</p>
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" :checked="maxStatus.twoFactorEnabled" @change="setTwoFactor(($event.target as HTMLInputElement).checked)"> Запрашивать код из MAX при входе</label>
+              <button class="rounded-md border border-rose-300 px-3 py-2 text-sm text-rose-700 dark:border-rose-700 dark:text-rose-300" type="button" @click="unlinkMax">Отвязать MAX</button>
+            </template>
+            <template v-else>
+              <p class="text-sm text-slate-600 dark:text-slate-300">Привяжите MAX, чтобы получать уведомления и при необходимости включить 2FA.</p>
+              <p v-if="!maxStatus.botAvailable" class="text-sm text-amber-700 dark:text-amber-300">MAX-бот ещё не запущен администратором.</p>
+              <button class="rounded-md bg-slate-900 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950" type="button" :disabled="!maxStatus.botAvailable" @click="createMaxLinkCode">Получить ссылку привязки</button>
+              <div v-if="maxLink" class="rounded-md bg-slate-100 p-3 dark:bg-slate-800">
+                <p class="text-sm">Откройте ссылку, чтобы перейти к боту и подтвердить привязку аккаунта.</p>
+                <a class="mt-3 inline-flex rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500" :href="maxLink.link" target="_blank" rel="noopener noreferrer">Открыть MAX</a>
+                <p class="mt-2 break-all text-xs text-slate-500 dark:text-slate-400">{{ maxLink.link }}</p>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
+          <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Устройства и сессии</h2>
+          <button
+            class="inline-flex items-center justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+            type="button"
+            :disabled="revokeOthersLoading || loading"
+            @click="revokeOtherSessions"
+          >
+            Выйти со всех остальных
+          </button>
+        </div>
+
+        <div class="divide-y divide-slate-200 dark:divide-slate-700">
             <div v-if="loading" class="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
               Загрузка сессий...
             </div>
@@ -274,13 +278,18 @@ function formatDate(value: string): string {
                 </button>
               </div>
             </template>
-          </div>
-          <div v-if="sessionsTotal > sessionsPageSize" class="grid justify-items-start gap-2 border-t border-slate-200 px-5 py-3 text-sm dark:border-slate-700">
-            <span class="text-slate-500 dark:text-slate-400">{{ sessionsPage }} / {{ sessionsTotalPages }}</span>
-            <PaginationControls :current-page="sessionsPage" :total-pages="sessionsTotalPages" :disabled="loading" @change="changeSessionsPage" />
-          </div>
+        </div>
+        <div v-if="sessionsTotal > sessionsPageSize" class="grid justify-items-start gap-2 border-t border-slate-200 px-5 py-3 text-sm dark:border-slate-700">
+          <span class="text-slate-500 dark:text-slate-400">{{ sessionsPage }} / {{ sessionsTotalPages }}</span>
+          <PaginationControls :current-page="sessionsPage" :total-pages="sessionsTotalPages" :disabled="loading" @change="changeSessionsPage" />
         </div>
       </div>
+
+      <SuperadministratorTransferModal
+        v-if="currentUser"
+        v-model="isSuperadministratorTransferModalOpen"
+        :current-user="currentUser"
+      />
     </div>
   </section>
 </template>

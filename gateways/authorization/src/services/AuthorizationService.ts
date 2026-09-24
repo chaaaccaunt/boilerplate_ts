@@ -3,6 +3,7 @@ import type { UUID } from "crypto"
 import { sign } from "jsonwebtoken"
 import type { SignOptions } from "jsonwebtoken"
 import { Exceptions, Logger } from "@/libs"
+import { NotificationAuthClient } from "./NotificationAuthClient"
 
 interface LoginContext {
   headers: iContracts.iRequestContextPayload["headers"]
@@ -16,10 +17,11 @@ export class AuthorizationService {
     private readonly userSessionModel: iDatabase.Models["UserSession"],
     private readonly databaseTools: iLibs.DatabaseServiceTools,
     private readonly httpConfig: iLibs.iHTTPConfig,
+    private readonly notificationAuthClient: NotificationAuthClient,
     private readonly logger = new Logger()
   ) { }
 
-  login(payload: iSharedAuthorization.LoginPayloadDto, context: LoginContext): Promise<iAuthorization.iLoginResult> {
+  login(payload: iSharedAuthorization.LoginPayloadDto, context: LoginContext): Promise<iAuthorization.iLoginResult | iAuthorization.iTwoFactorLoginResult> {
     return this.model.findOne({
       where: { login: payload.login },
       include: [{
@@ -38,25 +40,29 @@ export class AuthorizationService {
           throw new Exceptions.ServiceError.AuthenticationError("Неверный логин или пароль")
         }
 
-        return this.createUserSession(user.uid, context)
-          .then((session) => this.createLoginResult(user, session))
-          .then((result) => {
-            this.logger.info("Пользователь авторизовался", {
-              requestId: context.requestId,
-              serviceName: this.constructor.name,
-              serviceMethod: "login",
-              userId: user.uid,
-              ipAddress: this.getIpAddress(context),
-              userAgent: this.getUserAgent(context),
-              deviceType: result.session.deviceType,
-              operatingSystem: result.session.operatingSystem,
-              browser: result.session.browser,
-              mutation: true
-            })
-
-            return result
-          })
+        return this.notificationAuthClient.begin(user.uid, context.requestId).then<iAuthorization.iLoginResult | iAuthorization.iTwoFactorLoginResult>((twoFactor) => {
+          if (twoFactor.required && twoFactor.challengeUid && twoFactor.expiresAt) {
+            return { twoFactor: { status: "two_factor_required", challengeUid: twoFactor.challengeUid, expiresAt: twoFactor.expiresAt } }
+          }
+          return this.completeLogin(user, context)
+        })
       })
+  }
+
+  verifyTwoFactor(payload: iSharedAuthorization.VerifyTwoFactorLoginPayloadDto, context: LoginContext): Promise<iAuthorization.iLoginResult> {
+    return this.notificationAuthClient.verify(payload, context.requestId)
+      .then(({ userUid }) => this.model.findByPk(userUid, { include: [{ association: this.model.associations.roles, include: [{ association: "role", include: [{ association: "rolePermissions", include: [{ association: "permission" }] }] }] }] }))
+      .then((user) => {
+        if (!user) throw new Exceptions.ServiceError.AuthenticationError("Пользователь не найден")
+        return this.completeLogin(user, context)
+      })
+  }
+
+  private completeLogin(user: iDatabase.Models["User"]["prototype"], context: LoginContext): Promise<iAuthorization.iLoginResult> {
+    return this.createUserSession(user.uid, context).then((session) => this.createLoginResult(user, session)).then((result) => {
+      this.logger.info("Пользователь авторизовался", { requestId: context.requestId, serviceName: this.constructor.name, serviceMethod: "completeLogin", userId: user.uid, ipAddress: this.getIpAddress(context), userAgent: this.getUserAgent(context), deviceType: result.session.deviceType, operatingSystem: result.session.operatingSystem, browser: result.session.browser, mutation: true })
+      return result
+    })
   }
 
   listSessions(user: iContracts.iUserToken, payload: iSharedAuthorization.UserSessionsListPayloadDto = {}): Promise<iSharedAuthorization.UserSessionsListResponseDto> {

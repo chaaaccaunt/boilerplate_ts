@@ -1,5 +1,5 @@
 import Sequelize, { Options, Sequelize as SequelizeClass } from "sequelize"
-import { createUserModels, UserModels } from "@/models/users/UserModelRegistry"
+import { AuthorizationModels, createAuthorizationModels } from "@/models/users/UserModelRegistry"
 
 export interface DataBaseInstance {
   Sequelize: typeof Sequelize
@@ -7,7 +7,7 @@ export interface DataBaseInstance {
   models: iDatabase.Models
 }
 
-export interface iModels extends UserModels { }
+export interface iModels extends AuthorizationModels { }
 
 declare global {
   namespace iDatabase {
@@ -22,7 +22,7 @@ export class Database {
   readonly models: iDatabase.Models
   constructor(config: Options) {
     this.sequelize = new SequelizeClass(config)
-    this.models = createUserModels(this.sequelize)
+    this.models = createAuthorizationModels(this.sequelize)
   }
 }
 

@@ -15,15 +15,19 @@ const webSocketClient = useWebSocketClient()
 
 const isLogoutModalOpen = ref(false)
 const userName = computed(() => store.state.authorization.user?.fullName || store.state.authorization.user?.login || "")
-const canManageUsers = computed(() => hasAnyPermission(["users.read", "users.create", "users.update", "users.delete", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.permissions.manage"]) || hasRole("superadministrator"))
-const canViewSystem = computed(() => hasAnyPermission(["system.metrics.read"]) || hasRole("superadministrator"))
+const canViewSystem = computed(() => hasAnyPermission(["system.read"]) || hasRole("superadministrator"))
+const unreadNotifications = ref(0)
+let unsubscribeNotifications: (() => void) | null = null
 
 onMounted(() => {
   webSocketClient.connect()
+  apiClient.notifications.list(1, 0).then((result) => { unreadNotifications.value = result.unreadCount })
+  unsubscribeNotifications = webSocketClient.on<iSharedNotifications.NotificationDto>("notification:created", () => { unreadNotifications.value += 1 })
 })
 
 onUnmounted(() => {
   webSocketClient.disconnect()
+  unsubscribeNotifications?.()
 })
 
 function openLogoutModal(): void {
@@ -55,10 +59,10 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
 
 <template>
   <div class="grid h-screen grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50 md:grid-cols-[240px_minmax(0,1fr)] md:grid-rows-1">
-    <MainSidebar :can-manage-users="canManageUsers" :can-view-system="canViewSystem" />
+    <MainSidebar :can-view-system="canViewSystem" />
 
     <section class="grid min-h-0 min-w-0 grid-rows-[3.5rem_minmax(0,1fr)]">
-      <MainHeader :user-name="userName" @logout="openLogoutModal" />
+      <MainHeader :user-name="userName" :unread-notifications="unreadNotifications" @logout="openLogoutModal" />
 
       <main class="min-h-0 min-w-0 overflow-y-auto">
         <router-view></router-view>

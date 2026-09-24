@@ -48,9 +48,9 @@ npm install
 ```
 
 `development.config.json` хранит локальные настройки development-flow и не коммитится.
-Пример находится в `development.config.example.json`.
+Пример находится в `development.config_example.json`.
 
-Полный init-flow готовит локальное окружение разработки и запускает dev-режим.
+Полный init-flow готовит локальное окружение разработки, генерирует актуальные development-конфиги nginx и запускает dev-режим.
 Аргументы команды — host локальной СУБД и admin credentials локальной СУБД, а не пользователь приложения.
 Режим прямого запуска без nginx задается в `development.config.json` через `localhost.noNginx`, debug-логирование — через `localhost.debug`. Флаг `localhost.mockData` включает создание фиксированного набора объемных mock-данных при `init`.
 
