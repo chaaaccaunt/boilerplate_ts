@@ -142,7 +142,7 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
 
 <template>
   <section class="p-4 lg:p-6">
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-5 flex flex-col items-start gap-3">
       <div class="min-w-0 max-w-full">
         <router-link class="mb-2 inline-flex text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" :to="{ name: 'system' }">
           Назад к системе
@@ -212,7 +212,7 @@ function getKindLabel(kind: iSharedLogs.LogKind): string {
       </button>
     </div>
 
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
+    <div class="mb-4 flex flex-wrap items-center justify-start gap-3 text-sm text-slate-600 dark:text-slate-300">
       <div>
         {{ pageStart }}-{{ pageEnd }} из {{ totalLogs }}
       </div>

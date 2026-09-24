@@ -115,7 +115,7 @@ function hasRole(roleName: iSharedUserRole.UserRoleName): boolean {
 
 <template>
   <section class="p-4 lg:p-6">
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-5 flex flex-col items-start gap-3">
       <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Пользователи</h1>
       <div
         class="grid w-full gap-2 sm:flex sm:w-auto sm:items-center"

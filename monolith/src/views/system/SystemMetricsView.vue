@@ -132,7 +132,7 @@ function getLogCellClass(item: iSharedSystem.RuntimeMetricsItemDto): string {
 
 <template>
   <section class="p-4 lg:p-6">
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-5 flex flex-col items-start gap-3">
       <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Состояние системы</h1>
       <button
         class="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-blue-200 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40 sm:w-auto"
